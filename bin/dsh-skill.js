@@ -11,8 +11,11 @@
  *   dsh-skill delete <name> [--yes]    delete a skill permanently
  *   dsh-skill add <path>               add a skill (.md file, or a bundle dir
  *                                      whose top level contains SKILL.md)
+ *   dsh-skill scope <name>             change scope: --global | --workspace <path>...
  *   --cwd <path>                       project root anchor (default: current dir)
  *   --project                          add into the project root instead of ~/.dsh/skills
+ *   --workspace <path>                 add/scope the skill to a workspace
+ *                                      (repeatable; stored once, junction-linked)
  */
 import { copyFile, mkdir, readdir, readFile, rename, rm, stat } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
@@ -26,6 +29,18 @@ import {
   validateFrontmatter,
   winnerEntry
 } from "../lib/skill-files.js";
+import {
+  deleteScopedSkill,
+  ensureJunction,
+  loadBindings,
+  normalizeWorkspaces,
+  saveBindings,
+  scopeSkill,
+  scopedEnabled,
+  setScopedEnabled,
+  storeRoot,
+  storeSkillDir
+} from "../lib/scope.js";
 
 function usage() {
   console.log([
@@ -34,11 +49,16 @@ function usage() {
     "  dsh-skill enable <name> [--cwd <path>]                启用已停用的技能",
     "  dsh-skill disable <name> [--cwd <path>]               停用技能（改名 *.disabled，热生效）",
     "  dsh-skill delete <name> [--yes] [--cwd <path>]        删除技能（目录型删整个目录）",
-    "  dsh-skill add <path> [--cwd <path>] [--project]       添加技能：单个 .md 文件或含顶层 SKILL.md 的目录束",
+    "  dsh-skill add <path> [--cwd <path>] [--project] [--workspace <path>...]",
+    "                                                        添加技能：单个 .md 文件或含顶层 SKILL.md 的目录束",
+    "  dsh-skill scope <name> [--global | --workspace <path>...]",
+    "                                                        设置技能作用域：全局（默认）或限定工作区",
     "",
     "说明: 停用 = 把 SKILL.md 改名 SKILL.md.disabled；网关的监听器会热感知，",
-    "无需重启。add 默认写入 ~/.dsh/skills（--project 写入项目 .dsh/skills），",
-    "写入前完整校验并查重，任何一步失败都会自动回滚，不会留下半成品。",
+    "无需重启。add 默认写入 ~/.dsh/skills（--project 写入项目 .dsh/skills）。",
+    "限定工作区（--workspace）时技能只存一份（~/.dsh/skills/.system/skill-viewer），",
+    "在每个工作区的 .dsh/skills 下建立联接点，仅这些工作区的会话可见；",
+    "工作区删除后联接点随之消失、绑定自动清理，技能本身不会丢失。",
     "随部署附带的技能（bundled）不在本工具管理范围内。"
   ].join("\n"));
 }
@@ -92,6 +112,9 @@ async function walkFiles(dir, rel = "", out = []) {
  * duplicate name across all roots, destination conflicts, unsafe layouts).
  * The copy itself is staged inside the destination root and renamed into
  * place at the end, so any failure mid-write rolls back cleanly.
+ *
+ * With `workspaces` the skill is stored once in the managed store and
+ * junction-linked into each workspace's project `.dsh/skills` directory.
  */
 async function addSkill(sourceArg, flags, roots, entries) {
   const source = resolve(sourceArg);
@@ -118,24 +141,42 @@ async function addSkill(sourceArg, flags, roots, entries) {
     name = validation.skill.name;
   }
 
-  // 2) Destination root.
-  const destRoot = flags.project
-    ? roots.find((root) => root.source === "project-dsh")?.path
-    : join(userHomes().dshHome, "skills");
-  if (destRoot === undefined) throw new Error("找不到目标技能根（--project 需要当前目录锚定一个项目根）");
-  const target = kind === "bundle" ? join(destRoot, name) : join(destRoot, basename(source));
+  // 2) Destination root: project root, scoped store, or the user root.
+  const homes = userHomes();
+  const scoped = flags.workspaces !== undefined && flags.workspaces.length > 0;
+  let destRoot;
+  if (scoped) {
+    destRoot = storeSkillDir(homes.dshHome, name);
+  } else if (flags.project) {
+    destRoot = roots.find((root) => root.source === "project-dsh")?.path;
+    if (destRoot === undefined) throw new Error("找不到目标技能根（--project 需要当前目录锚定一个项目根）");
+  } else {
+    destRoot = join(homes.dshHome, "skills");
+  }
+  // Scoped skills always live in the store dir (store/<name>/SKILL.md) with a
+  // junction at each workspace's .dsh/skills/<name>; the original flat file
+  // name is kept in the binding so un-scoping can restore it.
+  const target = scoped
+    ? (kind === "bundle" ? destRoot : join(destRoot, "SKILL.md"))
+    : kind === "bundle" ? join(destRoot, name) : join(destRoot, basename(source));
 
   // 3) Duplicate + layout guards.
   const existing = winnerEntry(entries, name);
   if (existing !== undefined) throw new Error('同名技能 "' + name + '" 已存在（' + existing.source + "，" + (existing.enabled ? "已启用" : "已停用") + "）");
+  const bindings = await loadBindings(homes.dshHome);
+  if (bindings[name] !== undefined) throw new Error('同名技能 "' + name + '" 已存在（工作区限定）');
   if (await pathExists(target)) throw new Error("目标路径已存在：" + target);
   const resolvedRoot = resolve(destRoot);
   if (resolve(source) === resolve(target)) throw new Error("源路径与目标相同，无需添加：" + sourceArg);
   if (resolvedRoot.startsWith(resolve(source))) throw new Error("源路径不能是目标技能根本身或其上级目录：" + sourceArg);
 
   // 4) Staged copy + atomic rename; roll back on any failure.
-  await mkdir(destRoot, { recursive: true });
-  const staging = join(destRoot, ".dsh-skill-staging-" + process.pid + "-" + Math.random().toString(36).slice(2, 8));
+  // For scoped adds the store dir (store/<name>) is the destination of the
+  // bundle staging, so the staging directory lives OUTSIDE it; for flat adds
+  // the staged file is renamed to store/<name>/SKILL.md.
+  const stagingBase = kind === "bundle" ? dirname(target) : destRoot;
+  await mkdir(stagingBase, { recursive: true });
+  const staging = join(stagingBase, ".dsh-skill-staging-" + process.pid + "-" + Math.random().toString(36).slice(2, 8));
   try {
     if (kind === "bundle") {
       for (const file of await walkFiles(source)) {
@@ -155,12 +196,52 @@ async function addSkill(sourceArg, flags, roots, entries) {
     await rm(staging, { recursive: true, force: true }).catch(() => {});
     throw new Error("写入技能文件失败（已回滚）：" + (error instanceof Error ? error.message : String(error)));
   }
-  return { name, kind, target };
+
+  // 5) Workspace links + binding for scoped adds.
+  // The junction must point at the store DIRECTORY (store/<name>) — the same
+  // layout the provider discovers for both bundle and flat skills.
+  const created = [];
+  if (scoped) {
+    const workspaces = await normalizeWorkspaces(flags.workspaces);
+    if (workspaces.length === 0) throw new Error("至少需要指定一个存在的工作区");
+    const junctionTarget = destRoot;
+    try {
+      for (const workspace of workspaces) {
+        await ensureJunction(junctionTarget, join(workspace, ".dsh", "skills", name));
+        created.push(workspace);
+      }
+      bindings[name] = {
+        kind: kind === "bundle" ? "bundle" : "flat",
+        workspaces,
+        ...(kind === "flat" ? { fileName: basename(source) } : {})
+      };
+      await saveBindings(homes.dshHome, bindings);
+    } catch (error) {
+      for (const workspace of created) await rm(join(workspace, ".dsh", "skills", name), { recursive: true, force: true }).catch(() => {});
+      await rm(target, { recursive: true, force: true }).catch(() => {});
+      delete bindings[name];
+      throw new Error("绑定工作区失败（已回滚）：" + (error instanceof Error ? error.message : String(error)));
+    }
+    return { name, kind, target, scoped: true, workspaces: created };
+  }
+  return { name, kind, target, scoped: false };
+}
+
+/** Human-readable scope suffix for list output. */
+function scopeTag(entry, bindings) {
+  const binding = bindings[entry.name];
+  if (binding !== undefined && binding.workspaces !== undefined) {
+    const n = binding.workspaces.length;
+    if (n === 0) return " [0 个工作区]";
+    return " [" + n + " 个工作区]";
+  }
+  if (entry.source === "project-dsh" || entry.source === "project-agents") return " [项目]";
+  return " [全局]";
 }
 
 async function main() {
   const args = process.argv.slice(2);
-  const flags = { cwd: process.cwd(), yes: false, project: false };
+  const flags = { cwd: process.cwd(), yes: false, project: false, workspaces: [] };
   const positional = [];
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--cwd") {
@@ -170,8 +251,16 @@ async function main() {
         process.exit(2);
       }
       flags.cwd = args[i];
+    } else if (args[i] === "--workspace") {
+      i += 1;
+      if (i >= args.length) {
+        console.error("--workspace 需要一个路径参数");
+        process.exit(2);
+      }
+      flags.workspaces.push(args[i]);
     } else if (args[i] === "--yes") flags.yes = true;
     else if (args[i] === "--project") flags.project = true;
+    else if (args[i] === "--global") flags.global = true;
     else if (args[i] === "--help" || args[i] === "-h") {
       usage();
       return;
@@ -184,34 +273,112 @@ async function main() {
     process.exit(2);
   }
 
-  const roots = await buildRoots(flags.cwd, userHomes());
+  const homes = userHomes();
+  const roots = await buildRoots(flags.cwd, homes);
   const entries = await collectSkillEntries(roots);
+  const bindings = await loadBindings(homes.dshHome);
 
   if (command === "list") {
-    if (entries.length === 0) {
+    const all = [...entries];
+    for (const [managedName, binding] of Object.entries(bindings)) {
+      if (all.some((entry) => entry.name === managedName)) continue;
+      if (binding === undefined || binding.workspaces === undefined) continue;
+      all.push({
+        name: managedName,
+        description: "",
+        enabled: await scopedEnabled(homes.dshHome, managedName),
+        kind: "bundle",
+        file: join(storeSkillDir(homes.dshHome, managedName), "SKILL.md"),
+        dirBundle: true,
+        source: "user-dsh"
+      });
+    }
+    if (all.length === 0) {
       console.log("未找到技能。（搜索范围：项目 .dsh/skills、.agents/skills 与用户 ~/.dsh/skills、~/.agents/skills）");
       return;
     }
-    entries.sort((a, b) => a.name.localeCompare(b.name) || a.source.localeCompare(b.source));
-    for (const entry of entries) {
+    all.sort((a, b) => a.name.localeCompare(b.name) || a.source.localeCompare(b.source));
+    for (const entry of all) {
       const state = entry.enabled ? "启用" : "停用";
       const detail = entry.description.length > 70 ? entry.description.slice(0, 70) + "…" : entry.description;
-      console.log([state, entry.name, "[" + entry.source + "]", detail].filter(Boolean).join("	"));
+      console.log([state, entry.name, "[" + entry.source + "]" + scopeTag(entry, bindings), detail].filter(Boolean).join("\t"));
     }
     return;
   }
+
   if (command === "add") {
     if (name === undefined) {
       console.error("add 需要一个路径参数（单个 .md 文件或包含顶层 SKILL.md 的目录束）");
       process.exit(2);
     }
     const added = await addSkill(name, flags, roots, entries);
-    console.log('已添加技能 "' + added.name + '"（' + (added.kind === "bundle" ? "目录束" : "单文件") + " → " + added.target + "，网关监听器将热感知）");
+    if (added.scoped) {
+      console.log('已添加技能 "' + added.name + '"（限定工作区：' + added.workspaces.join("、") + " → " + added.target + "，网关监听器将热感知）");
+    } else {
+      console.log('已添加技能 "' + added.name + '"（' + (added.kind === "bundle" ? "目录束" : "单文件") + " → " + added.target + "，网关监听器将热感知）");
+    }
     return;
   }
+
+  if (command === "scope") {
+    if (name === undefined) {
+      console.error("scope 需要一个技能名参数");
+      process.exit(2);
+    }
+    if (flags.global && flags.workspaces.length > 0) {
+      console.error("--global 与 --workspace 不能同时使用");
+      process.exit(2);
+    }
+    const workspaces = flags.global ? null : flags.workspaces.length > 0 ? flags.workspaces : null;
+    if (!flags.global && flags.workspaces.length === 0) {
+      console.error("scope 需要 --global 或至少一个 --workspace <path>");
+      process.exit(2);
+    }
+    const binding = bindings[name];
+    let globalLocator;
+    if (binding === undefined) {
+      const entry = winnerEntry(entries, name);
+      if (entry === undefined || entry.source !== "user-dsh") throw new Error('技能 "' + name + '" 不在用户技能目录中，无法设置作用域');
+      globalLocator = entry;
+    }
+    await scopeSkill(homes.dshHome, name, workspaces, globalLocator);
+    if (workspaces === null) {
+      console.log('技能 "' + name + '" 已恢复为全局使用');
+    } else {
+      const resolved = await normalizeWorkspaces(workspaces);
+      console.log('技能 "' + name + '" 已限定到 ' + resolved.length + ' 个工作区：' + resolved.join("、"));
+    }
+    return;
+  }
+
   if (name === undefined) {
     console.error(command + " 需要一个技能名参数");
     process.exit(2);
+  }
+  const managed = bindings[name];
+  if (managed !== undefined && managed.workspaces !== undefined && (command === "enable" || command === "disable" || command === "delete")) {
+    if (command === "enable") {
+      await setScopedEnabled(homes.dshHome, name, true);
+      console.log('已启用技能 "' + name + '"（网关监听器将热感知，无需重启）');
+      return;
+    }
+    if (command === "disable") {
+      await setScopedEnabled(homes.dshHome, name, false);
+      console.log('已停用技能 "' + name + '"（网关监听器将热感知，无需重启）');
+      return;
+    }
+    if (command === "delete") {
+      if (!flags.yes) {
+        const ok = await confirm('确认删除技能 "' + name + '"？此操作不可恢复 (y/N): ');
+        if (!ok) {
+          console.log("已取消");
+          return;
+        }
+      }
+      await deleteScopedSkill(homes.dshHome, name);
+      console.log('已删除技能 "' + name + '"（含工作区联接点）');
+      return;
+    }
   }
   const entry = winnerEntry(entries, name);
   if (entry === undefined) {

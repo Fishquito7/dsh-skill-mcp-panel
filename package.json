@@ -1,7 +1,7 @@
 {
   "name": "dsh-skill-viewer",
-  "version": "0.2.5",
-  "description": "dsh skill viewer: manage skills from the DSH web UI settings panel (hot enable/disable, delete, add) plus a CLI.",
+  "version": "0.2.6",
+  "description": "dsh skill viewer: manage skills from the DSH web UI settings panel (hot enable/disable, delete, add, workspace scoping) plus a CLI.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -26,6 +26,7 @@
   "dependencies": {
     "@deepseek-ai/dsh-home-paths": "^0.0.1-rc.3",
     "@deepseek-ai/dsh-typert-protocol": "^0.1.0-rc.6",
+    "yaml": "^2.9.0",
     "zod": "^4.4.3"
   },
   "bin": {

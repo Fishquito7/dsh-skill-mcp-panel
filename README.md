@@ -15,6 +15,12 @@ DSH 插件，可直接在 web 界面快速管理 skill 状态，同时在终端�
 - skill 状态：启用、停用状态标签，与内置插件列表同款样式
 - skill 管理：开关热启用/停用、删除；按名称搜索；进入页面自动刷新
 - skill 添加：选择单文件（`.md`）或目录束（含顶层 `SKILL.md` 的文件夹），不合规内容会被拒绝并提示原因
+- **工作区作用域**（0.2.6）：添加技能时可指定一个或多个工作区（默认全局）。
+  限定工作区的技能只在这些工作区的会话中可见，不会全局暴露；技能本体只存一份
+  （`~/.dsh/skills/.system/skill-viewer/<name>/`），每个绑定工作区的
+  `.dsh/skills/` 下是一个联接点。工作区被删除后联接点随之消失、绑定自动清理，
+  技能本身不会丢失（在页面中会提示"0 个工作区"）。卡片上的"作用域"按钮可随时
+  把技能在"全局 ↔ 限定工作区"之间切换。
 
 ## 安装
 
@@ -46,8 +52,11 @@ DSH 插件，可直接在 web 界面快速管理 skill 状态，同时在终端�
 随包附带 `dsh-skill` 命令，可直接在终端管理技能（同样热生效，网关关闭时也能用）：
 
 ```bash
-dsh-skill list                 # 列出技能（含启停状态）
+dsh-skill list                 # 列出技能（含启停状态与作用域）
 dsh-skill add <path>           # 添加技能（单个 .md 文件或含顶层 SKILL.md 的目录束）
+dsh-skill add <path> --workspace D:\项目A --workspace D:\项目B   # 限定到指定工作区
+dsh-skill scope <name> --global                    # 改为全局
+dsh-skill scope <name> --workspace D:\项目A        # 限定到指定工作区（可重复）
 dsh-skill disable <name>       # 停用
 dsh-skill enable <name>        # 启用
 dsh-skill delete <name>        # 删除（需确认）
