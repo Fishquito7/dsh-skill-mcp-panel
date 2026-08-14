@@ -1,6 +1,6 @@
 {
   "name": "dsh-skill-viewer",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "dsh skill viewer: manage skills from the DSH web UI settings panel (hot enable/disable, delete, add) plus a CLI.",
   "type": "module",
   "main": "lib/index.js",
