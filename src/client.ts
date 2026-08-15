@@ -1086,7 +1086,7 @@ const onPickFolder = (event) => {
 				const input = event.currentTarget;
 				const files = [...input.files];
 				input.value = "";
-				if (files.length !== 1) return;
+				if (files.length === 0) return;
 				runAdd("flat", files);
 			};
 
@@ -1522,6 +1522,7 @@ const onPickFolder = (event) => {
 							className: c.fileInput,
 							type: "file",
 							accept: ".md,text/markdown",
+									multiple: true,
 							onChange: onPickFile
 						}),
 groupEditor !== null ? (0, react_jsx_runtime.jsx)(GroupDialog, {

@@ -33,7 +33,7 @@ DSH 插件，可直接在 web 界面快速管理 skill 状态，同时在终端�
 1. 安装本包（bundle 层自动挂载，无需编辑配置文件）
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-viewer/releases/download/v0.6.2/dsh-skill-viewer-0.6.2.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-viewer/releases/download/v0.6.3/dsh-skill-viewer-0.6.3.tgz
    ```
 
    > 首选发行版 tarball：不走 Git，不受 pnpm v11 的构建脚本限制。
