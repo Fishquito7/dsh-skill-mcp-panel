@@ -25,6 +25,7 @@ import {
   loadGroups,
   upsertGroup
 } from "./groups.js";
+import { compareVersions, currentVersion, fetchLatestVersion } from "./version.js";
 
 /**
  * dsh-skill-viewer —— 宿主半区。
@@ -81,6 +82,12 @@ const saveGroupPayloadSchema = z.object({
 });
 
 const deleteGroupPayloadSchema = z.object({ id: z.string() });
+
+const checkUpdateResultSchema = z.object({
+  current: z.string(),
+  latest: z.string().nullable(),
+  updateAvailable: z.boolean()
+});
 
 const listResultSchema = z.object({ skills: z.array(skillSummarySchema) });
 
@@ -171,6 +178,15 @@ const MANIFEST = {
       invocation: { kind: "direct" },
       parameters: [],
       result: { mode: "strict", typeSymbol: "dsh-skill-viewer#GroupsResult", schema: groupsResultSchema }
+    },
+    {
+      id: "dsh-skill-viewer#skillsViewer/checkUpdate",
+      service: "skillsViewer",
+      namespace: "skillsViewer",
+      method: "checkUpdate",
+      invocation: { kind: "direct" },
+      parameters: [],
+      result: { mode: "strict", typeSymbol: "dsh-skill-viewer#CheckUpdateResult", schema: checkUpdateResultSchema }
     },
     {
       id: "dsh-skill-viewer#skillsViewer/saveGroup",
@@ -429,6 +445,14 @@ class SkillsViewerGateway extends TypertRemoteService {
   /** 分组列表（按名称排序）。 */
   async groups() {
     return { groups: this.groupRows(await loadGroups(this.homes().dshHome)) };
+  }
+
+  /** 检查插件是否有新版本（对比 GitHub Release 最新版）。 */
+  async checkUpdate() {
+    const current = currentVersion();
+    const latest = await fetchLatestVersion();
+    if (latest === undefined) return { current, latest: null, updateAvailable: false };
+    return { current, latest, updateAvailable: compareVersions(latest, current) > 0 };
   }
 
   /** 新建或更新分组（设置某工作区下的成员列表）。 */
