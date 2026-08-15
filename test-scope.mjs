@@ -13,7 +13,8 @@ import {
   migrateEntry,
   normalizeWorkspace,
   scopeRootOf,
-  workspaceSkillRoot
+  workspaceSkillRoot,
+  workspaceTitleMap
 } from "./lib/scope.js";
 import { collectSkillEntries, pathExists } from "./lib/skill-files.js";
 
@@ -141,6 +142,18 @@ async function main() {
   await mkdir(join(wsA, "sub"), { recursive: true });
   const norm = await normalizeWorkspace(join(wsA, "sub"));
   check(resolve(norm) === resolve(wsA), "workspace resolves to its git project root");
+
+  // 11) workspaceTitleMap：DSH 注册表的工作区名称优先于文件夹名
+  const fakeHome = join(root, "fake-home");
+  await mkdir(join(fakeHome, "storages"), { recursive: true });
+  await writeFile(join(fakeHome, "storages", "workspace.json"), JSON.stringify({
+    tables: { workspaces: { wid: { path: join(wsA, "sub"), title: "改名后的工作区" } } }
+  }));
+  const titleMap = await workspaceTitleMap(fakeHome);
+  const keyA = process.platform === "win32" ? resolve(wsA).toLowerCase() : resolve(wsA);
+  check(titleMap.get(keyA) === "改名后的工作区", "workspaceTitleMap uses registry title over folder name");
+  await writeFile(join(fakeHome, "storages", "workspace.json"), "{ broken json");
+  check((await workspaceTitleMap(fakeHome)).size === 0, "workspaceTitleMap tolerates broken registry file");
 
   await rm(root, { recursive: true, force: true });
   console.log("---");

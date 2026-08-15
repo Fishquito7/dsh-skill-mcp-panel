@@ -14,6 +14,7 @@
  * 本模块零依赖（仅 node:fs / node:path / node:os）。
  */
 import { cp, mkdir, rename, rm, stat } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { findProjectRoot, pathExists } from "./skill-files.js";
 
@@ -59,6 +60,36 @@ export async function normalizeWorkspace(raw) {
   const list = await normalizeWorkspaces([raw]);
   if (list.length === 0) throw new Error("至少需要指定一个存在的工作区");
   return list[0];
+}
+
+/**
+ * 读取 DSH 自己的工作区注册表（<dshHome>/storages/workspace.json），
+ * 返回「项目根路径 → 工作区名称（title）」的映射。
+ *
+ * DSH 的工作区名称与文件夹名是分开的：在工作区设置里改名只改 title，
+ * 不会重命名文件夹，所以显示名称必须取 title 而不是文件夹名。
+ * 注册表缺失/损坏时返回空 Map，调用方回退文件夹名。
+ */
+export async function workspaceTitleMap(dshHome) {
+  const map = new Map();
+  try {
+    const raw = readFileSync(join(dshHome, "storages", "workspace.json"), "utf8");
+    const data = JSON.parse(raw);
+    const rows = data !== null && typeof data === "object" ? data.tables?.workspaces : undefined;
+    if (rows === undefined || rows === null || typeof rows !== "object") return map;
+    for (const row of Object.values(rows as Record<string, any>)) {
+      if (row === null || typeof row !== "object") continue;
+      const path = row.path;
+      const title = row.title;
+      if (typeof path !== "string" || path === "" || typeof title !== "string" || title === "") continue;
+      const project = await findProjectRoot(resolve(path));
+      const key = process.platform === "win32" ? project.toLowerCase() : project;
+      map.set(key, title);
+    }
+  } catch {
+    // 注册表不可用：调用方回退文件夹名
+  }
+  return map;
 }
 
 /** Windows 共享冲突 / 权限错误码：稍等片刻可能自行恢复。 */

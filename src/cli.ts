@@ -41,7 +41,8 @@ import {
   batchMigrateEntries,
   migrateEntry,
   normalizeWorkspace,
-  workspaceSkillRoot
+  workspaceSkillRoot,
+  workspaceTitleMap
 } from "./scope.js";
 import { compareVersions, currentVersion, fetchLatestVersion } from "./version.js";
 
@@ -144,6 +145,7 @@ async function addSkill(sourceArg, flags, roots, entries) {
 
   // 2) 目标位置的技能文件夹。
   const homes = userHomes();
+  const titles = await workspaceTitleMap(homes.dshHome);
   let destRoot;
   if (flags.workspace !== undefined) {
     destRoot = workspaceSkillRoot(await normalizeWorkspace(flags.workspace));
@@ -188,8 +190,13 @@ async function addSkill(sourceArg, flags, roots, entries) {
 }
 
 /** 列表输出用的人类可读位置标签（全局 / 工作区）。 */
-function scopeLabel(entry) {
-  if (entry.projectRoot !== undefined) return "工作区: " + (basename(entry.projectRoot) || entry.projectRoot);
+function scopeLabel(entry, titles) {
+  if (entry.projectRoot !== undefined) {
+    const key = process.platform === "win32" ? entry.projectRoot.toLowerCase() : entry.projectRoot;
+    const title = titles.get(key);
+    if (title !== undefined) return "工作区: " + title;
+    return "工作区: " + (basename(entry.projectRoot) || entry.projectRoot);
+  }
   return "全局";
 }
 
@@ -264,6 +271,7 @@ async function main() {
   }
 
   const homes = userHomes();
+  const titles = await workspaceTitleMap(homes.dshHome);
   const roots = await buildRoots(flags.cwd, homes);
   const entries = await collectSkillEntries(roots);
 
@@ -276,7 +284,7 @@ async function main() {
     for (const entry of entries) {
       const state = entry.enabled ? "启用" : "停用";
       const detail = entry.description.length > 70 ? entry.description.slice(0, 70) + "…" : entry.description;
-      console.log([state, entry.name, "[" + entry.source + "]", scopeLabel(entry), detail].filter(Boolean).join("	"));
+      console.log([state, entry.name, "[" + entry.source + "]", scopeLabel(entry, titles), detail].filter(Boolean).join("	"));
     }
     return;
   }

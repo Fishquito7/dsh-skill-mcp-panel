@@ -379,15 +379,37 @@ class SkillsViewerGateway extends TypertRemoteService {
     return undefined;
   }
 
-  scopeForEntry(entry) {
-    if (entry.projectRoot !== undefined) return { kind: "workspace", path: entry.projectRoot, label: basename(entry.projectRoot) || entry.projectRoot };
+  /** 已知工作区标题表：项目根 → 名称（注册表 title，缺省回退文件夹名）。 */
+  async workspaceTitles() {
+    const map = new Map();
+    const keyOf = (path) => process.platform === "win32" ? path.toLowerCase() : path;
+    for (const workspace of (await this.workspaces()).workspaces) {
+      const project = resolvePath(workspace.path);
+      const label = workspace.label && workspace.label !== "" ? workspace.label : (basename(project) || project);
+      map.set(keyOf(project), label);
+    }
+    return { map, keyOf };
+  }
+
+  /** 条目所属位置标签：优先用 DSH 的工作区名称，取不到回退文件夹名。 */
+  async scopeForEntry(entry, titles?) {
+    if (entry.projectRoot !== undefined) {
+      const cache = titles ?? await this.workspaceTitles();
+      const project = resolvePath(entry.projectRoot);
+      const label = cache.map.get(cache.keyOf(project));
+      return { kind: "workspace", path: entry.projectRoot, label: label ?? (basename(entry.projectRoot) || entry.projectRoot) };
+    }
     return { kind: "global" };
   }
 
-  scopeForTarget(targetRoot, targetProject) {
+  /** 目标位置标签：优先用 DSH 的工作区名称，取不到回退文件夹名。 */
+  async scopeForTarget(targetRoot, targetProject, titles?) {
     const { dshHome } = this.homes();
     if (resolvePath(targetRoot) === resolvePath(join(dshHome, "skills"))) return { kind: "global" };
-    return { kind: "workspace", path: targetProject, label: basename(targetProject) || targetProject };
+    const cache = titles ?? await this.workspaceTitles();
+    const project = resolvePath(targetProject);
+    const label = cache.map.get(cache.keyOf(project));
+    return { kind: "workspace", path: targetProject, label: label ?? (basename(targetProject) || targetProject) };
   }
 
   // ── 远程方法 ─────────────────────────────────────────────────────────────
@@ -422,6 +444,7 @@ class SkillsViewerGateway extends TypertRemoteService {
       });
       seen.add(seenKey(skill.name, "global"));
     }
+    const titles = await this.workspaceTitles();
     for (const entry of await collectSkillEntries(roots)) {
       const scopePath = entry.projectRoot ?? "global";
       if (seen.has(seenKey(entry.name, scopePath))) continue;
@@ -435,7 +458,7 @@ class SkillsViewerGateway extends TypertRemoteService {
         enabled: entry.enabled,
         modelInvocable: false,
         userInvocable: false,
-        scope: this.scopeForEntry(entry),
+        scope: await this.scopeForEntry(entry, titles),
         groups: groupsForSkill(groupMap, scopePath, entry.name)
       });
     }
@@ -625,7 +648,7 @@ class SkillsViewerGateway extends TypertRemoteService {
     const entry = await this.migratableEntry(name, sessionId);
     if (entry === undefined) throw new Error('技能 "' + name + '" 没有可迁移的文件（随部署附带或运行时内置的技能不可迁移）');
     await migrateEntry(entry, targetRoot, mode);
-    return { name, scope: this.scopeForTarget(targetRoot, targetProject) };
+    return { name, scope: await this.scopeForTarget(targetRoot, targetProject) };
   }
 
   /** 把一批技能迁移到一个或多个目标工作区；逐条返回结果。 */
@@ -754,7 +777,7 @@ class SkillsViewerGateway extends TypertRemoteService {
       await rm(target, { recursive: true, force: true }).catch(() => {});
       throw new Error("DSH 未接受该技能（格式校验未通过），已回滚。请检查 frontmatter 后重试");
     }
-    return { name, kind, scope: targetProject !== undefined ? { kind: "workspace", path: targetProject, label: basename(targetProject) || targetProject } : { kind: "global" } };
+    return { name, kind, scope: targetProject === undefined ? { kind: "global" } : await this.scopeForTarget(targetRoot, targetProject) };
   }
 
   async waitForDiscovery(name, sessionId, probeCwd) {
