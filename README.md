@@ -27,13 +27,17 @@ DSH 插件，可直接在 web 界面快速管理 skill 状态，同时在终端�
   点击只显示该分组下的技能。“分组”按钮（迁移按钮左侧）打开分组编辑器：新建/重命名/
   删除分组、选择工作区、命名并批量勾选成员。分组只写入插件自己的显示配置
   （`~/.dsh/skills/.system/skill-viewer/groups.json`），不修改技能目录。
+- **作用域化管理**（0.6.4）：同名技能同时存在于全局与某工作区时，删除、启停、
+  查看内容均按（名称+作用域）精确操作——页面各行独立展开、独立操作，绝不影响
+  其它作用域里的副本；找不到指定作用域的条目会直接报错，不会回退误操作。
+  命令行同名技能也需用 `--global` / `--project` / `--workspace` 显式指定。
 
 ## 安装
 
 1. 安装本包（bundle 层自动挂载，无需编辑配置文件）
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-viewer/releases/download/v0.6.3/dsh-skill-viewer-0.6.3.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-viewer/releases/download/v0.6.4/dsh-skill-viewer-0.6.4.tgz
    ```
 
    > 首选发行版 tarball：不走 Git，不受 pnpm v11 的构建脚本限制。
@@ -72,6 +76,7 @@ dsh-skill delete <name>        # 删除（需确认）
 ```
 
 CLI 只扫描当前目录锚定的项目根与用户根；管理其他工作区的技能请加 `--cwd <工作区路径>`。
+同名技能存在于多个作用域时，`enable`/`disable`/`delete` 需加 `--global`/`--project`/`--workspace` 指定操作哪一份。
 
 ## 工作原理
 

@@ -11,18 +11,17 @@
 
 		// ── 样式（按用途分组）─────────────────────────────────────────────────
 		// 页面骨架：section / 状态文案 / 搜索框 / 标题行
-		const cssChrome = ".SKV_section{width:100%;max-width:760px;color:var(--dsw-alias-label-primary);flex-direction:column;gap:14px;display:flex}.SKV_status{color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:20px;margin:0}.SKV_failure{color:var(--dsw-alias-state-error-primary);align-items:center;gap:10px;display:flex}.SKV_failure p{margin:0}.SKV_failure button{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer;background:0 0;border-radius:6px;padding:4px 10px}.SKV_catalog{flex-direction:column;gap:12px;display:flex}.SKV_catalogHeading{align-items:baseline;gap:7px;padding:0 2px;display:flex}.SKV_catalogHeading h3{font-size:13px;font-weight:600;line-height:20px;margin:0}.SKV_catalogHeading span{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;font-size:12px;line-height:18px}.SKV_searchBox{position:relative;width:100%}.SKV_searchIcon{color:var(--dsw-alias-label-tertiary)}.SKV_searchField::placeholder{color:var(--dsw-alias-label-tertiary)}.SKV_searchField:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}";
+		const cssChrome = ".SKV_section{width:100%;max-width:760px;color:var(--dsw-alias-label-primary);flex-direction:column;gap:14px;display:flex}.SKV_status{color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:20px;margin:0}.SKV_failure{color:var(--dsw-alias-state-error-primary);align-items:center;gap:10px;display:flex}.SKV_failure p{margin:0}.SKV_failure button{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer;background:0 0;border-radius:6px;padding:4px 10px}.SKV_catalog{flex-direction:column;gap:12px;display:flex}.SKV_catalogHeading{align-items:baseline;gap:7px;padding:0 2px;display:flex}.SKV_catalogHeading h3{font-size:13px;font-weight:600;line-height:20px;margin:0}.SKV_catalogHeading span{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;font-size:12px;line-height:18px}.SKV_searchBox{position:relative;width:100%}.SKV_searchIcon{color:var(--dsw-alias-label-tertiary);position:absolute;left:12px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;pointer-events:none}.SKV_searchField::placeholder{color:var(--dsw-alias-label-tertiary)}.SKV_searchField:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}.SKV_searchField{box-sizing:border-box;width:100%;height:36px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:34px;outline:0;padding:0 12px 0 38px}.SKV_iconButton{box-sizing:border-box;width:28px;height:28px;color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;padding:0;display:inline-flex;align-items:center;justify-content:center}.SKV_iconButton:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.SKV_iconButton:disabled{cursor:default;opacity:.6}.SKV_notice{border-radius:8px;align-items:center;gap:10px;padding:8px 12px;display:flex;border:1px solid transparent}.SKV_notice[data-kind=error]{border-color:color-mix(in srgb, var(--dsw-alias-state-error-primary) 40%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent)}.SKV_notice[data-kind=error] .SKV_noticeText{color:var(--dsw-alias-state-error-primary)}.SKV_notice[data-kind=info]{border-color:color-mix(in srgb, var(--dsw-alias-state-business-primary) 35%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 8%, transparent)}.SKV_notice[data-kind=info] .SKV_noticeText{color:var(--dsw-alias-state-business-primary)}.SKV_noticeText{font-size:12px;line-height:18px;flex:1;min-width:0}.SKV_noticeButton{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:2px 10px;font-size:12px;line-height:18px;flex:none}.SKV_noticeButton:hover{background:var(--dsw-alias-interactive-bg-hover-solid)}.SKV_addMenuHint{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:16px;padding:2px 12px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.SKV_deleteButton[data-confirm=true]{color:var(--dsw-alias-state-error-primary);border-color:color-mix(in srgb, var(--dsw-alias-state-error-primary) 50%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent)}";
 		// 卡片列表：卡片、状态标签、内容框、开关与删除操作
 		const cssCards = ".SKV_cards{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:10px;margin:0;padding:0;list-style:none;display:grid}.SKV_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:10px;min-width:0;overflow:hidden}.SKV_card[data-open=true]{border-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-shadow-lv1)}.SKV_cardContent{width:100%;align-items:center;gap:8px;font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:none;padding:10px 12px;display:flex;text-align:left}.SKV_cardLeading{width:16px;height:16px;color:var(--dsw-alias-label-tertiary);flex:none;justify-content:center;align-items:center;display:inline-flex}.SKV_cardTitle{min-width:0;flex:1;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;font-size:13px;font-weight:500;line-height:20px;transition:color .2s ease}.SKV_cardTitle[data-disabled=true]{color:var(--dsw-alias-label-tertiary)}.SKV_cardTrailing{color:var(--dsw-alias-label-tertiary);flex:none;align-items:center;gap:7px;display:inline-flex}.SKV_statusDot{background:var(--dsw-alias-label-tertiary);border-radius:999px;flex:none;width:7px;height:7px;display:inline-block;transition:background-color .2s ease}.SKV_statusDot[data-enabled=true]{background:var(--dsw-alias-state-success-primary)}.SKV_configTag{background:var(--dsw-alias-bg-layer-1);min-height:20px;color:var(--dsw-alias-label-secondary);white-space:nowrap;border-radius:5px;align-items:center;padding:1px 6px;font-size:11px;line-height:16px;display:inline-flex;transition:background-color .2s ease,color .2s ease}.SKV_configTag[data-enabled=true]{background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);color:var(--dsw-alias-state-success-primary)}.SKV_configTag[data-enabled=false]{color:var(--dsw-alias-label-tertiary)}.SKV_chevron{color:var(--dsw-alias-label-tertiary);flex:none;transition:transform .15s}.SKV_card[data-open=true] .SKV_chevron{transform:rotate(180deg)}.SKV_cardDetails{border-top:1px solid var(--dsw-alias-border-l2);flex-direction:column;gap:8px;padding:10px 12px;display:flex}.SKV_meta{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;margin:0}.SKV_metaProvider{color:var(--dsw-alias-label-tertiary);margin-left:6px}.SKV_contentBox{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-markdown-code-block);border-radius:8px;max-height:213px;overflow:auto}.SKV_content{margin:0;padding:10px 12px;white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-primary);font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;font-size:12px;line-height:18px}.SKV_failureText{color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px;margin:0}.SKV_cardActions{border-top:1px solid var(--dsw-alias-border-l2);align-items:center;gap:8px;padding-top:10px;display:flex}.SKV_switchRow{align-items:center;gap:8px;display:inline-flex}.SKV_switch{box-sizing:border-box;width:36px;height:20px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:999px;cursor:pointer;padding:0;position:relative;flex:none;transition:background-color .2s ease,border-color .2s ease}.SKV_switch:disabled{cursor:default;opacity:.6}.SKV_switch[data-on=true]{border-color:transparent;background:var(--dsw-alias-state-business-primary)}.SKV_switchThumb{box-sizing:border-box;width:14px;height:14px;border-radius:50%;background:var(--dsw-alias-label-secondary);position:absolute;top:2px;left:2px;transition:transform .22s cubic-bezier(.34,1.56,.64,1),background-color .18s ease,width .15s ease}.SKV_switch[data-on=true] .SKV_switchThumb{transform:translateX(18px);background:var(--dsw-alias-label-primary-foreground)}.SKV_switch:active:not(:disabled) .SKV_switchThumb{width:18px}.SKV_switch[data-on=true]:active:not(:disabled) .SKV_switchThumb{transform:translateX(14px)}.SKV_switchText{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}.SKV_opError{color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}.SKV_deleteButton{box-sizing:border-box;height:28px;color:var(--dsw-alias-state-error-primary);font:inherit;cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;padding:0 12px;font-size:12px;line-height:26px;margin-left:auto}.SKV_deleteButton:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.SKV_deleteButton:disabled{cursor:default;opacity:.6}";
 		// 添加技能：按钮组与状态行
-		const cssAdd = ".SKV_addActions{margin-left:auto;align-items:center;gap:6px;display:inline-flex;position:relative}.SKV_addButton{box-sizing:border-box;width:28px;height:28px;color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;padding:0;display:inline-flex;align-items:center;justify-content:center}.SKV_addButton:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.SKV_addButton:disabled{cursor:default;opacity:.6}.SKV_addMenu{position:absolute;top:calc(100% + 4px);right:0;background:var(--dsw-alias-bg-layer-3);border:1px solid var(--dsw-alias-border-l1);border-radius:8px;box-shadow:var(--dsw-shadow-lv1);flex-direction:column;padding:4px;display:flex;z-index:10}.SKV_addMenuItem{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:none;border-radius:6px;padding:6px 12px;font-size:13px;line-height:20px;text-align:left;white-space:nowrap}.SKV_addMenuItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_addStatus{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:0}.SKV_addErrorBanner{border:1px solid color-mix(in srgb, var(--dsw-alias-state-error-primary) 40%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent);border-radius:8px;align-items:center;gap:10px;padding:8px 12px;display:flex}.SKV_addErrorText{color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px;flex:1;min-width:0}.SKV_addDismiss{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:2px 10px;font-size:12px;line-height:18px;flex:none}.SKV_addDismiss:hover{background:var(--dsw-alias-interactive-bg-hover-solid)}.SKV_fileInput{display:none}";
+		const cssAdd = ".SKV_addActions{margin-left:auto;align-items:center;gap:6px;display:inline-flex;position:relative}.SKV_addMenu{position:absolute;top:calc(100% + 4px);right:0;background:var(--dsw-alias-bg-layer-3);border:1px solid var(--dsw-alias-border-l1);border-radius:8px;box-shadow:var(--dsw-shadow-lv1);flex-direction:column;padding:4px;display:flex;z-index:10}.SKV_addMenuItem{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:none;border-radius:6px;padding:6px 12px;font-size:13px;line-height:20px;text-align:left;white-space:nowrap}.SKV_addMenuItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_addStatus{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:0}.SKV_fileInput{display:none}";
 		// 作用域：横栏、迁移按钮与迁移对话框样式
-		const cssScope = ".SKV_scopeTag{background:var(--dsw-alias-bg-layer-1);min-height:20px;color:var(--dsw-alias-label-secondary);white-space:nowrap;border-radius:5px;align-items:center;padding:1px 6px;font-size:11px;line-height:16px;display:inline-flex}.SKV_scopeTag[data-scoped=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);color:var(--dsw-alias-state-business-primary)}.SKV_scopeTag[data-scoped=true][data-zero=true]{background:color-mix(in srgb, var(--dsw-alias-state-warning-primary) 12%, transparent);color:var(--dsw-alias-state-warning-primary)}.SKV_scopeEditButton{font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:3px 10px;font-size:12px;line-height:18px}.SKV_scopeEditButton:hover{background:var(--dsw-alias-interactive-bg-hover-solid)}.SKV_scopeOverlay{position:fixed;inset:0;background:color-mix(in srgb, rgba(0,0,0,.45) 55%, transparent);align-items:center;justify-content:center;display:flex;z-index:1000}.SKV_scopeBox{background:var(--dsw-alias-bg-layer-3);border:1px solid var(--dsw-alias-border-l1);border-radius:12px;box-shadow:var(--dsw-shadow-lv2);width:440px;max-width:calc(100vw - 48px);max-height:80vh;flex-direction:column;padding:16px;gap:12px;display:flex}.SKV_scopeBox h4{font-size:14px;font-weight:600;line-height:20px;margin:0}.SKV_scopeOptions{flex-direction:column;gap:8px;display:flex}.SKV_scopeOption{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 12px;font-size:13px;line-height:20px;text-align:left;display:flex;align-items:center;gap:8px}.SKV_scopeOption[data-active=true]{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 1px color-mix(in srgb, var(--dsw-alias-state-business-primary) 30%, transparent)}.SKV_scopeOption input{margin:0;accent-color:var(--dsw-alias-state-business-primary)}.SKV_wsList{flex-direction:column;gap:4px;max-height:200px;overflow:auto;padding:0;margin:0;list-style:none;display:flex}.SKV_wsItem{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:none;border-radius:6px;padding:5px 8px;font-size:12px;line-height:18px;text-align:left;display:flex;align-items:center;gap:8px}.SKV_wsItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_wsItem input{margin:0;flex:none;accent-color:var(--dsw-alias-state-business-primary)}.SKV_wsPath{color:var(--dsw-alias-label-tertiary);min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.SKV_manualRow{align-items:center;gap:6px;display:flex}.SKV_manualInput{flex:1;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);height:30px;color:var(--dsw-alias-label-primary);font:inherit;border-radius:6px;outline:none;padding:0 8px;font-size:12px}.SKV_manualInput:focus-visible{border-color:var(--dsw-alias-state-business-primary)}.SKV_manualAdd{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:3px 10px;font-size:12px;flex:none}.SKV_scopeHint{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:0}.SKV_scopeWarning{color:var(--dsw-alias-state-warning-primary);font-size:12px;line-height:18px;margin:0}.SKV_scopeActions{align-items:center;justify-content:flex-end;gap:8px;display:flex}.SKV_scopeAction{font:inherit;cursor:pointer;border-radius:6px;padding:5px 14px;font-size:13px;line-height:20px}.SKV_scopeCancel{background:0 0;border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary)}.SKV_scopeConfirm{background:var(--dsw-alias-state-business-primary);border:1px solid transparent;color:var(--dsw-alias-state-business-on-primary, #fff)}.SKV_scopeConfirm:disabled{opacity:.6;cursor:default}";
-		const cssUtils = "";
+		const cssScope = ".SKV_scopeOverlay{position:fixed;inset:0;background:color-mix(in srgb, rgba(0,0,0,.45) 55%, transparent);align-items:center;justify-content:center;display:flex;z-index:1000}.SKV_scopeBox{background:var(--dsw-alias-bg-layer-3);border:1px solid var(--dsw-alias-border-l1);border-radius:12px;box-shadow:var(--dsw-shadow-lv2);width:440px;max-width:calc(100vw - 48px);max-height:80vh;flex-direction:column;padding:16px;gap:12px;display:flex}.SKV_scopeBox h4{font-size:14px;font-weight:600;line-height:20px;margin:0}.SKV_scopeOptions{flex-direction:column;gap:8px;display:flex}.SKV_scopeOption{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 12px;font-size:13px;line-height:20px;text-align:left;display:flex;align-items:center;gap:8px}.SKV_scopeOption[data-active=true]{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 1px color-mix(in srgb, var(--dsw-alias-state-business-primary) 30%, transparent)}.SKV_scopeOption input{margin:0;accent-color:var(--dsw-alias-state-business-primary)}.SKV_wsPath{color:var(--dsw-alias-label-tertiary);min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.SKV_scopeActions{align-items:center;justify-content:flex-end;gap:8px;display:flex}.SKV_scopeAction{font:inherit;cursor:pointer;border-radius:6px;padding:5px 14px;font-size:13px;line-height:20px}.SKV_scopeCancel{background:0 0;border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary)}.SKV_scopeConfirm{background:var(--dsw-alias-state-business-primary);border:1px solid transparent;color:var(--dsw-alias-state-business-on-primary, #fff)}.SKV_scopeConfirm:disabled{opacity:.6;cursor:default}";
 		// 设置页导航图标（外壳硬编码图标，无扩展点：打标记 + CSS 蒙版绘制）
 		const cssIcon = "button[data-skills-nav]>svg{display:none!important}button[data-skills-nav] svg{display:none!important}button[data-skills-nav] *::before{display:none!important}button[data-skills-nav] *::after{display:none!important}button[data-skills-nav] *{background-image:none!important}button[data-skills-nav]::before{content:\"\";width:16px;height:16px;flex:none;display:inline-block;background-color:currentColor;-webkit-mask:url(data:image/png;base64,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) center/16px 16px no-repeat;mask:url(data:image/png;base64,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) center/16px 16px no-repeat}body[data-ds-dark-theme] .SKV_switchThumb{background:#fff}body[data-ds-dark-theme] .SKV_switch[data-on=true] .SKV_switchThumb{background:#fff}";
-		const cssMigrate = ".SKV_scopeBar{gap:6px;padding:2px;max-width:100%;overflow-x:auto;scrollbar-width:thin;display:flex;align-items:center}.SKV_scopeChip{font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:3px 12px;font-size:12px;line-height:18px;white-space:nowrap;flex:none;display:inline-flex;align-items:center;gap:6px}.SKV_scopeChip:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_scopeChip[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-state-business-primary)}.SKV_scopeChipCount{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;font-size:11px;line-height:16px}.SKV_scopeChip[data-active=true] .SKV_scopeChipCount{color:var(--dsw-alias-state-business-primary)}.SKV_migrateButton{box-sizing:border-box;width:28px;height:28px;color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;padding:0;display:inline-flex;align-items:center;justify-content:center}.SKV_migrateButton:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.SKV_migrateButton:disabled{cursor:default;opacity:.6}.SKV_migrateSection{flex-direction:column;gap:6px;display:flex}.SKV_migrateLabel{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;margin:0}.SKV_migrateFromValue{color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;margin:0;word-break:break-all}.SKV_migrateList{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;max-height:220px;overflow-y:auto;margin:0;padding:4px;list-style:none;display:flex;flex-direction:column;gap:2px}.SKV_migrateItem{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:none;border-radius:6px;padding:6px 10px;font-size:13px;line-height:20px;text-align:left;display:flex;align-items:center;gap:8px}.SKV_migrateItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_migrateItem input{margin:0;accent-color:var(--dsw-alias-state-business-primary)}.SKV_migrateItemName{flex:1;min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.SKV_migrateItemState{color:var(--dsw-alias-label-tertiary);font-size:11px;flex:none}.SKV_migrateSelectAll{font:inherit;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:0 0;border:none;padding:0;font-size:12px;line-height:18px}.SKV_migrateHint{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:0}.SKV_migrateResult{border-radius:8px;padding:8px 12px;font-size:12px;line-height:18px;margin:0}.SKV_migrateResult[data-ok=true]{background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);color:var(--dsw-alias-state-success-primary)}.SKV_migrateResult[data-ok=false]{background:color-mix(in srgb, var(--dsw-alias-state-warning-primary) 10%, transparent);color:var(--dsw-alias-state-warning-primary)}.SKV_migrateResultList{margin:4px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;max-height:120px;overflow-y:auto}.SKV_scopeChip{max-width:320px}.SKV_scopeChipLabel{max-width:220px;min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;display:inline-block}.SKV_wsPath{min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;display:block}.SKV_migrateOptionLabel{min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.SKV_scopeOptions{max-height:132px;overflow-y:auto;scrollbar-width:thin}.SKV_migrateList{max-height:148px}.SKV_scopeBox{overflow-y:auto;scrollbar-width:thin}.SKV_groupBar{gap:0;padding:0 2px;max-width:100%;overflow-x:auto;scrollbar-width:thin;display:flex;align-items:center}.SKV_groupItem{font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:none;padding:2px 10px;font-size:12px;line-height:18px;white-space:nowrap;flex:none}.SKV_groupItem:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover);border-radius:5px}.SKV_groupItem[data-active=true]{color:var(--dsw-alias-state-business-primary);font-weight:500}.SKV_groupSep{color:var(--dsw-alias-border-l1);flex:none;user-select:none;font-size:12px;line-height:18px;padding:0 1px}.SKV_select{width:100%;box-sizing:border-box;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 8px}.SKV_select:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);outline:none}.SKV_selectMulti{width:100%;box-sizing:border-box;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:4px}.SKV_selectMulti option{padding:4px 6px;border-radius:4px}.SKV_selectMulti option:checked{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}.SKV_groupBody{display:flex;gap:16px;min-height:0}.SKV_groupSide{width:150px;flex:none;display:flex;flex-direction:column;gap:2px;min-width:0}.SKV_groupNewBtn{display:flex;align-items:center;gap:6px;justify-content:flex-start;font:inherit;font-size:13px;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:0 0;border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;padding:7px 10px;margin-bottom:6px;text-align:left}.SKV_groupNewBtn:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_groupSideLabel{font-size:12px;color:var(--dsw-alias-label-tertiary);padding:0 10px;margin-bottom:2px}.SKV_groupSideItem{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;font:inherit;font-size:13px;cursor:pointer;color:var(--dsw-alias-label-secondary);background:0 0;border:none;text-align:left;min-width:0}.SKV_groupSideItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_groupSideItem[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);color:var(--dsw-alias-state-business-primary);font-weight:500}.SKV_groupMain{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}.SKV_field{display:flex;flex-direction:column;gap:6px}.SKV_fieldLabel{font-size:12px;color:var(--dsw-alias-label-secondary);margin:0}.SKV_skillListBox{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 10px;max-height:220px;overflow-y:auto}.SKV_skillRow{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:0.5px solid var(--dsw-alias-border-l2);font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;min-width:0}.SKV_skillRow:last-child{border-bottom:none}.SKV_skillRow:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_skillRow input{margin:0;accent-color:var(--dsw-alias-state-business-primary);flex:none}.SKV_skillName{flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.SKV_skillBadge{font-size:12px;padding:2px 8px;border-radius:5px;white-space:nowrap;flex:none}.SKV_skillBadge[data-on=true]{background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 12%, transparent);color:var(--dsw-alias-state-success-primary)}.SKV_skillBadge[data-on=false]{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-tertiary)}.SKV_countRow{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}.SKV_countText{font-size:12px;color:var(--dsw-alias-label-secondary);margin:0}.SKV_dialogFooter{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--dsw-alias-border-l2)}.SKV_dangerBtn{font:inherit;font-size:13px;color:var(--dsw-alias-state-error-primary);cursor:pointer;background:0 0;border:1px solid transparent;border-radius:6px;padding:5px 10px}.SKV_dangerBtn:hover:not(:disabled){background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent)}.SKV_dangerBtn:disabled{cursor:default;opacity:.6}.SKV_textInput{width:100%;box-sizing:border-box;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;outline:none;padding:0 10px}.SKV_textInput::placeholder{color:var(--dsw-alias-label-tertiary)}.SKV_textInput:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}.SKV_scopeBox{width:640px}.SKV_groupSide{width:170px}.SKV_groupSideItem{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.SKV_select{appearance:none;-webkit-appearance:none;width:100%;box-sizing:border-box;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background-color:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 30px 0 10px;background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 16 16%27 fill=%27none%27%3E%3Cpath d=%27M4 6l4 4 4-4%27 stroke=%27%23888%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 10px center}.SKV_select:hover{border-color:var(--dsw-alias-border-l1)}.SKV_selectMulti:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);outline:none}.SKV_selectMulti option:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_targetBox{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:4px;max-height:152px;overflow-y:auto;scrollbar-width:thin}.SKV_targetItem{display:flex;align-items:center;gap:8px;padding:7px 6px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:none;border-bottom:0.5px solid var(--dsw-alias-border-l2);width:100%;text-align:left;min-width:0}.SKV_targetItem:last-child{border-bottom:none}.SKV_targetItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_targetItem[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 8%, transparent)}.SKV_targetItem input{margin:0;accent-color:var(--dsw-alias-state-business-primary);flex:none}.SKV_skillListBox{max-height:180px}.SKV_updateBanner{border:1px solid color-mix(in srgb, var(--dsw-alias-state-business-primary) 40%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 8%, transparent);border-radius:8px;align-items:center;gap:10px;padding:8px 12px;display:flex}.SKV_updateText{color:var(--dsw-alias-state-business-primary);font-size:12px;line-height:18px;flex:1;min-width:0};";
-const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssUtils + cssIcon;
+		const cssMigrate = ".SKV_scopeBar{gap:6px;padding:2px;max-width:100%;overflow-x:auto;scrollbar-width:thin;display:flex;align-items:center}.SKV_scopeChip{font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:3px 12px;font-size:12px;line-height:18px;white-space:nowrap;flex:none;display:inline-flex;align-items:center;gap:6px}.SKV_scopeChip:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_scopeChip[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-state-business-primary)}.SKV_scopeChipCount{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;font-size:11px;line-height:16px}.SKV_scopeChip[data-active=true] .SKV_scopeChipCount{color:var(--dsw-alias-state-business-primary)}.SKV_migrateSection{flex-direction:column;gap:6px;display:flex}.SKV_migrateLabel{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;margin:0}.SKV_migrateFromValue{color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;margin:0;word-break:break-all}.SKV_migrateList{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;max-height:220px;overflow-y:auto;margin:0;padding:4px;list-style:none;display:flex;flex-direction:column;gap:2px}.SKV_migrateItem{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:none;border-radius:6px;padding:6px 10px;font-size:13px;line-height:20px;text-align:left;display:flex;align-items:center;gap:8px}.SKV_migrateItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_migrateItem input{margin:0;accent-color:var(--dsw-alias-state-business-primary)}.SKV_migrateItemName{flex:1;min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.SKV_migrateItemState{color:var(--dsw-alias-label-tertiary);font-size:11px;flex:none}.SKV_migrateSelectAll{font:inherit;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:0 0;border:none;padding:0;font-size:12px;line-height:18px}.SKV_migrateHint{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:0}.SKV_migrateResult{border-radius:8px;padding:8px 12px;font-size:12px;line-height:18px;margin:0}.SKV_migrateResult[data-ok=true]{background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);color:var(--dsw-alias-state-success-primary)}.SKV_migrateResult[data-ok=false]{background:color-mix(in srgb, var(--dsw-alias-state-warning-primary) 10%, transparent);color:var(--dsw-alias-state-warning-primary)}.SKV_migrateResultList{margin:4px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;max-height:120px;overflow-y:auto}.SKV_scopeChip{max-width:320px}.SKV_scopeChipLabel{max-width:220px;min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;display:inline-block}.SKV_wsPath{min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;display:block}.SKV_migrateOptionLabel{min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.SKV_scopeOptions{max-height:132px;overflow-y:auto;scrollbar-width:thin}.SKV_migrateList{max-height:148px}.SKV_scopeBox{overflow-y:auto;scrollbar-width:thin}.SKV_select{width:100%;box-sizing:border-box;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 8px}.SKV_select:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);outline:none}.SKV_groupBody{display:flex;gap:16px;min-height:0}.SKV_groupSide{width:150px;flex:none;display:flex;flex-direction:column;gap:2px;min-width:0}.SKV_groupNewBtn{display:flex;align-items:center;gap:6px;justify-content:flex-start;font:inherit;font-size:13px;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:0 0;border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;padding:7px 10px;margin-bottom:6px;text-align:left}.SKV_groupNewBtn:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_groupSideLabel{font-size:12px;color:var(--dsw-alias-label-tertiary);padding:0 10px;margin-bottom:2px}.SKV_groupSideItem{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;font:inherit;font-size:13px;cursor:pointer;color:var(--dsw-alias-label-secondary);background:0 0;border:none;text-align:left;min-width:0}.SKV_groupSideItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_groupSideItem[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);color:var(--dsw-alias-state-business-primary);font-weight:500}.SKV_groupMain{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}.SKV_field{display:flex;flex-direction:column;gap:6px}.SKV_fieldLabel{font-size:12px;color:var(--dsw-alias-label-secondary);margin:0}.SKV_skillListBox{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 10px;max-height:220px;overflow-y:auto}.SKV_skillRow{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:0.5px solid var(--dsw-alias-border-l2);font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;min-width:0}.SKV_skillRow:last-child{border-bottom:none}.SKV_skillRow:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_skillRow input{margin:0;accent-color:var(--dsw-alias-state-business-primary);flex:none}.SKV_skillName{flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.SKV_skillBadge{font-size:12px;padding:2px 8px;border-radius:5px;white-space:nowrap;flex:none}.SKV_skillBadge[data-on=true]{background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 12%, transparent);color:var(--dsw-alias-state-success-primary)}.SKV_skillBadge[data-on=false]{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-tertiary)}.SKV_countRow{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}.SKV_countText{font-size:12px;color:var(--dsw-alias-label-secondary);margin:0}.SKV_dialogFooter{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--dsw-alias-border-l2)}.SKV_dangerBtn{font:inherit;font-size:13px;color:var(--dsw-alias-state-error-primary);cursor:pointer;background:0 0;border:1px solid transparent;border-radius:6px;padding:5px 10px}.SKV_dangerBtn:hover:not(:disabled){background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent)}.SKV_dangerBtn:disabled{cursor:default;opacity:.6}.SKV_textInput{width:100%;box-sizing:border-box;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;outline:none;padding:0 10px}.SKV_textInput::placeholder{color:var(--dsw-alias-label-tertiary)}.SKV_textInput:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}.SKV_scopeBox{width:640px}.SKV_groupSide{width:170px}.SKV_groupSideItem{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.SKV_select{appearance:none;-webkit-appearance:none;width:100%;box-sizing:border-box;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background-color:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 30px 0 10px;background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 16 16%27 fill=%27none%27%3E%3Cpath d=%27M4 6l4 4 4-4%27 stroke=%27%23888%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 10px center}.SKV_select:hover{border-color:var(--dsw-alias-border-l1)}.SKV_targetBox{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:4px;max-height:152px;overflow-y:auto;scrollbar-width:thin}.SKV_targetItem{display:flex;align-items:center;gap:8px;padding:7px 6px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:none;border-bottom:0.5px solid var(--dsw-alias-border-l2);width:100%;text-align:left;min-width:0}.SKV_targetItem:last-child{border-bottom:none}.SKV_targetItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_targetItem[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 8%, transparent)}.SKV_targetItem input{margin:0;accent-color:var(--dsw-alias-state-business-primary);flex:none}.SKV_skillListBox{max-height:180px};.SKV_groupBar{gap:0;padding:0 2px;max-width:100%;overflow-x:auto;scrollbar-width:thin;display:flex;align-items:center}.SKV_groupItem{font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:none;padding:2px 10px;font-size:12px;line-height:18px;white-space:nowrap;flex:none}.SKV_groupItem:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover);border-radius:5px}.SKV_groupItem[data-active=true]{color:var(--dsw-alias-state-business-primary);font-weight:500}.SKV_groupSep{color:var(--dsw-alias-border-l1);flex:none;user-select:none;font-size:12px;line-height:18px;padding:0 1px}";
+const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssIcon;
 		const tagId = "dsh-skill-viewer/SkillsSection.module.css";
 		if (typeof document !== "undefined") {
 			let tag = document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") as HTMLElement | null;
@@ -69,28 +68,21 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssUtils + c
 			opError: "SKV_opError",
 			deleteButton: "SKV_deleteButton",
 			addActions: "SKV_addActions",
-			addButton: "SKV_addButton",
+			iconButton: "SKV_iconButton",
 			addStatus: "SKV_addStatus",
 			addMenu: "SKV_addMenu",
 			addMenuItem: "SKV_addMenuItem",
-			addErrorBanner: "SKV_addErrorBanner",
-			addErrorText: "SKV_addErrorText",
-			addDismiss: "SKV_addDismiss",
+			addMenuHint: "SKV_addMenuHint",
+			notice: "SKV_notice",
+			noticeText: "SKV_noticeText",
+			noticeButton: "SKV_noticeButton",
 			fileInput: "SKV_fileInput",
-			scopeTag: "SKV_scopeTag",
-			scopeEditButton: "SKV_scopeEditButton",
+			
 			scopeOverlay: "SKV_scopeOverlay",
 			scopeBox: "SKV_scopeBox",
 			scopeOptions: "SKV_scopeOptions",
 			scopeOption: "SKV_scopeOption",
-			wsList: "SKV_wsList",
-			wsItem: "SKV_wsItem",
 			wsPath: "SKV_wsPath",
-			manualRow: "SKV_manualRow",
-			manualInput: "SKV_manualInput",
-			manualAdd: "SKV_manualAdd",
-			scopeHint: "SKV_scopeHint",
-			scopeWarning: "SKV_scopeWarning",
 			scopeActions: "SKV_scopeActions",
 			scopeAction: "SKV_scopeAction",
 			scopeCancel: "SKV_scopeCancel",
@@ -102,7 +94,7 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssUtils + c
 			groupItem: "SKV_groupItem",
 			groupSep: "SKV_groupSep",
 			select: "SKV_select",
-			selectMulti: "SKV_selectMulti",
+			
 			groupBody: "SKV_groupBody",
 			groupSide: "SKV_groupSide",
 			groupNewBtn: "SKV_groupNewBtn",
@@ -122,9 +114,6 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssUtils + c
 			textInput: "SKV_textInput",
 			targetBox: "SKV_targetBox",
 			targetItem: "SKV_targetItem",
-			updateBanner: "SKV_updateBanner",
-			updateText: "SKV_updateText",
-			migrateButton: "SKV_migrateButton",
 			migrateSection: "SKV_migrateSection",
 			migrateLabel: "SKV_migrateLabel",
 			migrateFromValue: "SKV_migrateFromValue",
@@ -162,10 +151,10 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssUtils + c
 			switchEnable: "启用",
 			switchDisable: "停用",
 			deleteLabel: "删除",
-			deleteConfirm: "确定要删除技能 ",
-			deleteConfirmSuffix: " 吗？此操作不可恢复。",
+			confirmDelete: "确认删除？",
 			opFailed: "操作失败",
 			addButton: "添加技能",
+			addTarget: "添加到：",
 			addMenuFolder: "选择目录束",
 			addMenuFile: "选择单文件",
 			addDismiss: "知道了",
@@ -214,7 +203,6 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssUtils + c
 			groupSave: "保存分组",
 			groupSaving: "正在保存…",
 			groupDelete: "删除分组",
-			groupDeleteConfirm: "确定删除分组 ",
 			skillFilterPlaceholder: "筛选技能",
 			skillCountLabel: "已选",
 			selectNone: "取消全选",
@@ -242,10 +230,10 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssUtils + c
 			switchEnable: "Enable",
 			switchDisable: "Disable",
 			deleteLabel: "Delete",
-			deleteConfirm: "Delete skill ",
-			deleteConfirmSuffix: "? This cannot be undone.",
+			confirmDelete: "Confirm delete?",
 			opFailed: "Operation failed",
 			addButton: "Add skill",
+			addTarget: "Add to: ",
 			addMenuFolder: "Choose directory bundle",
 			addMenuFile: "Choose single file",
 			addDismiss: "Dismiss",
@@ -294,7 +282,6 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssUtils + c
 			groupSave: "Save group",
 			groupSaving: "Saving…",
 			groupDelete: "Delete group",
-			groupDeleteConfirm: "Delete group ",
 			skillFilterPlaceholder: "Filter skills",
 			skillCountLabel: "Selected",
 			selectNone: "Select none",
@@ -404,7 +391,8 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssUtils + c
 					invocation: { kind: "direct" },
 					parameters: [
 						{ name: "name", wire: "name", source: "json", codec: codec("dsh-skill-viewer#SkillName") },
-						{ name: "sessionId", wire: "sessionId", source: "json", acceptsUndefined: true, codec: codec("dsh-skill-viewer#sessionId") }
+						{ name: "sessionId", wire: "sessionId", source: "json", acceptsUndefined: true, codec: codec("dsh-skill-viewer#sessionId") },
+						{ name: "scope", wire: "scope", source: "json", acceptsUndefined: true, codec: codec("dsh-skill-viewer#SkillScope") }
 					],
 					result: codec("dsh-skill-viewer#SkillContent")
 				},
@@ -417,7 +405,8 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssUtils + c
 					parameters: [
 						{ name: "name", wire: "name", source: "json", codec: codec("dsh-skill-viewer#SkillName") },
 						{ name: "sessionId", wire: "sessionId", source: "json", acceptsUndefined: true, codec: codec("dsh-skill-viewer#sessionId") },
-						{ name: "enabled", wire: "enabled", source: "json", codec: codec("dsh-skill-viewer#EnabledFlag") }
+						{ name: "enabled", wire: "enabled", source: "json", codec: codec("dsh-skill-viewer#EnabledFlag") },
+						{ name: "scope", wire: "scope", source: "json", acceptsUndefined: true, codec: codec("dsh-skill-viewer#SkillScope") }
 					],
 					result: codec("dsh-skill-viewer#SetEnabledResult")
 				},
@@ -429,7 +418,8 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssUtils + c
 					invocation: { kind: "direct" },
 					parameters: [
 						{ name: "name", wire: "name", source: "json", codec: codec("dsh-skill-viewer#SkillName") },
-						{ name: "sessionId", wire: "sessionId", source: "json", acceptsUndefined: true, codec: codec("dsh-skill-viewer#sessionId") }
+						{ name: "sessionId", wire: "sessionId", source: "json", acceptsUndefined: true, codec: codec("dsh-skill-viewer#sessionId") },
+						{ name: "scope", wire: "scope", source: "json", acceptsUndefined: true, codec: codec("dsh-skill-viewer#SkillScope") }
 					],
 					result: codec("dsh-skill-viewer#DeleteSkillResult")
 				},
@@ -453,6 +443,16 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssUtils + c
 			const known = Array.isArray(options) ? options : [];
 			const rows = Array.isArray(groups) ? groups : [];
 			const [query, setQuery] = react.useState("");
+			// 删除分组的行内二次确认：3 秒未确认自动还原；切换分组时一并还原。
+			const [confirmingDelete, setConfirmingDelete] = react.useState(false);
+			react.useEffect(() => {
+				setConfirmingDelete(false);
+			}, [groupId]);
+			react.useEffect(() => {
+				if (!confirmingDelete) return;
+				const timer = setTimeout(() => setConfirmingDelete(false), 3000);
+				return () => clearTimeout(timer);
+			}, [confirmingDelete]);
 			const q = query.trim().toLowerCase();
 			const visible = skills.filter((skill) => skill.name.toLowerCase().includes(q));
 			const allChecked = skills.length > 0 && selected.size === skills.length;
@@ -579,8 +579,14 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssUtils + c
 							type: "button",
 							className: c.dangerBtn,
 							disabled: busy,
-							onClick: onDelete,
-							children: t("groupDelete")
+							onClick: () => {
+								if (!confirmingDelete) {
+									setConfirmingDelete(true);
+									return;
+								}
+								onDelete();
+							},
+							children: confirmingDelete ? t("confirmDelete") : t("groupDelete")
 						}) : (0, react_jsx_runtime.jsx)("span", {}), (0, react_jsx_runtime.jsxs)("div", {
 							className: c.scopeActions,
 							children: [(0, react_jsx_runtime.jsx)("button", {
@@ -611,7 +617,11 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssUtils + c
 			const allChecked = skills.length > 0 && selected.size === skills.length;
 			const okCount = Array.isArray(result) ? result.filter((item) => item.ok === true).length : 0;
 			const failCount = Array.isArray(result) ? result.length - okCount : 0;
-			const targetLabelOf = (value) => (value === null || value === undefined ? t("scopeGlobal") : value === "global" ? t("scopeGlobal") : value);
+			const targetLabelOf = (value) => {
+				if (value === null || value === undefined || value === "global") return t("scopeGlobal");
+				const hit = known.find((option) => option.path === value);
+				return hit !== undefined && typeof hit.label === "string" && hit.label !== "" ? hit.label : value;
+			};
 			return (0, react_jsx_runtime.jsx)("div", {
 				className: c.scopeOverlay,
 				role: "dialog",
@@ -830,6 +840,7 @@ function SkillsSection(props) {
 			const [groupFilter, setGroupFilter] = react.useState("all");
 			const [groupEditor, setGroupEditor] = react.useState(null);
 			const [updateBanner, setUpdateBanner] = react.useState(null);
+			const [confirmKey, setConfirmKey] = react.useState(null);
 			const inflight = react.useRef(new Set());
 			const folderInput = react.useRef(null);
 			const fileInput = react.useRef(null);
@@ -881,29 +892,40 @@ function SkillsSection(props) {
 			// 启用/停用：乐观更新本地状态，随后后台对齐。
 			const applySetEnabled = (skill) => {
 				const target = skill.enabled !== true;
-				setOps((prev) => ({ ...prev, [skill.name]: { status: "busy" } }));
-				Promise.resolve().then(() => setSkillEnabled(skill.name, target)).then(() => {
-					setListState((prev) => (prev.status === "ready" ? { status: "ready", skills: prev.skills.map((s) => (s.name === skill.name ? { ...s, enabled: target } : s)) } : prev));
-					setOps((prev) => ({ ...prev, [skill.name]: { status: "ok" } }));
+				setOps((prev) => ({ ...prev, [opKeyOf(skill)]: { status: "busy" } }));
+				Promise.resolve().then(() => setSkillEnabled(skill.name, target, scopeOf(skill))).then(() => {
+					setListState((prev) => (prev.status === "ready" ? { status: "ready", skills: prev.skills.map((s) => (s.name === skill.name && scopeOf(s) === scopeOf(skill) ? { ...s, enabled: target } : s)) } : prev));
+					setOps((prev) => ({ ...prev, [opKeyOf(skill)]: { status: "ok" } }));
 					reloadAfterHot();
 				}, () => {
-					setOps((prev) => ({ ...prev, [skill.name]: { status: "error" } }));
+					setOps((prev) => ({ ...prev, [opKeyOf(skill)]: { status: "error" } }));
 				});
 			};
 
-			// 删除：确认后乐观移除卡片，后台对齐。
+			// 删除：行内二次确认（3 秒未确认自动还原），确认后乐观移除卡片，后台对齐。
 			const applyRemove = (skill) => {
-				if (typeof window !== "undefined" && !window.confirm(t("deleteConfirm") + skill.name + t("deleteConfirmSuffix"))) return;
-				setOps((prev) => ({ ...prev, [skill.name]: { status: "busy" } }));
-				Promise.resolve().then(() => removeSkill(skill.name)).then(() => {
-					setListState((prev) => (prev.status === "ready" ? { status: "ready", skills: prev.skills.filter((s) => s.name !== skill.name) } : prev));
-					setOps((prev) => ({ ...prev, [skill.name]: { status: "ok" } }));
-					setExpanded((current) => (current === skill.name ? null : current));
+				const key = opKeyOf(skill);
+				if (confirmKey !== key) {
+					setConfirmKey(key);
+					return;
+				}
+				setConfirmKey(null);
+				setOps((prev) => ({ ...prev, [key]: { status: "busy" } }));
+				Promise.resolve().then(() => removeSkill(skill.name, scopeOf(skill))).then(() => {
+					setListState((prev) => (prev.status === "ready" ? { status: "ready", skills: prev.skills.filter((s) => opKeyOf(s) !== key) } : prev));
+					setOps((prev) => ({ ...prev, [key]: { status: "ok" } }));
+					setExpanded((current) => (current === key ? null : current));
 					reloadAfterHot();
 				}, () => {
-					setOps((prev) => ({ ...prev, [skill.name]: { status: "error" } }));
+					setOps((prev) => ({ ...prev, [key]: { status: "error" } }));
 				});
 			};
+			// 二次确认 3 秒未点击自动还原。
+			react.useEffect(() => {
+				if (confirmKey === null) return;
+				const timer = setTimeout(() => setConfirmKey(null), 3000);
+				return () => clearTimeout(timer);
+			}, [confirmKey]);
 
 			// ── 添加技能：读取本地文件并上传（宿主负责校验与落盘）──────────────
 			const readFileAsBase64 = (file) => new Promise((resolve, reject) => {
@@ -919,7 +941,10 @@ function SkillsSection(props) {
 			});
 
 			// 把宿主的业务报错从 RPC 信封前缀里剥出来（提示语已经是面向用户的中文）。
-			const cleanHostError = (error) => String(error?.message ?? error).replace(/^skillsViewer\.[a-zA-Z]+ failed: [a-z-]+: /, "");
+			const cleanHostError = (error) => String(error?.message ?? error).replace(/^skillsViewer\.[a-zA-Z]+ failed: [a-zA-Z0-9_-]+: /, "");
+
+			// 同名技能可能存在于多个作用域：操作状态与目标都按（名称, 作用域）区分。
+			const opKeyOf = (skill) => skill.name + "\u0000" + (skill.scope !== undefined && skill.scope !== null && skill.scope.kind === "workspace" ? skill.scope.path : "global");
 
 			const runAdd = (kind, files) => {
 				if (files.length === 0) return;
@@ -1057,7 +1082,6 @@ function SkillsSection(props) {
 			const applyGroupDelete = () => {
 				const editor = groupEditor;
 				if (editor === null || editor.groupId === null || editor.groupId === undefined) return;
-				if (typeof window !== "undefined" && !window.confirm(t("groupDeleteConfirm") + editor.name + "？")) return;
 				setGroupEditor({ ...editor, busy: true, error: null });
 				Promise.resolve().then(() => deleteGroupSkill({ id: editor.groupId })).then((snapshot) => {
 					const rows = snapshot !== null && typeof snapshot === "object" && Array.isArray(snapshot.groups) ? snapshot.groups : [];
@@ -1119,7 +1143,7 @@ const onPickFolder = (event) => {
 			const grouped = groupFilter === "all" ? scoped : scoped.filter((skill) => (Array.isArray(skill.groups) ? skill.groups : []).includes(groupFilter));
 			const filtered = grouped.filter((skill) => skill.name.toLocaleLowerCase().includes(normalizedQuery));
 			const groupKeys = ["all", ...(Array.isArray(groupsList) ? groupsList.map((group) => group.name) : [])];
-			const groupCount = (key) => (key === "all" ? scoped.length : scoped.reduce((sum, skill) => sum + ((Array.isArray(skill.groups) ? skill.groups : []).includes(key) ? 1 : 0), 0));
+			
 
 			const migratorSkills = migrator !== null ? skills.filter((skill) => scopeOf(skill) === migrator.from) : [];
 			const membersOfGroup = (groupId, scopeKey) => {
@@ -1131,22 +1155,24 @@ const onPickFolder = (event) => {
 
 			// 搜索过滤掉已展开项时自动收起。
 			react.useEffect(() => {
-				if (expanded !== null && !filtered.some((skill) => skill.name === expanded)) setExpanded(null);
+				if (expanded !== null && !filtered.some((skill) => opKeyOf(skill) === expanded)) setExpanded(null);
 			}, [expanded, filtered]);
 
-			// 展开/收起：展开时懒加载内容并缓存。
+			// 展开/收起：展开时懒加载内容并缓存。缓存键与操作键一致，按
+			// （名称+作用域）区分——同名技能在不同作用域各有独立展开与正文。
 			const toggle = (skill) => {
-				const next = expanded === skill.name ? null : skill.name;
+				const key = opKeyOf(skill);
+				const next = expanded === key ? null : key;
 				setExpanded(next);
-				if (next === null || bodies[skill.name] !== undefined || inflight.current.has(skill.name)) return;
-				inflight.current.add(skill.name);
-				setBodies((prev) => ({ ...prev, [skill.name]: { status: "loading" } }));
-				Promise.resolve().then(() => loadContent(skill.name)).then((skillBody) => {
-					inflight.current.delete(skill.name);
-					setBodies((prev) => ({ ...prev, [skill.name]: { status: skillBody === null ? "missing" : "ready", skill: skillBody } }));
+				if (next === null || bodies[key] !== undefined || inflight.current.has(key)) return;
+				inflight.current.add(key);
+				setBodies((prev) => ({ ...prev, [key]: { status: "loading" } }));
+				Promise.resolve().then(() => loadContent(skill.name, scopeOf(skill))).then((skillBody) => {
+					inflight.current.delete(key);
+					setBodies((prev) => ({ ...prev, [key]: { status: skillBody === null ? "missing" : "ready", skill: skillBody } }));
 				}, () => {
-					inflight.current.delete(skill.name);
-					setBodies((prev) => ({ ...prev, [skill.name]: { status: "error" } }));
+					inflight.current.delete(key);
+					setBodies((prev) => ({ ...prev, [key]: { status: "error" } }));
 				});
 			};
 
@@ -1170,14 +1196,15 @@ const onPickFolder = (event) => {
 					className: c.catalog,
 					children: [
 					updateBanner !== null ? (0, react_jsx_runtime.jsxs)("div", {
-						className: c.updateBanner,
+						className: c.notice,
+						"data-kind": "info",
 						role: "status",
 						children: [(0, react_jsx_runtime.jsx)("span", {
-							className: c.updateText,
+							className: c.noticeText,
 							children: updateBanner
 						}), (0, react_jsx_runtime.jsx)("button", {
 							type: "button",
-							className: c.addDismiss,
+							className: c.noticeButton,
 							onClick: () => {
 								setUpdateBanner(null);
 							},
@@ -1186,11 +1213,9 @@ const onPickFolder = (event) => {
 					}) : null,
 						(0, react_jsx_runtime.jsxs)("div", {
 							className: c.searchBox,
-							style: { position: "relative", width: "100%" },
 							children: [(0, react_jsx_runtime.jsx)("span", {
 								className: c.searchIcon,
 								"aria-hidden": "true",
-								style: { position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", display: "inline-flex", alignItems: "center", pointerEvents: "none", color: "var(--dsw-alias-label-tertiary, #7d7f8c)" },
 								children: (0, react_jsx_runtime.jsx)(primitives.IconSearchOutline16, {})
 							}), (0, react_jsx_runtime.jsx)("input", {
 								type: "search",
@@ -1198,7 +1223,6 @@ const onPickFolder = (event) => {
 								value: query,
 								placeholder: t("search"),
 								"aria-label": t("search"),
-								style: { boxSizing: "border-box", width: "100%", height: "36px", border: "1px solid var(--dsw-alias-border-l2, rgba(127,127,127,.35))", borderRadius: "8px", background: "var(--dsw-alias-bg-layer-1, #ffffff)", color: "var(--dsw-alias-label-primary, #1f2329)", font: "inherit", fontSize: "13px", lineHeight: "34px", outline: "none", padding: "0 12px 0 38px" },
 								onChange: (event) => {
 									setQuery(event.currentTarget.value);
 								}
@@ -1214,7 +1238,7 @@ const onPickFolder = (event) => {
 								"data-add-menu": "1",
 								children: [(0, react_jsx_runtime.jsx)("button", {
 								type: "button",
-								className: c.migrateButton,
+								className: c.iconButton,
 								"aria-label": t("groupButton"),
 								title: t("groupButton"),
 								disabled: listState.status !== "ready" || skills.length === 0,
@@ -1239,7 +1263,7 @@ const onPickFolder = (event) => {
 								})
 							}), (0, react_jsx_runtime.jsx)("button", {
 								type: "button",
-								className: c.migrateButton,
+								className: c.iconButton,
 								"aria-label": t("migrateButton"),
 								title: t("migrateButton"),
 								disabled: listState.status !== "ready" || skills.length === 0 || adding.status === "busy",
@@ -1266,7 +1290,7 @@ const onPickFolder = (event) => {
 								})
 							}), (0, react_jsx_runtime.jsx)("button", {
 									type: "button",
-									className: c.addButton,
+									className: c.iconButton,
 									"aria-label": t("addButton"),
 									title: t("addButton"),
 									disabled: adding.status === "busy",
@@ -1294,7 +1318,10 @@ const onPickFolder = (event) => {
 								}), addMenuOpen ? (0, react_jsx_runtime.jsxs)("span", {
 									className: c.addMenu,
 									role: "menu",
-									children: [(0, react_jsx_runtime.jsx)("button", {
+									children: [(0, react_jsx_runtime.jsx)("span", {
+										className: c.addMenuHint,
+										children: t("addTarget") + (scopeFilter === "global" ? t("scopeGlobal") : labelOf(scopeFilter))
+									}), (0, react_jsx_runtime.jsx)("button", {
 										type: "button",
 										className: c.addMenuItem,
 										role: "menuitem",
@@ -1318,11 +1345,9 @@ const onPickFolder = (event) => {
 						}),
 					(0, react_jsx_runtime.jsxs)("div", {
 						className: c.scopeBar,
-						role: "tablist",
 						children: scopeKeys.map((key) => (0, react_jsx_runtime.jsxs)("button", {
 							type: "button",
-							role: "tab",
-							"aria-selected": scopeFilter === key,
+							"aria-pressed": scopeFilter === key,
 							className: c.scopeChip,
 							"data-active": scopeFilter === key ? "true" : void 0,
 							onClick: () => {
@@ -1340,15 +1365,13 @@ const onPickFolder = (event) => {
 					}),
 					(0, react_jsx_runtime.jsxs)("div", {
 						className: c.groupBar,
-						role: "tablist",
 						children: groupKeys.map((key) => [(0, react_jsx_runtime.jsx)("span", {
 							className: c.groupSep,
 							"aria-hidden": "true",
 							children: "|"
 						}, "sep-" + key), (0, react_jsx_runtime.jsx)("button", {
 							type: "button",
-							role: "tab",
-							"aria-selected": groupFilter === key,
+							"aria-pressed": groupFilter === key,
 							className: c.groupItem,
 							"data-active": groupFilter === key ? "true" : void 0,
 							onClick: () => {
@@ -1366,14 +1389,15 @@ const onPickFolder = (event) => {
 							children: t("addBusy")
 						}) : null,
 						adding.status === "error" ? (0, react_jsx_runtime.jsxs)("div", {
-							className: c.addErrorBanner,
+							className: c.notice,
+							"data-kind": "error",
 							role: "alert",
 							children: [(0, react_jsx_runtime.jsx)("span", {
-								className: c.addErrorText,
+								className: c.noticeText,
 								children: adding.message
 							}), (0, react_jsx_runtime.jsx)("button", {
 								type: "button",
-								className: c.addDismiss,
+								className: c.noticeButton,
 								onClick: () => {
 									setAdding({ status: "idle" });
 								},
@@ -1403,11 +1427,11 @@ const onPickFolder = (event) => {
 						filtered.length > 0 ? (0, react_jsx_runtime.jsx)("ul", {
 							className: c.cards,
 							children: filtered.map((skill) => {
-								const open = expanded === skill.name;
-								const body = bodies[skill.name];
+								const open = expanded === opKeyOf(skill);
+								const body = bodies[opKeyOf(skill)];
 								const enabled = skill.enabled !== false;
 								const editable = skill.source !== "bundled" && skill.source !== "runtime";
-								const op = ops[skill.name];
+								const op = ops[opKeyOf(skill)];
 								return (0, react_jsx_runtime.jsxs)("li", {
 									key: skill.name,
 									className: c.card,
@@ -1503,7 +1527,7 @@ const onPickFolder = (event) => {
 												onClick: () => {
 													applyRemove(skill);
 												},
-												children: t("deleteLabel")
+												"data-confirm": confirmKey === opKeyOf(skill) ? "true" : void 0, children: confirmKey === opKeyOf(skill) ? t("confirmDelete") : t("deleteLabel")
 											})]
 										}) : null]
 									}) : null]
@@ -1682,14 +1706,14 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
 				currentSessionId,
 				listSkills: () => callRemote("list", currentSessionId()),
 				listWorkspaces: () => callRemote("workspaces"),
-				loadContent: (name) => callRemote("content", name, currentSessionId()),
-				setSkillEnabled: (name, enabled) => callRemote("setEnabled", name, currentSessionId(), enabled),
+				loadContent: (name, scope) => callRemote("content", name, currentSessionId(), scope),
+				setSkillEnabled: (name, enabled, scope) => callRemote("setEnabled", name, currentSessionId(), enabled, scope),
 				batchMigrateSkill: (payload) => callRemote("batchMigrate", currentSessionId(), payload),
 				listGroups: () => callRemote("groups"),
 				saveGroupSkill: (payload) => callRemote("saveGroup", payload),
 				deleteGroupSkill: (payload) => callRemote("deleteGroup", payload),
 				checkUpdateRemote: () => callRemote("checkUpdate"),
-				removeSkill: (name) => callRemote("deleteSkill", name, currentSessionId()),
+				removeSkill: (name, scope) => callRemote("deleteSkill", name, currentSessionId(), scope),
 				addSkill: (payload) => callRemote("addSkill", currentSessionId(), payload)
 			});
 			// 注册“技能”设置栏（order 16：位于“插件”15 与“agent 预设”20 之间）。

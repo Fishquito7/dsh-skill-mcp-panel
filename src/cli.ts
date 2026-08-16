@@ -162,7 +162,11 @@ async function addSkill(sourceArg, flags, roots, entries) {
   if (existing !== undefined) throw new Error('同名技能 "' + name + '" 已存在（' + existing.source + "，" + (existing.enabled ? "已启用" : "已停用") + "）");
   if (await pathExists(target)) throw new Error("目标路径已存在：" + target);
   if (resolve(source) === resolve(target)) throw new Error("源路径与目标相同，无需添加：" + sourceArg);
-  if (resolve(destRoot).startsWith(resolve(source))) throw new Error("源路径不能是目标技能根本身或其上级目录：" + sourceArg);
+  const normForCompare = (p) => (process.platform === "win32" ? resolve(p).toLowerCase() : resolve(p));
+  const sourceNorm = normForCompare(source);
+  const destNorm = normForCompare(destRoot);
+  const sep = process.platform === "win32" ? "\\" : "/";
+  if (destNorm === sourceNorm || destNorm.startsWith(sourceNorm.endsWith(sep) ? sourceNorm : sourceNorm + sep)) throw new Error("源路径不能是目标技能根本身或其上级目录：" + sourceArg);
 
   // 4) 暂存复制 + 原子改名；任何失败都回滚。
   await mkdir(destRoot, { recursive: true });
@@ -369,7 +373,7 @@ async function main() {
       return;
     }
     if (!flags.copy && !flags.yes) {
-      const ok = await confirm("将" + (flags.copy ? "复制" : "移动") + " " + chosen.length + " 个技能到 " + (toGlobal ? "全局" : targetRoot) + "？" + (flags.copy ? "" : "（移动会删除源）") + " (y/N): ");
+      const ok = await confirm("将移动 " + chosen.length + " 个技能到 " + (toGlobal ? "全局" : targetRoot) + "？（移动会删除源） (y/N): ");
       if (!ok) {
         console.log("已取消");
         return;
@@ -419,10 +423,30 @@ async function main() {
     console.error(command + " 需要一个技能名参数");
     process.exit(2);
   }
-  const entry = winnerEntry(entries, name);
-  if (entry === undefined) {
+  // 同名技能可能存在于多个作用域：唯一时直接操作；不唯一时必须用
+  // --global / --project / --workspace 显式指定，绝不 silently 操作胜出副本。
+  const matches = entries.filter((candidate) => candidate.name === name);
+  let entry;
+  if (matches.length === 0) {
     console.error('技能 "' + name + '" 未找到（项目与用户技能根中均不存在）。若该技能位于其他工作区，请加 --cwd <工作区路径> 锚定后重试');
     process.exit(1);
+  } else if (matches.length === 1) {
+    entry = matches[0];
+  } else {
+    let scoped;
+    if (flags.global) scoped = matches.find((candidate) => candidate.projectRoot === undefined);
+    else if (flags.workspace !== undefined) {
+      const want = resolve(await normalizeWorkspace(flags.workspace));
+      scoped = matches.find((candidate) => candidate.projectRoot !== undefined && resolve(candidate.projectRoot) === want);
+    } else if (flags.project) {
+      const project = roots.find((root) => root.source === "project-dsh")?.projectRoot;
+      scoped = matches.find((candidate) => candidate.projectRoot !== undefined && project !== undefined && resolve(candidate.projectRoot) === resolve(project));
+    }
+    if (scoped === undefined) {
+      console.error('技能 "' + name + '" 存在于多个作用域（' + matches.map((candidate) => scopeLabel(candidate, titles)).join("、") + '），请加 --global / --project / --workspace <路径> 指定要操作哪一份');
+      process.exit(1);
+    }
+    entry = scoped;
   }
   if (command === "enable") {
     if (entry.enabled) {
