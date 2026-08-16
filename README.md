@@ -16,13 +16,14 @@ DSH 插件，可直接在 web 界面快速管理 skill 状态，同时在终端�
 - skill 卡片列表：预览已注册安装的 skill，点击卡片可展开查看完整内容
 - skill 状态：启用、停用状态标签，与内置插件列表同款样式
 - skill 管理：开关热启用/停用、删除；按名称搜索；进入页面自动刷新
-- skill 添加：选择单文件（`.md`）或目录束（含顶层 `SKILL.md` 的文件夹），不合规内容会被拒绝并提示原因
+- skill 添加（0.7.0 统一入口）：点“+”直接选文件（`.md` / `.zip`），或把文件、压缩包、
+  技能文件夹直接拖进页面——自动识别目录束/单文件/压缩包结构，不合规内容会被拒绝并提示原因
 - **工作区分栏**（0.3.0）：技能实体直接存放在其所属位置里——全局在
   `~/.dsh/skills`，限定工作区在该工作区的 `.dsh/skills`。页面“技能列表”下方
   有一条工作区横栏（全局 + 各工作区，可横向滚动），点击即只显示该工作区下的技能。
 - **批量迁移**：“+”号左侧的迁移按钮：源工作区、目标工作区（**可多选**）与技能都在
   对话框内手动选择，批量**复制**或**移动**（默认不勾选任何技能；逐个迁移、失败不影响
-  其余；移动模式限单个目标）。
+  其余；移动模式限单个目标）。源工作区有分组时，可在技能列表上方按分组筛选（0.7.0）。
 - **技能分组**（0.5.0）：工作区横栏下方新增分组横栏（全部 + 分组名，可横向滚动），
   点击只显示该分组下的技能。“分组”按钮（迁移按钮左侧）打开分组编辑器：新建/重命名/
   删除分组、选择工作区、命名并批量勾选成员。分组只写入插件自己的显示配置
@@ -37,7 +38,7 @@ DSH 插件，可直接在 web 界面快速管理 skill 状态，同时在终端�
 1. 安装本包（bundle 层自动挂载，无需编辑配置文件）
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-viewer/releases/download/v0.6.4/dsh-skill-viewer-0.6.4.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-viewer/releases/download/v0.7.0/dsh-skill-viewer-0.7.0.tgz
    ```
 
    > 首选发行版 tarball：不走 Git，不受 pnpm v11 的构建脚本限制。
@@ -63,7 +64,7 @@ DSH 插件，可直接在 web 界面快速管理 skill 状态，同时在终端�
 
 ```bash
 dsh-skill list                                  # 列出技能（含工作区：全局 / 工作区）
-dsh-skill add <path>                            # 添加到全局（单个 .md 或含顶层 SKILL.md 的目录束）
+dsh-skill add <path>                            # 添加到全局（.md 文件、目录束或 .zip 压缩包）
 dsh-skill add <path> --workspace D:\项目A       # 直接添加到指定工作区
 dsh-skill scope <name> --global                  # 迁移单个技能到全局
 dsh-skill scope <name> --workspace D:\项目A      # 迁移单个技能到指定工作区（--copy 复制）

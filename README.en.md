@@ -12,9 +12,9 @@ A DSH plugin for managing skills right from the web UI and terminal
 - Skill card list: preview installed skills; expand a card to read the full content
 - Status tags: Enabled / Disabled, styled like the built-in plugin list
 - Management: hot enable/disable switch, delete, search by name; the page refreshes on entry
-- Add skills: choose a single `.md` file or a directory bundle (folder with a top-level `SKILL.md`); invalid content is rejected with a reason
+- Add skills (0.7.0 unified entry): click “+” and pick files (`.md` / `.zip`), or drag files, archives or skill folders straight onto the page — the structure is auto-detected (bundle / flat files / archive) and invalid content is rejected with a reason
 - **Workspace views** (0.3.0): a skill's files live directly where they belong — global skills in `~/.dsh/skills`, workspace skills in that workspace's `.dsh/skills`. A workspace bar below “Skills” (Global + each workspace, horizontally scrollable) filters the list to one scope.
-- **Batch migration**: the button left of “+” opens a dialog where you pick the source workspace, one or more target workspaces, and the skills yourself, then batch-**copy** or batch-**move** them (nothing pre-selected; items migrate independently — one failure never aborts the rest; move mode allows a single target).
+- **Batch migration**: the button left of “+” opens a dialog where you pick the source workspace, one or more target workspaces, and the skills yourself, then batch-**copy** or batch-**move** them (nothing pre-selected; items migrate independently — one failure never aborts the rest; move mode allows a single target). When the source scope has groups, you can filter skills by group above the list (0.7.0).
 - **Skill groups** (0.5.0): a second bar below the scope bar (All + group names, horizontally scrollable) filters the list to one group. The “Groups” button (left of the migrate button) opens the group editor: create/rename/delete groups, pick a scope, name the group and batch-check members. Groups live only in the plugin's own display config (`~/.dsh/skills/.system/skill-viewer/groups.json`) — skill directories are never touched.
 
 - **Scope-exact operations** (0.6.4): when the same skill name exists in both the global scope and a workspace, delete, enable/disable and content views act on exactly the (name, scope) row you clicked — each row expands and operates independently, other copies are never touched. Missing entries in the given scope fail loudly instead of falling back. The CLI likewise requires `--global` / `--project` / `--workspace` to disambiguate same-name skills in `enable`/`disable`/`delete`.
@@ -24,7 +24,7 @@ A DSH plugin for managing skills right from the web UI and terminal
 1. Install the package (its bundle layer auto-mounts it — no config editing)
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-viewer/releases/download/v0.6.4/dsh-skill-viewer-0.6.4.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-viewer/releases/download/v0.7.0/dsh-skill-viewer-0.7.0.tgz
    ```
 
    > Prefer the release tarball: no git involved, no pnpm v11 build-script
@@ -51,7 +51,7 @@ The package ships a `dsh-skill` command for terminal-based management (also hot;
 
 ```bash
 dsh-skill list                                  # list skills (with scope: global / workspace)
-dsh-skill add <path>                            # add to global (a single .md file, or a bundle dir with a top-level SKILL.md)
+dsh-skill add <path>                            # add to global (.md file, bundle dir, or .zip archive)
 dsh-skill add <path> --workspace D:\projA       # add directly into a workspace
 dsh-skill scope <name> --global                  # migrate one skill to global
 dsh-skill scope <name> --workspace D:\projA      # migrate one skill into a workspace (--copy to copy)

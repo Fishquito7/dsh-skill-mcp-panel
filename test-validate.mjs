@@ -22,6 +22,9 @@ check("legacy key rejected", !validateFrontmatter("---\nname: my-skill\ndescript
 check("bad bool rejected", !validateFrontmatter("---\nname: my-skill\ndescription: 好\nuser-invocable: maybe\n---\nbody").ok);
 check("metadata non-object rejected", !validateFrontmatter("---\nname: my-skill\ndescription: 好\nmetadata: xyz\n---\nbody").ok);
 check("metadata object ok", validateFrontmatter("---\nname: my-skill\ndescription: 好\nmetadata:\n  a: 1\n---\nbody").ok);
+// Windows CRLF 行尾（历史 bug：截取 frontmatter 时残留孤立 \r 导致 yaml 报错）
+check("CRLF frontmatter ok", validateFrontmatter("---\r\nname: crlf-skill\r\ndescription: \"CRLF 文件也应合法\"\r\n---\r\nbody").ok);
+check("CR-only line endings ok", validateFrontmatter("---\rname: cr-skill\rdescription: 单独 CR 也可解析\r---\rbody").ok);
 
 console.log(failures === 0 ? "ALL VALIDATOR TESTS PASSED" : failures + " FAILURES");
 process.exit(failures === 0 ? 0 : 1);
