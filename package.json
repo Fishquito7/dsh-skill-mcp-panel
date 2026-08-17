@@ -24,7 +24,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/dsh-home-paths": "^0.0.1-rc.3",
+    "@deepseek-ai/dsh-home-paths": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-typert-protocol": "^0.1.0-rc.6",
     "fflate": "^0.8.3",
     "yaml": "^2.9.0",
