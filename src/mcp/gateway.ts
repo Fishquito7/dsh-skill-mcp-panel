@@ -25,6 +25,20 @@ import { mcpRemovePayloadSchema, mcpSavePayloadSchema, mcpSetEnabledPayloadSchem
 import { fiberPhaseOf, getLoaderEntry, mcpToolCount, waitForLoaderState } from "./status.js";
 import { probeMcpServer } from "./probe.js";
 
+
+function stripUndefined(value: any): any {
+  if (Array.isArray(value)) return value.map((item) => stripUndefined(item));
+  if (value !== null && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value)) {
+      if (item === undefined) continue;
+      out[key] = stripUndefined(item);
+    }
+    return out;
+  }
+  return value;
+}
+
 const MANAGED_ROW_IDS = new Set<string>();
 
 function isManagedRow(row: PatchRow): boolean {
@@ -68,13 +82,13 @@ export class McpManagerGateway extends TypertRemoteService {
     const view: any = patchRowToView(row);
     if (view === undefined) return undefined;
     const fiberPhase = fiberPhaseOf(entry?.fiber?.state);
-    return {
+    return stripUndefined({
       ...view,
       enabled,
       managed,
       fiberPhase,
       toolCount: enabled ? mcpToolCount(this.C, view.serverName) : 0
-    };
+    });
   }
 
   async list() {

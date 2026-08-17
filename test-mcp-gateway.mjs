@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { McpManagerGateway } from "./lib/mcp/gateway.js";
+import { mcpListResultSchema } from "./lib/mcp/wire.js";
 
 let passed = 0;
 function pass(name) {
@@ -55,7 +56,10 @@ try {
   assert.equal(after.servers.length, 1);
   assert.equal(after.servers[0].serverName, "demo");
   assert.equal(after.servers[0].fiberPhase, null);
-  pass("gateway list reflects saved row");
+  const parsed = mcpListResultSchema.parse(after);
+  assert.equal(JSON.stringify(parsed).includes("undefined"), false);
+  assert.equal(JSON.stringify(parsed).includes("url"), false); // stdio view must not carry undefined optional fields
+  pass("gateway list validates at the Typert JSON boundary");
 } finally {
   await rm(dir, { recursive: true, force: true });
 }
