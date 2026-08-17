@@ -1632,25 +1632,28 @@ function SkillsSection(props) {
 											className: c.cardActions,
 											children: [(0, react_jsx_runtime.jsxs)("span", {
 												className: c.switchRow,
-												children: [(0, react_jsx_runtime.jsx)("button", {
-													type: "button",
-													role: "switch",
-													className: c.switch,
-													"data-on": enabled ? "true" : void 0,
-													"aria-checked": enabled,
-													"aria-label": enabled ? t("switchDisable") : t("switchEnable"),
-													disabled: op?.status === "busy",
-													onClick: () => {
-														applySetEnabled(skill);
-													},
-													children: (0, react_jsx_runtime.jsx)("span", {
-														className: c.switchThumb
-													})
-												}), (0, react_jsx_runtime.jsx)("span", {
-													className: c.switchText,
-													children: enabled ? t("switchDisable") : t("switchEnable")
-												})]
-											}), op?.status === "error" ? (0, react_jsx_runtime.jsx)("span", {
+												children: [(0, react_jsx_runtime.jsx)("span", {
+                                                                                                        className: c.statusDot,
+                                                                                                        "data-enabled": enabled ? "true" : "false",
+                                                                                                        "aria-hidden": "true"
+                                                                                                }), (0, react_jsx_runtime.jsx)("span", {
+                                                                                                        className: c.switchText,
+                                                                                                        children: enabled ? t("enabledTag") : t("disabledTag")
+                                                                                                }), (0, react_jsx_runtime.jsx)("button", {
+                                                                                                        type: "button",
+                                                                                                        role: "switch",
+                                                                                                        className: c.switch,
+                                                                                                        "data-on": enabled ? "true" : void 0,
+                                                                                                        "aria-checked": enabled,
+                                                                                                        "aria-label": enabled ? t("switchDisable") : t("switchEnable"),
+                                                                                                        disabled: op?.status === "busy",
+                                                                                                        onClick: () => {
+                                                                                                                applySetEnabled(skill);
+                                                                                                        },
+                                                                                                        children: (0, react_jsx_runtime.jsx)("span", {
+                                                                                                                className: c.switchThumb
+                                                                                                        })
+                                                                                                })]}), op?.status === "error" ? (0, react_jsx_runtime.jsx)("span", {
 												className: c.opError,
 												children: t("opFailed")
 											}) : null, (0, react_jsx_runtime.jsx)("button", {
