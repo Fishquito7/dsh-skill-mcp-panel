@@ -1,4 +1,4 @@
-# dsh-skill/mcp-panel — dsh-skill-mcp-panel
+# dsh-skill-mcp-panel
 
 [English](README.en.md) | 简体中文
 
@@ -7,7 +7,9 @@ DSH 插件，在 Web 设置页同时提供「技能」与「MCP」两个管理�
 
 注意：本项目提供的参考命令默认指定profile为默认的--profile web，需要更改profile的请自行注意。
 
-<img width="602" height="599" alt="image" src="https://github.com/user-attachments/assets/63ca0431-c920-4ae3-94c7-2839d78a7896" />
+<img width="450" height="450" alt="image" src="https://github.com/user-attachments/assets/63ca0431-c920-4ae3-94c7-2839d78a7896" />
+<img width="450" height="450" alt="image" src="https://github.com/user-attachments/assets/16023783-9196-46c1-8a64-df28f23f5bdd" />
+
 
 
 
@@ -113,12 +115,18 @@ CLI 只扫描当前目录锚定的项目根与用户根；管理其他工作区�
 
 ## 工作原理
 
-插件并不自己解析技能，只是技能文件的“管理界面”：页面和 `dsh-panel skill` 命令的每次操作，最终都是对磁盘上技能文件（`SKILL.md`）的改动，DSH 自带的文件监听器立刻发现变化——所以启用/停用、增删、迁移都热生效，无需重启网关。
+### 技能部分：
+
+页面和 `dsh-panel skill` 命令的每次操作，最终都是对磁盘上技能文件（`SKILL.md`）的改动，DSH 自带的文件监听器立刻发现变化——所以启用/停用、增删、迁移都热生效，无需重启网关。
 
 - 技能实体直接存放在其工作区的技能文件夹：全局 = `~/.dsh/skills`，工作区 = `<工作区>/.dsh/skills`，没有隐藏存储或联接点——卸载插件后技能仍是普通文件，照常被 DSH 发现
 - 停用 = 把 `SKILL.md` 改名为 `SKILL.md.disabled`，启用 = 改回来
 - 改变所属位置 = 真实地把文件复制/移动到目标位置的文件夹（先校验、失败回滚）
 - 随部署附带的技能（bundled）为只读，不可停用或删除
+
+### MCP部分：
+
+- 负责把 MCP 服务器配置写进 profile 的 cordis.patch.yml 受管块；真正连接和注册工具的是 DSH 官方插件 @deepseek-ai/dsh-mcp-client，由 DSH 的 HMR 自动加载。
 
 ## 开发
 
