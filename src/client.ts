@@ -1850,22 +1850,35 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
 		// 外壳的 navIcon 是硬编码的（无扩展点），这里用 MutationObserver 给
 		// “技能”导航项打上 data 标记，由 CSS 隐藏齿轮并用蒙版绘制自定义图标。
 		const NAV_LABELS = [zh.nav, en.nav];
+		const mcpNavLabels = () => [mcpZh.nav, mcpEn.nav];
 		let navPatchScheduled = false;
 		const patchSkillsNavIcons = () => {
 			navPatchScheduled = false;
 			if (typeof document === "undefined") return;
 			for (const dialog of document.querySelectorAll('[role="dialog"]')) {
 				for (const button of dialog.querySelectorAll("button")) {
-					if (button.dataset.skillsNav === "1") continue;
-					let hit = false;
-					for (const span of button.querySelectorAll("span")) {
-						const text = (span.textContent ?? "").trim();
-						if (span.childElementCount === 0 && NAV_LABELS.includes(text)) {
-							hit = true;
-							break;
+					if (button.dataset.skillsNav !== "1") {
+						let hit = false;
+						for (const span of button.querySelectorAll("span")) {
+							const text = (span.textContent ?? "").trim();
+							if (span.childElementCount === 0 && NAV_LABELS.includes(text)) {
+								hit = true;
+								break;
+							}
 						}
+						if (hit) button.dataset.skillsNav = "1";
 					}
-					if (hit) button.dataset.skillsNav = "1";
+					if (button.dataset.mcpNav !== "1") {
+						let hit = false;
+						for (const span of button.querySelectorAll("span")) {
+							const text = (span.textContent ?? "").trim();
+							if (span.childElementCount === 0 && mcpNavLabels().includes(text)) {
+								hit = true;
+								break;
+							}
+						}
+						if (hit) button.dataset.mcpNav = "1";
+					}
 				}
 			}
 		};
@@ -2571,7 +2584,7 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
 			ctx.slots.inject("settings.section", () => ctx.slots.register({
 				name: "settings.section",
 				id: "mcp",
-				order: 17,
+				order: 16.5,
 				label: () => mt("nav"),
 				locale: MCP_NS,
 				inject: mcpSectionFace
