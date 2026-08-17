@@ -1217,7 +1217,7 @@ function SkillsSection(props) {
 			if (scopeFilter !== "global" && !scopeKeys.includes(scopeFilter)) scopeKeys.push(scopeFilter);
 			const scopeCount = (key) => skills.reduce((sum, skill) => sum + (scopeOf(skill) === key ? 1 : 0), 0);
 			const scoped = skills.filter((skill) => scopeOf(skill) === scopeFilter);
-			const grouped = groupFilter === "all" ? scoped : scoped.filter((skill) => (Array.isArray(skill.groups) ? skill.groups : []).includes(groupFilter));
+			const grouped = groupFilter === "all" ? scoped : groupFilter.startsWith("cat:") ? scoped.filter((skill) => (skill.rel ?? "").split("/")[0] === groupFilter.slice(4)) : scoped.filter((skill) => (Array.isArray(skill.groups) ? skill.groups : []).includes(groupFilter));
 			const filtered = grouped.filter((skill) => skill.name.toLocaleLowerCase().includes(normalizedQuery));
 
 			// 切换工作区时分组栏随之变化：把分组筛选重置为“全部”。
@@ -1226,7 +1226,8 @@ function SkillsSection(props) {
 			}, [scopeFilter]);
 			// 分组与工作区绑定：只显示当前作用域下建立过的分组（scopes 里有该作用域键）。
 			const scopeGroupRows = (Array.isArray(groupsList) ? groupsList : []).filter((group) => group.scopes !== undefined && group.scopes !== null && Object.prototype.hasOwnProperty.call(group.scopes, scopeFilter));
-			const groupKeys = ["all", ...scopeGroupRows.map((group) => group.name)];
+			const autoCategories = scoped.map((skill) => (skill.rel ?? "").split("/")[0]).filter((segment) => segment !== "").filter((segment, index, all) => all.indexOf(segment) === index);
+			const groupKeys = ["all", ...autoCategories.map((category) => "cat:" + category), ...scopeGroupRows.map((group) => group.name)];
 			
 
 			const migratorSkills = migrator !== null ? skills.filter((skill) => scopeOf(skill) === migrator.from) : [];
@@ -1447,7 +1448,7 @@ function SkillsSection(props) {
 							onClick: () => {
 								setGroupFilter(key);
 							},
-							children: key === "all" ? t("groupAll") : key
+							children: key === "all" ? t("groupAll") : key.startsWith("cat:") ? key.slice(4) : key
 						}, key)]).concat([(0, react_jsx_runtime.jsx)("span", {
 							className: c.groupSep,
 							"aria-hidden": "true",
