@@ -949,7 +949,6 @@ function SkillsSection(props) {
 			const [addMenuOpen, setAddMenuOpen] = react.useState(false);
 			const inflight = react.useRef(new Set());
 			const singleFileInput = react.useRef(null);
-			const folderFileInput = react.useRef(null);
 			const zipFileInput = react.useRef(null);
 
 			// 列表拉取：首次显示加载态；此后静默刷新，保留旧列表避免闪烁。
@@ -1209,14 +1208,53 @@ function SkillsSection(props) {
 				});
 			};
 
-			// 文件选择：单文件 / 文件夹 / ZIP 三个独立入口。
-			const pickFiles = (event, kind) => {
+			// 文件选择：单文件入口。
+			const pickSingleFiles = (event) => {
 				const input = event.currentTarget;
 				const files = [...input.files];
 				input.value = "";
 				setAddMenuOpen(false);
 				if (files.length === 0) return;
-				ingestItems(files.map((file) => ({ name: file.name, path: kind === "folder" ? (file.webkitRelativePath || file.name) : file.name, file })));
+				ingestItems(files.map((file) => ({ name: file.name, path: file.name, file })));
+			};
+
+			const pickZipFiles = (event) => {
+				const input = event.currentTarget;
+				const files = [...input.files];
+				input.value = "";
+				if (files.length === 0) return;
+				ingestItems(files.map((file) => ({ name: file.name, path: file.name, file })));
+			};
+
+			// 文件夹 / zip 入口：优先使用 File System Access API 选择文件夹；
+			// 取消或不可用时回退到 .zip 文件选择，最终交给宿主自动识别结构。
+			const readHandleDir = async (handle, prefix, out) => {
+				for await (const [name, child] of handle.entries()) {
+					if (child.kind === "file") {
+						const file = await child.getFile();
+						out.push({ name, path: prefix === "" ? name : prefix + "/" + name, file });
+					} else if (child.kind === "directory") {
+						await readHandleDir(child, prefix === "" ? name : prefix + "/" + name, out);
+					}
+				}
+			};
+			const pickFolderOrZip = async () => {
+				setAddMenuOpen(false);
+				const picker = (window as any).showDirectoryPicker;
+				if (typeof picker === "function") {
+					try {
+						const dir = await picker.call(window, { mode: "read" });
+						const items: any[] = [];
+						await readHandleDir(dir, "", items);
+						if (items.length > 0) ingestItems(items);
+						return;
+					} catch (error) {
+						// 用户取消：回退到 zip 文件选择。
+						zipFileInput.current?.click();
+						return;
+					}
+				}
+				zipFileInput.current?.click();
 			};
 
 // 拖放：支持拖入 .md / .zip 文件与技能文件夹（自动识别结构）。
@@ -1288,7 +1326,7 @@ function SkillsSection(props) {
 			if (scopeFilter !== "global" && !scopeKeys.includes(scopeFilter)) scopeKeys.push(scopeFilter);
 			const scopeCount = (key) => skills.reduce((sum, skill) => sum + (scopeOf(skill) === key ? 1 : 0), 0);
 			const scoped = skills.filter((skill) => scopeOf(skill) === scopeFilter);
-			const grouped = groupFilter === "all" ? scoped : groupFilter.startsWith("cat:") ? scoped.filter((skill) => (skill.rel ?? "").split("/")[0] === groupFilter.slice(4)) : scoped.filter((skill) => (Array.isArray(skill.groups) ? skill.groups : []).includes(groupFilter));
+			const grouped = groupFilter === "all" ? scoped : scoped.filter((skill) => (Array.isArray(skill.groups) ? skill.groups : []).includes(groupFilter));
 			const filtered = grouped.filter((skill) => skill.name.toLocaleLowerCase().includes(normalizedQuery));
 
 			// 切换工作区时分组栏随之变化：把分组筛选重置为“全部”。
@@ -1297,8 +1335,7 @@ function SkillsSection(props) {
 			}, [scopeFilter]);
 			// 分组与工作区绑定：只显示当前作用域下建立过的分组（scopes 里有该作用域键）。
 			const scopeGroupRows = (Array.isArray(groupsList) ? groupsList : []).filter((group) => group.scopes !== undefined && group.scopes !== null && Object.prototype.hasOwnProperty.call(group.scopes, scopeFilter));
-			const autoCategories = scoped.map((skill) => (skill.rel ?? "").split("/")[0]).filter((segment) => segment !== "").filter((segment, index, all) => all.indexOf(segment) === index);
-			const groupKeys = ["all", ...autoCategories.map((category) => "cat:" + category), ...scopeGroupRows.map((group) => group.name)];
+			const groupKeys = ["all", ...scopeGroupRows.map((group) => group.name)];
 			
 
 			const migratorSkills = migrator !== null ? skills.filter((skill) => scopeOf(skill) === migrator.from) : [];
@@ -1492,13 +1529,8 @@ function SkillsSection(props) {
                                                                                 }), (0, react_jsx_runtime.jsx)("button", {
                                                                                         type: "button",
                                                                                         className: c.addMenuButton,
-                                                                                        onClick: () => { folderFileInput.current?.click(); },
-                                                                                        children: t("addFolder")
-                                                                                }), (0, react_jsx_runtime.jsx)("button", {
-                                                                                        type: "button",
-                                                                                        className: c.addMenuButton,
-                                                                                        onClick: () => { zipFileInput.current?.click(); },
-                                                                                        children: t("addZip")
+                                                                                        onClick: () => { pickFolderOrZip(); },
+                                                                                        children: t("addFolderZip")
                                                                                 })]
                                                                         }) : null]
                                                                 })
@@ -1539,7 +1571,7 @@ function SkillsSection(props) {
 							onClick: () => {
 								setGroupFilter(key);
 							},
-							children: key === "all" ? t("groupAll") : key.startsWith("cat:") ? key.slice(4) : key
+							children: key === "all" ? t("groupAll") : key
 						}, key)]).concat([(0, react_jsx_runtime.jsx)("span", {
 							className: c.groupSep,
 							"aria-hidden": "true",
@@ -1702,21 +1734,14 @@ function SkillsSection(props) {
                                                         type: "file",
                                                         accept: ".md,text/markdown",
                                                         multiple: true,
-                                                        onChange: (event) => { pickFiles(event, "single"); }
-                                                }), (0, react_jsx_runtime.jsx)("input", {
-                                                        ref: folderFileInput,
-                                                        className: c.fileInput,
-                                                        type: "file",
-                                                        webkitdirectory: "true",
-                                                        multiple: true,
-                                                        onChange: (event) => { pickFiles(event, "folder"); }
+                                                        onChange: pickSingleFiles
                                                 }), (0, react_jsx_runtime.jsx)("input", {
                                                         ref: zipFileInput,
                                                         className: c.fileInput,
                                                         type: "file",
                                                         accept: ".zip,application/zip,application/x-zip-compressed",
                                                         multiple: true,
-                                                        onChange: (event) => { pickFiles(event, "zip"); }
+                                                        onChange: pickZipFiles
                                                 }),,
 groupEditor !== null ? (0, react_jsx_runtime.jsx)(GroupDialog, {
 						t,
