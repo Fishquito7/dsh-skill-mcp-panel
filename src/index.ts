@@ -28,6 +28,7 @@ import {
 } from "./groups.js";
 import { compareVersions, currentVersion, fetchLatestVersion } from "./version.js";
 import { McpManagerGateway } from "./mcp/gateway.js";
+import { ensureGlobalShim } from "./global-shim.js";
 import { MCP_MANIFEST } from "./mcp/wire.js";
 
 /**
@@ -962,6 +963,7 @@ class SkillsViewerGateway extends TypertRemoteService {
 }
 
 export function apply(ctx: any) {
+  ensureGlobalShim(ctx.logger);
   new SkillsViewerGateway(ctx);
   new McpManagerGateway(ctx);
   ctx.effect(() => ctx.typert.register(PANEL_MANIFEST), "dsh-skill-mcp-panel: typert manifest");

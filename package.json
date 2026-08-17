@@ -37,8 +37,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/strip-client-export.mjs",
-    "prepack": "tsc -p tsconfig.json && node scripts/strip-client-export.mjs",
-    "postinstall": "node scripts/install-global-shim.mjs"
+    "prepack": "tsc -p tsconfig.json && node scripts/strip-client-export.mjs"
   },
   "files": [
     "lib",
@@ -46,8 +45,7 @@
     "README.md",
     "README.en.md",
     "LICENSE",
-    "cordis.patch.yml",
-    "scripts"
+    "cordis.patch.yml"
   ],
   "devDependencies": {
     "@types/node": "^26.2.0",
