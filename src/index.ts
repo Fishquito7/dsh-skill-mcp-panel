@@ -66,7 +66,8 @@ const skillSummarySchema = z.object({
   modelInvocable: z.boolean(),
   userInvocable: z.boolean(),
   scope: scopeSchema.optional(),
-  groups: z.array(z.string()).optional()
+  groups: z.array(z.string()).optional(),
+  rel: z.string().optional()
 });
 
 const groupRowSchema = z.object({
@@ -489,7 +490,8 @@ class SkillsViewerGateway extends TypertRemoteService {
         modelInvocable: false,
         userInvocable: false,
         scope: await this.scopeForEntry(entry, titles),
-        groups: groupsForSkill(groupMap, scopePath, entry.name)
+        groups: groupsForSkill(groupMap, scopePath, entry.name),
+        ...(entry.rel ? { rel: entry.rel } : {})
       });
     }
     return { skills };
