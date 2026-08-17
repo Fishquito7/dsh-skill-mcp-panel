@@ -45,9 +45,9 @@ const delay = (ms: number) => new Promise<void>((resolvePromise) => setTimeout(r
 
 /**
  * 写入 patch 后轮询 loader，直到 entry 满足 predicate 或超时。
- * 默认 8s；每 200ms 查一次。
+ * 默认 3s；每 200ms 查一次。
  */
-export async function waitForLoaderState(ctx: any, id: string, predicate: (entry: any) => boolean, timeoutMs = 8000): Promise<boolean> {
+export async function waitForLoaderState(ctx: any, id: string, predicate: (entry: any) => boolean, timeoutMs = 3000): Promise<boolean> {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     const entry = getLoaderEntry(ctx, id);

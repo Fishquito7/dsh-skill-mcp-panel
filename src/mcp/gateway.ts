@@ -151,7 +151,7 @@ export class McpManagerGateway extends TypertRemoteService {
     await writeManagedRows(this.patchPath(), nextRows);
 
     const reconciled = enabled
-      ? await waitForLoaderState(this.C, nextRow.id!, (entry) => entry !== undefined && entry.disabled !== true && entry.fiber !== undefined && (entry.fiber.state === 2 || entry.fiber.state === 3))
+      ? await waitForLoaderState(this.C, nextRow.id!, (entry) => entry !== undefined && entry.disabled !== true)
       : await waitForLoaderState(this.C, nextRow.id!, (entry) => entry !== undefined && entry.disabled === true);
 
     const entry = getLoaderEntry(this.C, nextRow.id!);
@@ -181,7 +181,7 @@ export class McpManagerGateway extends TypertRemoteService {
     row.disabled = !payload.enabled;
     await writeManagedRows(this.patchPath(), managed);
     const reconciled = payload.enabled
-      ? await waitForLoaderState(this.C, row.id!, (entry) => entry !== undefined && entry.disabled !== true && entry.fiber !== undefined && (entry.fiber.state === 2 || entry.fiber.state === 3))
+      ? await waitForLoaderState(this.C, row.id!, (entry) => entry !== undefined && entry.disabled !== true)
       : await waitForLoaderState(this.C, row.id!, (entry) => entry !== undefined && entry.disabled === true);
     const entry = getLoaderEntry(this.C, row.id!);
     const server = this.decorate(row, true, entry, payload.enabled);
