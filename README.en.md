@@ -24,7 +24,7 @@ A DSH plugin for managing skills right from the web UI and terminal
 1. Install the package (its bundle layer auto-mounts it — no config editing)
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.0.0/dsh-skill-mcp-panel-2.0.0.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.0.1/dsh-skill-mcp-panel-2.0.1.tgz
    ```
 
    > Prefer the release tarball: no git involved, no pnpm v11 build-script
