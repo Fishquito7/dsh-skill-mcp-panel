@@ -1,4 +1,4 @@
-# dsh-skill-viewer
+# dsh-skill/mcp-panel — dsh-skill-mcp-panel
 
 English | [简体中文](README.md)
 
@@ -24,7 +24,7 @@ A DSH plugin for managing skills right from the web UI and terminal
 1. Install the package (its bundle layer auto-mounts it — no config editing)
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-viewer/releases/download/v0.7.0/dsh-skill-viewer-0.7.0.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.0.0/dsh-skill-mcp-panel-2.0.0.tgz
    ```
 
    > Prefer the release tarball: no git involved, no pnpm v11 build-script
@@ -34,7 +34,7 @@ A DSH plugin for managing skills right from the web UI and terminal
    > under `allowBuilds` in the profile's `pnpm-workspace.yaml` and re-run):
    >
    > ```bash
-   > dsh plugin --profile web add github:Fishquito7/dsh-skill-viewer
+   > dsh plugin --profile web add github:Fishquito7/dsh-skill-mcp-panel
    > ```
 
 2. Restart the gateway
@@ -47,27 +47,47 @@ A DSH plugin for managing skills right from the web UI and terminal
 
 ## CLI
 
-The package ships a `dsh-skill` command for terminal-based management (also hot; works while the gateway is down):
+The package ships the unified `dsh-panel` command. Skill management:
 
 ```bash
-dsh-skill list                                  # list skills (with scope: global / workspace)
-dsh-skill add <path>                            # add to global (.md file, bundle dir, or .zip archive)
-dsh-skill add <path> --workspace D:\projA       # add directly into a workspace
-dsh-skill scope <name> --global                  # migrate one skill to global
-dsh-skill scope <name> --workspace D:\projA      # migrate one skill into a workspace (--copy to copy)
-dsh-skill migrate <name...|--all> --from <global|path> --to <global|path> [--copy] [--yes]
-dsh-skill update [--profile <name>]  # check for updates and install (default profile: web)
+dsh-panel skill --help
+```
+
+MCP management:
+
+```bash
+dsh-panel skill list                                  # list skills (with scope: global / workspace)
+dsh-panel skill add <path>                            # add to global (.md file, bundle dir, or .zip archive)
+dsh-panel skill add <path> --workspace D:\projA       # add directly into a workspace
+dsh-panel skill scope <name> --global                  # migrate one skill to global
+dsh-panel skill scope <name> --workspace D:\projA      # migrate one skill into a workspace (--copy to copy)
+dsh-panel skill migrate <name...|--all> --from <global|path> --to <global|path> [--copy] [--yes]
+dsh-panel skill update [--profile <name>]  # check for updates and install (default profile: web)
                                                  # batch migrate (copy or move)
-dsh-skill disable <name>       # disable
-dsh-skill enable <name>        # enable
-dsh-skill delete <name>        # delete (asks for confirmation)
+dsh-panel skill disable <name>       # disable
+dsh-panel skill enable <name>        # enable
+dsh-panel skill delete <name>        # delete (asks for confirmation)
 ```
 
 The CLI only scans the cwd-anchored project roots and the user roots; add `--cwd <workspace-path>` to manage a different workspace's skills. If a skill name exists in several scopes, `enable`/`disable`/`delete` require `--global`/`--project`/`--workspace` to pick which copy to operate on.
 
 ## How it works
 
-The plugin doesn't parse skills itself — it's just a management surface over the skill files: every action in the page (or via `dsh-skill`) ends up as a change to the skill files on disk (`SKILL.md`), and DSH's own file watcher notices immediately. That's why enable/disable, add, delete and migration are all hot — no gateway restart.
+```bash
+dsh-panel mcp list [--profile <name>]
+dsh-panel mcp add --name <serverName> --stdio --command <cmd> [--args <arg> ...] [--env KEY=VALUE ...] [--cwd <path>] [--profile <name>]
+dsh-panel mcp add --name <serverName> --http --url <url> [--header KEY=VALUE ...] [--profile <name>]
+dsh-panel mcp enable|disable <serverName> [--profile <name>]
+dsh-panel mcp remove <serverName> [--yes] [--profile <name>]
+dsh-panel mcp test <serverName> [--profile <name>]
+dsh-panel mcp update [--yes] [--profile <name>]
+dsh-panel update [--yes] [--profile <name>]      # update the whole package
+```
+
+MCP configuration is written to the managed block in the target profile's `cordis.patch.yml`
+(markers `# >>> dsh-skill-mcp-panel:mcp:begin` / `# <<< ...end`). Do not edit inside the block.
+
+The plugin doesn't parse skills itself — it's just a management surface over the skill files: every action in the page (or via `dsh-panel skill`) ends up as a change to the skill files on disk (`SKILL.md`), and DSH's own file watcher notices immediately. That's why enable/disable, add, delete and migration are all hot — no gateway restart.
 
 - A skill's entity lives directly in its scope folder: global = `~/.dsh/skills`, workspace = `<workspace>/.dsh/skills` — no hidden store, no junctions: after uninstalling the plugin the skills are plain files DSH keeps discovering
 - Disable = rename `SKILL.md` to `SKILL.md.disabled`, enable = rename it back
@@ -81,7 +101,7 @@ The source is TypeScript under `src/`; the compiled `lib/*.js` is committed with
 ## Uninstall
 
 ```bash
-dsh plugin --profile web remove dsh-skill-viewer
+dsh plugin --profile web remove dsh-skill-mcp-panel
 ```
 
 

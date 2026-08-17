@@ -2,3 +2,6 @@ node_modules/
 pnpm-lock.yaml
 *.log
 .DS_Store
+FUSION_HANDOFF.md
+HANDOFF.md
+dsh-skill-mcp-panel-融合开发规划.md

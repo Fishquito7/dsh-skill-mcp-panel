@@ -1,5 +1,5 @@
 /**
- * dsh-skill-viewer —— 技能分组的插件私有显示配置。
+ * dsh-skill-mcp-panel —— 技能分组的插件私有显示配置。
  *
  * 分组只影响页面上的显示与过滤，绝不改动技能目录内容。配置保存在
  * `<dshHome>/skills/.system/skill-viewer/groups.json`：

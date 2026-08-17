@@ -1,9 +1,9 @@
-# dsh-skill-viewer
+# dsh-skill/mcp-panel — dsh-skill-mcp-panel
 
 [English](README.en.md) | 简体中文
 
 
-DSH 插件，可直接在 web 界面快速管理 skill 状态，同时在终端加入快捷的skill管理命令。命令行命令请见下文
+DSH 插件，在 Web 设置页同时提供「技能」与「MCP」两个管理面板，并随包提供统一终端命令 `dsh-panel`（`skill` / `mcp` 两个子命令族）。
 
 注意：本项目提供的参考命令默认指定profile为默认的--profile web，需要更改profile的请自行注意。
 
@@ -12,6 +12,8 @@ DSH 插件，可直接在 web 界面快速管理 skill 状态，同时在终端�
 
 
 ## 功能
+
+### 技能面板
 
 - skill 卡片列表：预览已注册安装的 skill，点击卡片可展开查看完整内容
 - skill 状态：启用、停用状态标签，与内置插件列表同款样式
@@ -33,12 +35,19 @@ DSH 插件，可直接在 web 界面快速管理 skill 状态，同时在终端�
   其它作用域里的副本；找不到指定作用域的条目会直接报错，不会回退误操作。
   命令行同名技能也需用 `--global` / `--project` / `--workspace` 显式指定。
 
+### MCP 面板（v2.0.0）
+- 设置页「技能」下方新增「MCP」页，管理 profile `cordis.patch.yml` 中的 MCP 服务器受管块；
+- 支持 **Stdio**（本地命令）与 **HTTP**（streamable-http）两种调用方式；
+- 支持新增、编辑、启停、删除、测试连接；保存后由 DSH HMR 热加载，无需重启网关；
+- `env` / `headers` 密钥在 RPC 与页面中脱敏，编辑时缺省 key 保留旧值；
+- `cordis.patch.yml` 面板块外的用户内容逐字节保留。
+
 ## 安装
 
 1. 安装本包（bundle 层自动挂载，无需编辑配置文件）
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-viewer/releases/download/v0.7.0/dsh-skill-viewer-0.7.0.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.0.0/dsh-skill-mcp-panel-2.0.0.tgz
    ```
 
    > 首选发行版 tarball：不走 Git，不受 pnpm v11 的构建脚本限制。
@@ -47,7 +56,7 @@ DSH 插件，可直接在 web 界面快速管理 skill 状态，同时在终端�
    > profile 目录 `pnpm-workspace.yaml` 的 `allowBuilds` 下再重跑）：
    >
    > ```bash
-   > dsh plugin --profile web add github:Fishquito7/dsh-skill-viewer
+   > dsh plugin --profile web add github:Fishquito7/dsh-skill-mcp-panel
    > ```
 
 2. 重启网关
@@ -56,32 +65,55 @@ DSH 插件，可直接在 web 界面快速管理 skill 状态，同时在终端�
    dsh-restart
    ```
 
-   重启后刷新页面：设置 → “插件”下方即可看到“技能”。
+   重启后刷新页面：设置 → “插件”下方为“技能”，其下方为“MCP”。
 
 ## 命令行
 
-随包附带 `dsh-skill` 命令，可直接在终端管理技能（同样热生效，网关关闭时也能用）：
+统一父命令为 `dsh-panel`。
+
+### 技能子命令
 
 ```bash
-dsh-skill list                                  # 列出技能（含工作区：全局 / 工作区）
-dsh-skill add <path>                            # 添加到全局（.md 文件、目录束或 .zip 压缩包）
-dsh-skill add <path> --workspace D:\项目A       # 直接添加到指定工作区
-dsh-skill scope <name> --global                  # 迁移单个技能到全局
-dsh-skill scope <name> --workspace D:\项目A      # 迁移单个技能到指定工作区（--copy 复制）
-dsh-skill migrate <name...|--all> --from <全局|路径> --to <全局|路径> [--copy] [--yes]
-dsh-skill update [--profile <name>]  # 检查并更新插件（默认 web 配置）
-                                                 # 批量迁移（复制/移动）
-dsh-skill disable <name>       # 停用
-dsh-skill enable <name>        # 启用
-dsh-skill delete <name>        # 删除（需确认）
+dsh-panel skill --help
 ```
+
+
+```bash
+dsh-panel skill list                                  # 列出技能（含工作区：全局 / 工作区）
+dsh-panel skill add <path>                            # 添加到全局（.md 文件、目录束或 .zip 压缩包）
+dsh-panel skill add <path> --workspace D:\项目A       # 直接添加到指定工作区
+dsh-panel skill scope <name> --global                  # 迁移单个技能到全局
+dsh-panel skill scope <name> --workspace D:\项目A      # 迁移单个技能到指定工作区（--copy 复制）
+dsh-panel skill migrate <name...|--all> --from <全局|路径> --to <全局|路径> [--copy] [--yes]
+dsh-panel skill update [--profile <name>]  # 检查并更新插件（默认 web 配置）
+                                                 # 批量迁移（复制/移动）
+dsh-panel skill disable <name>       # 停用
+dsh-panel skill enable <name>        # 启用
+dsh-panel skill delete <name>        # 删除（需确认）
+```
+
+### MCP 子命令
+
+```bash
+dsh-panel mcp list [--profile <name>]
+dsh-panel mcp add --name <serverName> --stdio --command <cmd> [--args <arg> ...] [--env KEY=VALUE ...] [--cwd <path>] [--profile <name>]
+dsh-panel mcp add --name <serverName> --http --url <url> [--header KEY=VALUE ...] [--profile <name>]
+dsh-panel mcp enable|disable <serverName> [--profile <name>]
+dsh-panel mcp remove <serverName> [--yes] [--profile <name>]
+dsh-panel mcp test <serverName> [--profile <name>]
+dsh-panel mcp update [--yes] [--profile <name>]
+dsh-panel update [--yes] [--profile <name>]      # 更新整个 dsh-skill-mcp-panel
+```
+
+MCP 配置写入目标 profile 的 `cordis.patch.yml` 受管块；网关在线时自动热加载。面板块由
+`# >>> dsh-skill-mcp-panel:mcp:begin` / `# <<< ...end` 标记，请勿手改块内内容。
 
 CLI 只扫描当前目录锚定的项目根与用户根；管理其他工作区的技能请加 `--cwd <工作区路径>`。
 同名技能存在于多个作用域时，`enable`/`disable`/`delete` 需加 `--global`/`--project`/`--workspace` 指定操作哪一份。
 
 ## 工作原理
 
-插件并不自己解析技能，只是技能文件的“管理界面”：页面和 `dsh-skill` 命令的每次操作，最终都是对磁盘上技能文件（`SKILL.md`）的改动，DSH 自带的文件监听器立刻发现变化——所以启用/停用、增删、迁移都热生效，无需重启网关。
+插件并不自己解析技能，只是技能文件的“管理界面”：页面和 `dsh-panel skill` 命令的每次操作，最终都是对磁盘上技能文件（`SKILL.md`）的改动，DSH 自带的文件监听器立刻发现变化——所以启用/停用、增删、迁移都热生效，无需重启网关。
 
 - 技能实体直接存放在其工作区的技能文件夹：全局 = `~/.dsh/skills`，工作区 = `<工作区>/.dsh/skills`，没有隐藏存储或联接点——卸载插件后技能仍是普通文件，照常被 DSH 发现
 - 停用 = 把 `SKILL.md` 改名为 `SKILL.md.disabled`，启用 = 改回来
@@ -97,7 +129,7 @@ CLI 只扫描当前目录锚定的项目根与用户根；管理其他工作区�
 ## 卸载
 
 ```bash
-dsh plugin --profile web remove dsh-skill-viewer
+dsh plugin --profile web remove dsh-skill-mcp-panel
 ```
 
 ## License

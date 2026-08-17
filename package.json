@@ -1,7 +1,7 @@
 {
-  "name": "dsh-skill-viewer",
-  "version": "0.7.0",
-  "description": "dsh skill viewer: manage skills from the DSH web UI settings panel (hot enable/disable, delete, add, workspace scoping) plus a CLI.",
+  "name": "dsh-skill-mcp-panel",
+  "version": "2.0.0",
+  "description": "dsh-skill-mcp-panel: manage skills and MCP servers from the DSH web settings UI plus the unified dsh-panel CLI.",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -28,10 +28,12 @@
     "@deepseek-ai/dsh-typert-protocol": "^0.1.0-rc.6",
     "fflate": "^0.8.3",
     "yaml": "^2.9.0",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@deepseek-ai/dsh-subprocess": "^0.1.0-rc.6",
+    "@modelcontextprotocol/sdk": "^1.12.0"
   },
   "bin": {
-    "dsh-skill": "./lib/cli.js"
+    "dsh-panel": "./lib/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/strip-client-export.mjs",
@@ -47,6 +49,7 @@
   ],
   "devDependencies": {
     "@types/node": "^26.2.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "@deepseek-ai/cordis": "^4.0.1"
   }
 }
