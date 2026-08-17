@@ -1632,28 +1632,25 @@ function SkillsSection(props) {
 											className: c.cardActions,
 											children: [(0, react_jsx_runtime.jsxs)("span", {
 												className: c.switchRow,
-												children: [(0, react_jsx_runtime.jsx)("span", {
-                                                                                                        className: c.statusDot,
-                                                                                                        "data-enabled": enabled ? "true" : "false",
-                                                                                                        "aria-hidden": "true"
-                                                                                                }), (0, react_jsx_runtime.jsx)("span", {
-                                                                                                        className: c.switchText,
-                                                                                                        children: enabled ? t("enabledTag") : t("disabledTag")
-                                                                                                }), (0, react_jsx_runtime.jsx)("button", {
-                                                                                                        type: "button",
-                                                                                                        role: "switch",
-                                                                                                        className: c.switch,
-                                                                                                        "data-on": enabled ? "true" : void 0,
-                                                                                                        "aria-checked": enabled,
-                                                                                                        "aria-label": enabled ? t("switchDisable") : t("switchEnable"),
-                                                                                                        disabled: op?.status === "busy",
-                                                                                                        onClick: () => {
-                                                                                                                applySetEnabled(skill);
-                                                                                                        },
-                                                                                                        children: (0, react_jsx_runtime.jsx)("span", {
-                                                                                                                className: c.switchThumb
-                                                                                                        })
-                                                                                                })]}), op?.status === "error" ? (0, react_jsx_runtime.jsx)("span", {
+												children: [(0, react_jsx_runtime.jsx)("button", {
+													type: "button",
+													role: "switch",
+													className: c.switch,
+													"data-on": enabled ? "true" : void 0,
+													"aria-checked": enabled,
+													"aria-label": enabled ? t("switchDisable") : t("switchEnable"),
+													disabled: op?.status === "busy",
+													onClick: () => {
+														applySetEnabled(skill);
+													},
+													children: (0, react_jsx_runtime.jsx)("span", {
+														className: c.switchThumb
+													})
+												}), (0, react_jsx_runtime.jsx)("span", {
+													className: c.switchText,
+													children: enabled ? t("switchDisable") : t("switchEnable")
+												})]
+											}), op?.status === "error" ? (0, react_jsx_runtime.jsx)("span", {
 												className: c.opError,
 												children: t("opFailed")
 											}) : null, (0, react_jsx_runtime.jsx)("button", {
@@ -2328,16 +2325,22 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                                                 })]
                                         }), (0, react_jsx_runtime.jsxs)("div", {
                                                 className: m.meta,
-                                                children: [(0, react_jsx_runtime.jsx)("span", { children: t !== null ? t("toolCount").replace("{count}", String(server.toolCount ?? 0)) : "" })]
+                                                children: [(0, react_jsx_runtime.jsx)("span", {
+                                                        className: m.dot,
+                                                        "data-on": server.enabled ? "true" : "false",
+                                                        "data-err": server.fiberPhase === "failed" ? "true" : "false"
+                                                }), (0, react_jsx_runtime.jsx)("span", { children: t !== null ? t("toolCount").replace("{count}", String(server.toolCount ?? 0)) : "" })]
                                         }), isExternal ? null : (0, react_jsx_runtime.jsxs)("div", {
                                                 className: m.actions,
-                                                children: [(0, react_jsx_runtime.jsxs)("div", {
+                                                children: [(0, react_jsx_runtime.jsxs)("span", {
                                                         className: c.switchRow,
                                                         children: [(0, react_jsx_runtime.jsx)("button", {
                                                                 type: "button",
+                                                                role: "switch",
                                                                 className: c.switch,
-                                                                "data-on": server.enabled ? "true" : "false",
-                                                                "aria-pressed": server.enabled ? "true" : "false",
+                                                                "data-on": server.enabled ? "true" : void 0,
+                                                                "aria-checked": server.enabled,
+                                                                "aria-label": server.enabled ? t("disable") : t("enable"),
                                                                 onClick: () => applyToggle(server),
                                                                 children: (0, react_jsx_runtime.jsx)("span", { className: c.switchThumb })
                                                         }), (0, react_jsx_runtime.jsx)("span", { className: c.switchText, children: t !== null ? (server.enabled ? t("stateEnabled") : t("stateDisabled")) : "" })]
