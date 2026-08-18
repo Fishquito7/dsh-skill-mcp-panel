@@ -9,6 +9,46 @@
 		let react = require("react");
 		let primitives = require("@deepseek-ai/dsh-client-ui-primitives");
 
+		// ── 技能树构建：从技能条目（含 rel）构建与文件树一致的分层结构 ──────
+		// 正确性：叶子只能是扫描器验证过的技能条目（含 SKILL.md 的目录）；
+		// rel 中间段是分类文件夹（永远不是技能）；rel 为空 = 根层叶子。
+		// 因此"非技能的嵌套文件夹"不可能成为树节点。
+		function buildSkillTree(skills) {
+			const root: any = { path: "", name: "", skills: [], folders: new Map(), count: 0 };
+			const byPath: Map<string, any> = new Map();
+			byPath.set("", root);
+			for (const skill of skills) {
+				const rel = skill?.rel ?? "";
+				if (rel === "") {
+					root.skills.push(skill);
+					continue;
+				}
+				const segments = rel.split("/");
+				const dirSegments = segments.slice(0, -1);
+				let current = "";
+				let node = root;
+				for (const segment of dirSegments) {
+					current = current === "" ? segment : current + "/" + segment;
+					let child = byPath.get(current);
+					if (child === undefined) {
+						child = { path: current, name: segment, skills: [], folders: new Map(), count: 0 };
+						byPath.set(current, child);
+						node.folders.set(segment, child);
+					}
+					node = child;
+				}
+				node.skills.push(skill);
+			}
+			computeCounts(root);
+			return root;
+		}
+		function computeCounts(node) {
+			let total = node.skills.length;
+			for (const child of node.folders.values()) total += computeCounts(child);
+			node.count = total;
+			return total;
+		}
+
 		// ── 样式（按用途分组）─────────────────────────────────────────────────
 		// 页面骨架：section / 状态文案 / 搜索框 / 标题行
 		const cssChrome = ".SKV_section{position:relative;width:100%;max-width:760px;color:var(--dsw-alias-label-primary);flex-direction:column;gap:14px;display:flex}.SKV_status{color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:20px;margin:0}.SKV_failure{color:var(--dsw-alias-state-error-primary);align-items:center;gap:10px;display:flex}.SKV_failure p{margin:0}.SKV_failure button{border:1px solid var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer;background:0 0;border-radius:6px;padding:4px 10px}.SKV_catalog{flex-direction:column;gap:12px;display:flex}.SKV_catalogHeading{align-items:baseline;gap:7px;padding:0 2px;display:flex}.SKV_catalogHeading h3{font-size:13px;font-weight:600;line-height:20px;margin:0}.SKV_catalogHeading span{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;font-size:12px;line-height:18px}.SKV_searchBox{position:relative;width:100%}.SKV_searchIcon{color:var(--dsw-alias-label-tertiary);position:absolute;left:12px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;pointer-events:none}.SKV_searchField::placeholder{color:var(--dsw-alias-label-tertiary)}.SKV_searchField:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}.SKV_searchField{box-sizing:border-box;width:100%;height:36px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:34px;outline:0;padding:0 12px 0 38px}.SKV_iconButton{box-sizing:border-box;width:28px;height:28px;color:var(--dsw-alias-label-primary);font:inherit;cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;padding:0;display:inline-flex;align-items:center;justify-content:center}.SKV_iconButton:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.SKV_iconButton:disabled{cursor:default;opacity:.6}.SKV_notice{border-radius:8px;align-items:center;gap:10px;padding:8px 12px;display:flex;border:1px solid transparent}.SKV_notice[data-kind=error]{border-color:color-mix(in srgb, var(--dsw-alias-state-error-primary) 40%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent)}.SKV_notice[data-kind=error] .SKV_noticeText{color:var(--dsw-alias-state-error-primary)}.SKV_notice[data-kind=info]{border-color:color-mix(in srgb, var(--dsw-alias-state-business-primary) 35%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 8%, transparent)}.SKV_notice[data-kind=info] .SKV_noticeText{color:var(--dsw-alias-state-business-primary)}.SKV_noticeText{font-size:12px;line-height:18px;flex:1;min-width:0}.SKV_noticeButton{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:2px 10px;font-size:12px;line-height:18px;flex:none}.SKV_noticeButton:hover{background:var(--dsw-alias-interactive-bg-hover-solid)}.SKV_deleteButton[data-confirm=true]{color:var(--dsw-alias-state-error-primary);border-color:color-mix(in srgb, var(--dsw-alias-state-error-primary) 50%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent)}";
@@ -24,7 +64,8 @@ const cssIconMcp = "button[data-mcp-nav]>svg{display:none!important}button[data-
 		const cssMigrate = ".SKV_scopeBar{gap:6px;padding:2px;max-width:100%;overflow-x:auto;scrollbar-width:thin;display:flex;align-items:center}.SKV_scopeChip{font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:3px 12px;font-size:12px;line-height:18px;white-space:nowrap;flex:none;display:inline-flex;align-items:center;gap:6px}.SKV_scopeChip:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_scopeChip[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-state-business-primary)}.SKV_scopeChipCount{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;font-size:11px;line-height:16px}.SKV_scopeChip[data-active=true] .SKV_scopeChipCount{color:var(--dsw-alias-state-business-primary)}.SKV_migrateSection{flex-direction:column;gap:6px;display:flex}.SKV_migrateLabel{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;margin:0}.SKV_migrateFromValue{color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;margin:0;word-break:break-all}.SKV_migrateList{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;max-height:220px;overflow-y:auto;margin:0;padding:4px;list-style:none;display:flex;flex-direction:column;gap:2px}.SKV_migrateItem{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:none;border-radius:6px;padding:6px 10px;font-size:13px;line-height:20px;text-align:left;display:flex;align-items:center;gap:8px}.SKV_migrateItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_migrateItem input{margin:0;accent-color:var(--dsw-alias-state-business-primary)}.SKV_migrateItemName{flex:1;min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.SKV_migrateItemState{color:var(--dsw-alias-label-tertiary);font-size:11px;flex:none}.SKV_migrateSelectAll{font:inherit;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:0 0;border:none;padding:0;font-size:12px;line-height:18px}.SKV_migrateHint{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:0}.SKV_migrateResult{border-radius:8px;padding:8px 12px;font-size:12px;line-height:18px;margin:0}.SKV_migrateResult[data-ok=true]{background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);color:var(--dsw-alias-state-success-primary)}.SKV_migrateResult[data-ok=false]{background:color-mix(in srgb, var(--dsw-alias-state-warning-primary) 10%, transparent);color:var(--dsw-alias-state-warning-primary)}.SKV_migrateResultList{margin:4px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;max-height:120px;overflow-y:auto}.SKV_scopeChip{max-width:320px}.SKV_scopeChipLabel{max-width:220px;min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;display:inline-block}.SKV_wsPath{min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;display:block}.SKV_migrateOptionLabel{min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.SKV_scopeOptions{max-height:132px;overflow-y:auto;scrollbar-width:thin}.SKV_migrateList{max-height:148px}.SKV_scopeBox{overflow-y:auto;scrollbar-width:thin}.SKV_select{width:100%;box-sizing:border-box;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 8px}.SKV_select:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);outline:none}.SKV_groupBody{display:flex;gap:16px;min-height:0}.SKV_groupSide{width:150px;flex:none;display:flex;flex-direction:column;gap:2px;min-width:0}.SKV_groupNewBtn{display:flex;align-items:center;gap:6px;justify-content:flex-start;font:inherit;font-size:13px;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:0 0;border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;padding:7px 10px;margin-bottom:6px;text-align:left}.SKV_groupNewBtn:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_groupSideLabel{font-size:12px;color:var(--dsw-alias-label-tertiary);padding:0 10px;margin-bottom:2px}.SKV_groupSideItem{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;font:inherit;font-size:13px;cursor:pointer;color:var(--dsw-alias-label-secondary);background:0 0;border:none;text-align:left;min-width:0}.SKV_groupSideItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_groupSideItem[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);color:var(--dsw-alias-state-business-primary);font-weight:500}.SKV_groupMain{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}.SKV_field{display:flex;flex-direction:column;gap:6px}.SKV_fieldLabel{font-size:12px;color:var(--dsw-alias-label-secondary);margin:0}.SKV_skillListBox{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 10px;max-height:220px;overflow-y:auto}.SKV_skillRow{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:0.5px solid var(--dsw-alias-border-l2);font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;min-width:0}.SKV_skillRow:last-child{border-bottom:none}.SKV_skillRow:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_skillRow input{margin:0;accent-color:var(--dsw-alias-state-business-primary);flex:none}.SKV_skillName{flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.SKV_skillBadge{font-size:12px;padding:2px 8px;border-radius:5px;white-space:nowrap;flex:none}.SKV_skillBadge[data-on=true]{background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 12%, transparent);color:var(--dsw-alias-state-success-primary)}.SKV_skillBadge[data-on=false]{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-tertiary)}.SKV_countRow{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}.SKV_countText{font-size:12px;color:var(--dsw-alias-label-secondary);margin:0}.SKV_dialogFooter{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--dsw-alias-border-l2)}.SKV_dangerBtn{font:inherit;font-size:13px;color:var(--dsw-alias-state-error-primary);cursor:pointer;background:0 0;border:1px solid transparent;border-radius:6px;padding:5px 10px}.SKV_dangerBtn:hover:not(:disabled){background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent)}.SKV_dangerBtn:disabled{cursor:default;opacity:.6}.SKV_textInput{width:100%;box-sizing:border-box;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;outline:none;padding:0 10px}.SKV_textInput::placeholder{color:var(--dsw-alias-label-tertiary)}.SKV_textInput:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}.SKV_scopeBox{width:640px}.SKV_groupSide{width:170px}.SKV_groupSideItem{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.SKV_select{appearance:none;-webkit-appearance:none;width:100%;box-sizing:border-box;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background-color:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 30px 0 10px;background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 16 16%27 fill=%27none%27%3E%3Cpath d=%27M4 6l4 4 4-4%27 stroke=%27%23888%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 10px center}.SKV_select:hover{border-color:var(--dsw-alias-border-l1)}.SKV_targetBox{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:4px;max-height:152px;overflow-y:auto;scrollbar-width:thin}.SKV_targetItem{display:flex;align-items:center;gap:8px;padding:7px 6px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:none;border-bottom:0.5px solid var(--dsw-alias-border-l2);width:100%;text-align:left;min-width:0}.SKV_targetItem:last-child{border-bottom:none}.SKV_targetItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_targetItem[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 8%, transparent)}.SKV_targetItem input{margin:0;accent-color:var(--dsw-alias-state-business-primary);flex:none}.SKV_skillListBox{max-height:180px};.SKV_groupBar{gap:0;padding:0 2px;max-width:100%;overflow-x:auto;scrollbar-width:thin;display:flex;align-items:center}.SKV_groupItem{font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:none;padding:2px 10px;font-size:12px;line-height:18px;white-space:nowrap;flex:none}.SKV_groupItem:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover);border-radius:5px}.SKV_groupItem[data-active=true]{color:var(--dsw-alias-state-business-primary);font-weight:500}.SKV_groupSep{color:var(--dsw-alias-border-l1);flex:none;user-select:none;font-size:12px;line-height:18px;padding:0 1px}";
 const cssGroupDelete = ".SKV_groupItemWrap{position:relative;display:inline-flex;align-items:center}.SKV_groupSideItemWrap{position:relative;display:flex;align-items:center;min-width:0}.SKV_groupSideItemWrap .SKV_groupSideItem{flex:1;min-width:0}.SKV_groupDelete{display:none;width:16px;height:16px;align-items:center;justify-content:center;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:12px;line-height:14px;cursor:pointer;background:0 0;border:none;border-radius:999px;padding:0;margin-left:2px;flex:none}.SKV_groupItemWrap:hover .SKV_groupDelete,.SKV_groupSideItemWrap:hover .SKV_groupSideItemWrap{position:relative;display:flex;align-items:center;min-width:0}.SKV_groupSideItemWrap .SKV_groupSideItem{flex:1;min-width:0}.SKV_groupDelete{display:inline-flex}.SKV_groupDelete:hover{color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent)}.SKV_groupDelete[data-confirm=true]{display:inline-flex;width:auto;height:18px;padding:0 7px;color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent)}";
 const cssCategory = ".SKV_categoryBar{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}.SKV_categoryLabel{font-size:12px;color:var(--dsw-alias-label-tertiary);flex:none;margin-right:2px}.SKV_categoryChip{font:inherit;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 10px;white-space:nowrap;flex:none}.SKV_categoryChip:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_categoryChip[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-state-business-primary)}";
-const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssGroupDelete + cssCategory + cssIcon + cssIconMcp;
+const cssTree = ".SKV_treeFolder{grid-column:1/-1;display:flex;flex-direction:column;gap:10px}.SKV_treeFolderHeader{display:flex;align-items:center;gap:6px;width:100%;font:inherit;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:7px 10px;text-align:left}.SKV_treeFolderHeader:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_treeFolderName{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.SKV_treeFolderCount{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;font-size:12px;line-height:18px;flex:none}.SKV_treeChevron{transition:transform .15s;transform:rotate(-90deg)}.SKV_treeChevronOpen{transition:transform .15s;transform:rotate(0deg)}";
+const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssGroupDelete + cssCategory + cssTree + cssIcon + cssIconMcp;
 		const tagId = "dsh-skill-mcp-panel/SkillsSection.module.css";
 		if (typeof document !== "undefined") {
 			let tag = document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") as HTMLElement | null;
@@ -101,6 +142,12 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssGroupDele
                      groupItemWrap: "SKV_groupItemWrap",
                      groupDelete: "SKV_groupDelete",
 			groupSep: "SKV_groupSep",
+			treeFolder: "SKV_treeFolder",
+			treeFolderHeader: "SKV_treeFolderHeader",
+			treeFolderName: "SKV_treeFolderName",
+			treeFolderCount: "SKV_treeFolderCount",
+			treeChevron: "SKV_treeChevron",
+			treeChevronOpen: "SKV_treeChevronOpen",
 			categoryBar: "SKV_categoryBar",
 			categoryLabel: "SKV_categoryLabel",
 			categoryChip: "SKV_categoryChip",
@@ -997,6 +1044,16 @@ function SkillsSection(props) {
 			const [listState, setListState] = react.useState({ status: "loading" });
 			const [request, setRequest] = react.useState(0);
 			const [expanded, setExpanded] = react.useState(null);
+			// 树形折叠状态（默认全部展开；路径为 key）。
+			const [collapsed, setCollapsed] = react.useState(() => new Set());
+			const toggleCollapsed = (path) => {
+				setCollapsed((prev) => {
+					const next = new Set(prev);
+					if (next.has(path)) next.delete(path);
+					else next.add(path);
+					return next;
+				});
+			};
 			const [bodies, setBodies] = react.useState({});
 			const [ops, setOps] = react.useState({});
 			const [adding, setAdding] = react.useState({ status: "idle" });
@@ -1417,6 +1474,143 @@ function SkillsSection(props) {
 			const grouped = groupFilter === "all" ? scoped : scoped.filter((skill) => (Array.isArray(skill.groups) ? skill.groups : []).includes(groupFilter));
 			const filtered = grouped.filter((skill) => skill.name.toLocaleLowerCase().includes(normalizedQuery));
 
+			// ── 树形渲染（嵌套技能按文件树显示；搜索时扁平化）──────────────────
+			const querying = normalizedQuery.trim() !== "";
+			const treeRoot = buildSkillTree(filtered);
+			const renderCard = (skill) => {
+				const open = expanded === opKeyOf(skill);
+				const body = bodies[opKeyOf(skill)];
+				const enabled = skill.enabled !== false;
+				const editable = skill.source !== "bundled" && skill.source !== "runtime";
+				const op = ops[opKeyOf(skill)];
+				return (0, react_jsx_runtime.jsxs)("li", {
+					key: skill.name,
+					className: c.card,
+					"data-skill-name": skill.name,
+					"data-open": open ? "true" : void 0,
+					children: [(0, react_jsx_runtime.jsxs)("button", {
+						className: c.cardContent,
+						type: "button",
+						"aria-expanded": open,
+						onClick: () => {
+							toggle(skill);
+						},
+						children: [(0, react_jsx_runtime.jsx)("span", {
+							className: c.cardLeading,
+							children: (0, react_jsx_runtime.jsx)(primitives.IconSkillOutline16, { size: 14 })
+						}), (0, react_jsx_runtime.jsx)("strong", {
+							className: c.cardTitle,
+							"data-disabled": enabled ? void 0 : "true",
+							title: skill.name,
+							children: skill.name
+						}), (0, react_jsx_runtime.jsxs)("span", {
+							className: c.cardTrailing,
+							children: [(0, react_jsx_runtime.jsx)("span", {
+								className: c.statusDot,
+								"data-enabled": enabled ? "true" : "false",
+								"aria-hidden": "true"
+							}), (0, react_jsx_runtime.jsx)("span", {
+								className: c.configTag,
+								"data-enabled": enabled ? "true" : "false",
+								children: enabled ? t("enabledTag") : t("disabledTag")
+							}), (0, react_jsx_runtime.jsx)(primitives.IconChevronDownOutline14, {
+								className: c.chevron,
+								size: 12,
+								"aria-hidden": "true"
+							})]
+						})]
+					}), open ? (0, react_jsx_runtime.jsxs)("div", {
+						className: c.cardDetails,
+						children: [(0, react_jsx_runtime.jsxs)("p", {
+							className: c.meta,
+							children: [skill.description, (0, react_jsx_runtime.jsx)("span", {
+								className: c.metaProvider,
+								children: t("providerLabel") + ": " + skill.provider
+							})]
+						}), body === undefined || body.status === "loading" ? (0, react_jsx_runtime.jsx)("p", {
+							className: c.status,
+							children: t("contentLoading")
+						}) : null,
+						body !== undefined && body.status === "error" ? (0, react_jsx_runtime.jsx)("p", {
+							className: c.failureText,
+							children: t("contentError")
+						}) : null,
+						body !== undefined && body.status === "missing" ? (0, react_jsx_runtime.jsx)("p", {
+							className: c.failureText,
+							children: t("contentMissing")
+						}) : null,
+						body !== undefined && body.status === "ready" ? (0, react_jsx_runtime.jsx)("div", {
+							className: c.contentBox,
+							children: (0, react_jsx_runtime.jsx)("pre", {
+								className: c.content,
+								children: body.skill.content
+							})
+						}) : null,
+						editable ? (0, react_jsx_runtime.jsxs)("div", {
+							className: c.cardActions,
+							children: [(0, react_jsx_runtime.jsxs)("span", {
+								className: c.switchRow,
+								children: [(0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									role: "switch",
+									className: c.switch,
+									"data-on": enabled ? "true" : void 0,
+									"aria-checked": enabled,
+									"aria-label": enabled ? t("switchDisable") : t("switchEnable"),
+									disabled: op?.status === "busy",
+									onClick: () => {
+										applySetEnabled(skill);
+									},
+									children: (0, react_jsx_runtime.jsx)("span", {
+										className: c.switchThumb
+									})
+								}), (0, react_jsx_runtime.jsx)("span", {
+									className: c.switchText,
+									children: enabled ? t("switchDisable") : t("switchEnable")
+								})]
+							}), op?.status === "error" ? (0, react_jsx_runtime.jsx)("span", {
+								className: c.opError,
+								children: t("opFailed")
+							}) : null, (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								className: c.deleteButton,
+								disabled: op?.status === "busy",
+								onClick: () => {
+									applyRemove(skill);
+								},
+								"data-confirm": confirmKey === opKeyOf(skill) ? "true" : void 0,
+								children: confirmKey === opKeyOf(skill) ? t("confirmDelete") : t("deleteLabel")
+							})]
+						}) : null]
+					}) : null]
+				}, skill.name);
+			};
+			const renderFolder = (folder) => (0, react_jsx_runtime.jsxs)("li", {
+				className: c.treeFolder,
+				children: [(0, react_jsx_runtime.jsx)("button", {
+					type: "button",
+					className: c.treeFolderHeader,
+					"aria-expanded": !collapsed.has(folder.path),
+					onClick: () => {
+						toggleCollapsed(folder.path);
+					},
+					children: [(0, react_jsx_runtime.jsx)(primitives.IconChevronDownOutline14, {
+						className: collapsed.has(folder.path) ? c.treeChevron : c.treeChevronOpen,
+						size: 12,
+						"aria-hidden": "true"
+					}), (0, react_jsx_runtime.jsx)("span", {
+						className: c.treeFolderName,
+						children: folder.name
+					}), (0, react_jsx_runtime.jsx)("span", {
+						className: c.treeFolderCount,
+						children: String(folder.count)
+					})]
+				}), !collapsed.has(folder.path) ? (0, react_jsx_runtime.jsx)("ul", {
+					className: c.cards,
+					children: [...folder.folders.values()].map(renderFolder).concat(folder.skills.map(renderCard))
+				}) : null]
+			}, folder.path);
+
 			// 切换工作区时分组栏随之变化：把分组筛选重置为“全部”。
 			react.useEffect(() => {
 				setGroupFilter("all");
@@ -1709,113 +1903,7 @@ function SkillsSection(props) {
 						}) : null,
 						filtered.length > 0 ? (0, react_jsx_runtime.jsx)("ul", {
 							className: c.cards,
-							children: filtered.map((skill) => {
-								const open = expanded === opKeyOf(skill);
-								const body = bodies[opKeyOf(skill)];
-								const enabled = skill.enabled !== false;
-								const editable = skill.source !== "bundled" && skill.source !== "runtime";
-								const op = ops[opKeyOf(skill)];
-								return (0, react_jsx_runtime.jsxs)("li", {
-									key: skill.name,
-									className: c.card,
-									"data-skill-name": skill.name,
-									"data-open": open ? "true" : void 0,
-									children: [(0, react_jsx_runtime.jsxs)("button", {
-										className: c.cardContent,
-										type: "button",
-										"aria-expanded": open,
-										onClick: () => {
-											toggle(skill);
-										},
-										children: [(0, react_jsx_runtime.jsx)("span", {
-											className: c.cardLeading,
-											children: (0, react_jsx_runtime.jsx)(primitives.IconSkillOutline16, { size: 14 })
-										}), (0, react_jsx_runtime.jsx)("strong", {
-											className: c.cardTitle,
-											"data-disabled": enabled ? void 0 : "true",
-											title: skill.name,
-											children: skill.name
-										}), (0, react_jsx_runtime.jsxs)("span", {
-											className: c.cardTrailing,
-											children: [(0, react_jsx_runtime.jsx)("span", {
-												className: c.statusDot,
-												"data-enabled": enabled ? "true" : "false",
-												"aria-hidden": "true"
-											}), (0, react_jsx_runtime.jsx)("span", {
-												className: c.configTag,
-												"data-enabled": enabled ? "true" : "false",
-												children: enabled ? t("enabledTag") : t("disabledTag")
-											}), (0, react_jsx_runtime.jsx)(primitives.IconChevronDownOutline14, {
-												className: c.chevron,
-												size: 12,
-												"aria-hidden": "true"
-											})]
-										})]
-									}), open ? (0, react_jsx_runtime.jsxs)("div", {
-										className: c.cardDetails,
-										children: [(0, react_jsx_runtime.jsxs)("p", {
-											className: c.meta,
-											children: [skill.description, (0, react_jsx_runtime.jsx)("span", {
-												className: c.metaProvider,
-												children: t("providerLabel") + ": " + skill.provider
-											})]
-										}), body === undefined || body.status === "loading" ? (0, react_jsx_runtime.jsx)("p", {
-											className: c.status,
-											children: t("contentLoading")
-										}) : null,
-										body !== undefined && body.status === "error" ? (0, react_jsx_runtime.jsx)("p", {
-											className: c.failureText,
-											children: t("contentError")
-										}) : null,
-										body !== undefined && body.status === "missing" ? (0, react_jsx_runtime.jsx)("p", {
-											className: c.failureText,
-											children: t("contentMissing")
-										}) : null,
-										body !== undefined && body.status === "ready" ? (0, react_jsx_runtime.jsx)("div", {
-											className: c.contentBox,
-											children: (0, react_jsx_runtime.jsx)("pre", {
-												className: c.content,
-												children: body.skill.content
-											})
-										}) : null,
-										editable ? (0, react_jsx_runtime.jsxs)("div", {
-											className: c.cardActions,
-											children: [(0, react_jsx_runtime.jsxs)("span", {
-												className: c.switchRow,
-												children: [(0, react_jsx_runtime.jsx)("button", {
-													type: "button",
-													role: "switch",
-													className: c.switch,
-													"data-on": enabled ? "true" : void 0,
-													"aria-checked": enabled,
-													"aria-label": enabled ? t("switchDisable") : t("switchEnable"),
-													disabled: op?.status === "busy",
-													onClick: () => {
-														applySetEnabled(skill);
-													},
-													children: (0, react_jsx_runtime.jsx)("span", {
-														className: c.switchThumb
-													})
-												}), (0, react_jsx_runtime.jsx)("span", {
-													className: c.switchText,
-													children: enabled ? t("switchDisable") : t("switchEnable")
-												})]
-											}), op?.status === "error" ? (0, react_jsx_runtime.jsx)("span", {
-												className: c.opError,
-												children: t("opFailed")
-											}) : null, (0, react_jsx_runtime.jsx)("button", {
-												type: "button",
-												className: c.deleteButton,
-												disabled: op?.status === "busy",
-												onClick: () => {
-													applyRemove(skill);
-												},
-												"data-confirm": confirmKey === opKeyOf(skill) ? "true" : void 0, children: confirmKey === opKeyOf(skill) ? t("confirmDelete") : t("deleteLabel")
-											})]
-										}) : null]
-									}) : null]
-								}, skill.name);
-							})
+							children: querying ? filtered.map(renderCard) : [...treeRoot.folders.values()].map(renderFolder).concat(treeRoot.skills.map(renderCard))
 						}) : null,
 												(0, react_jsx_runtime.jsx)("input", {
                                                         ref: singleFileInput,
