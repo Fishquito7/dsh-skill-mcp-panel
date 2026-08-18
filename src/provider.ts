@@ -74,7 +74,6 @@ export class NestedSkillProvider {
         locator: { path: entry.file, directory: dirname(entry.file) },
         resourceBase: { kind: "directory", path: dirname(entry.file) },
         path: entry.file,
-        rel: entry.rel,
       });
     }
     return candidates;

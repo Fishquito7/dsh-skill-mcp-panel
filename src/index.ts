@@ -453,6 +453,13 @@ class SkillsViewerGateway extends TypertRemoteService {
     const roots = await this.allRoots();
     const listed = await registry.list({ cwd, scope });
     const groupMap = await loadGroups(this.homes().dshHome);
+    const fileEntries = await collectSkillEntries(roots);
+    // 嵌套技能的分类信息（rel）来自文件扫描：注册表 list() 的摘要会剥掉
+    // 候选上的 rel（toSummary 只投影固定字段），这里按（名称, 作用域）回填。
+    const relByKey = new Map();
+    for (const entry of fileEntries) {
+      relByKey.set(entry.name + "\u0000" + (entry.projectRoot ?? "global"), entry.rel ?? "");
+    }
     const skills: any[] = [];
     // 按（名称, 位置）去重——不能只按名称：同一技能可能同时存在于全局
     // 和某个工作区，两行都必须出现在各自的工作区芯片下。
@@ -474,12 +481,12 @@ class SkillsViewerGateway extends TypertRemoteService {
         userInvocable: skill.invocation.userInvocable,
         scope: { kind: "global" },
         groups: groupsForSkill(groupMap, "global", skill.name),
-        ...(skill.rel ? { rel: skill.rel } : {})
+        ...(relByKey.get(skill.name + "\u0000global") ? { rel: relByKey.get(skill.name + "\u0000global") } : {})
       });
       seen.add(seenKey(skill.name, "global"));
     }
     const titles = await this.workspaceTitles();
-    for (const entry of await collectSkillEntries(roots)) {
+    for (const entry of fileEntries) {
       const scopePath = entry.projectRoot ?? "global";
       if (seen.has(seenKey(entry.name, scopePath))) continue;
       seen.add(seenKey(entry.name, scopePath));
