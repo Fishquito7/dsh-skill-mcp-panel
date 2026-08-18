@@ -78,7 +78,24 @@ export function parseFrontmatter(raw) {
   };
   const name = pick("name");
   if (name === undefined || !SKILL_NAME_RE.test(name)) return undefined;
-  return { name, description: pick("description") ?? "", whenToUse: pick("whenToUse"), body: body.trim() };
+  const boolPick = (key) => {
+    const value = pick(key);
+    if (value === undefined) return undefined;
+    switch (value.toLowerCase()) {
+      case "true":
+      case "yes":
+      case "on":
+      case "1":
+        return true;
+      case "false":
+      case "no":
+      case "off":
+      case "0":
+        return false;
+    }
+    return undefined;
+  };
+  return { name, description: pick("description") ?? "", whenToUse: pick("whenToUse"), body: body.trim(), modelInvocable: boolPick("disable-model-invocation") !== true, userInvocable: boolPick("user-invocable") !== false };
 }
 
 /**
@@ -218,6 +235,8 @@ async function scanDir(root, dir, rel, depth, entries) {
           source: root.source,
           projectRoot: root.projectRoot,
           rel: rel ? rel + "/" + item.name : item.name,
+          modelInvocable: parsed?.modelInvocable ?? true,
+          userInvocable: parsed?.userInvocable ?? true,
         });
       } else {
         await scanDir(root, full, rel ? rel + "/" + item.name : item.name, depth + 1, entries);

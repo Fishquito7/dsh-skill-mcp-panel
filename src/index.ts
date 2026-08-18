@@ -30,6 +30,7 @@ import { compareVersions, currentVersion, fetchLatestVersion } from "./version.j
 import { McpManagerGateway } from "./mcp/gateway.js";
 import { ensureGlobalShim } from "./global-shim.js";
 import { MCP_MANIFEST } from "./mcp/wire.js";
+import { NestedSkillProvider, NESTED_SKILL_RANK } from "./provider.js";
 
 /**
  * dsh-skill-mcp-panel —— 宿主半区。
@@ -967,4 +968,5 @@ export function apply(ctx: any) {
   new SkillsViewerGateway(ctx);
   new McpManagerGateway(ctx);
   ctx.effect(() => ctx.typert.register(PANEL_MANIFEST), "dsh-skill-mcp-panel: typert manifest");
+  ctx.skills.registerProvider((control) => new NestedSkillProvider(NESTED_SKILL_RANK, control.signal, control.invalidate));
 }
