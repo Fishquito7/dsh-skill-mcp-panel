@@ -473,7 +473,8 @@ class SkillsViewerGateway extends TypertRemoteService {
         modelInvocable: skill.invocation.modelInvocable,
         userInvocable: skill.invocation.userInvocable,
         scope: { kind: "global" },
-        groups: groupsForSkill(groupMap, "global", skill.name)
+        groups: groupsForSkill(groupMap, "global", skill.name),
+        ...(skill.rel ? { rel: skill.rel } : {})
       });
       seen.add(seenKey(skill.name, "global"));
     }
