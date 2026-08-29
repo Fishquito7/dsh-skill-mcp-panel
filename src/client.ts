@@ -354,7 +354,8 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssGroupDele
 		};
 
 		// ── 远程贡献 ─────────────────────────────────────────────────────────
-		// 手写 codec：客户端边界只要求 parse()，服务端 manifest 负责严格校验。
+		// 客户端生成 Remote 只要求 codec.mode === "strict" 且调用 schema.parse()；
+		// schema 用 parse 直通即可（严格校验由服务端 manifest 承担，无需 zod 依赖）。
 		const identity = (value) => value;
 		const codec = (symbol) => ({ mode: "strict", typeSymbol: symbol, schema: { parse: identity } });
 
@@ -2738,7 +2739,16 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
 			const mt = ctx.locale.bind(MCP_NS);
 			// 挂载远程贡献；所有远程调用都等待挂载完成后再取命名空间服务。
 			const mount = ctx.remote.$mount(CONTRIBUTION);
-			const currentSessionId = () => ctx.get("sessions").currentProvideInfo.getSnapshot().sessionId;
+			// 0.1.2-alpha.1：currentProvideInfo 已移除；当前会话改读 sessions.list
+			// 快照的 current 字段（未选中会话时为 undefined，回退到全局目录）。
+			const currentSessionId = () => {
+				try {
+					const sessions = ctx.get("sessions");
+					return sessions?.list?.getSnapshot()?.current;
+				} catch {
+					return undefined;
+				}
+			};
 			const callRemote = async (method, ...args) => {
 				await mount;
 				const remote = ctx.get("remote.skillsViewer");
