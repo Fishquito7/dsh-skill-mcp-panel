@@ -2739,15 +2739,22 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
 			const mt = ctx.locale.bind(MCP_NS);
 			// 挂载远程贡献；所有远程调用都等待挂载完成后再取命名空间服务。
 			const mount = ctx.remote.$mount(CONTRIBUTION);
-			// 0.1.2-alpha.1：currentProvideInfo 已移除；当前会话改读 sessions.list
-			// 快照的 current 字段（未选中会话时为 undefined，回退到全局目录）。
 			const currentSessionId = () => {
-				try {
-					const sessions = ctx.get("sessions");
-					return sessions?.list?.getSnapshot()?.current;
-				} catch {
-					return undefined;
-				}
+				// 桌面外壳的 sessions 服务并非所有版本都有 currentProvideInfo
+				//（DSH Desktop 2.0.4 就没有），直接链式调用会抛同步 TypeError，
+				// 技能页因此整体显示“暂时无法读取技能”。改为逐级特性探测：
+				// currentProvideInfo → selection（持久化选择 store，快照含
+				// sessionId）→ list（快照 current 为会话 id）；都取不到时返回
+				// undefined——服务端把 sessionId 视为可选，将回退全局注册表
+				// 并自行枚举工作区，仅丢失会话级项目作用域，功能可用。
+				const sessions = ctx.get("sessions");
+				const store = sessions?.currentProvideInfo ?? sessions?.selection ?? sessions?.list;
+				const snapshot = store !== null && typeof store === "object" && typeof store.getSnapshot === "function" ? store.getSnapshot() : undefined;
+				const direct = snapshot?.sessionId;
+				if (typeof direct === "string" && direct !== "")
+					return direct;
+				const current = snapshot?.current;
+				return typeof current === "string" && current !== "" ? current : undefined;
 			};
 			const callRemote = async (method, ...args) => {
 				await mount;
