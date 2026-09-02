@@ -354,7 +354,8 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssGroupDele
 		};
 
 		// ── 远程贡献 ─────────────────────────────────────────────────────────
-		// 手写 codec：客户端边界只要求 parse()，服务端 manifest 负责严格校验。
+		// 客户端生成 Remote 只要求 codec.mode === "strict" 且调用 schema.parse()；
+		// schema 用 parse 直通即可（严格校验由服务端 manifest 承担，无需 zod 依赖）。
 		const identity = (value) => value;
 		const codec = (symbol) => ({ mode: "strict", typeSymbol: symbol, schema: { parse: identity } });
 
