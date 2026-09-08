@@ -49,7 +49,7 @@ DSH 插件，在 Web 设置页同时提供「技能」与「MCP」两个管理�
 1. 安装本包（bundle 层自动挂载，无需编辑配置文件）
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.0.2/dsh-skill-mcp-panel-2.0.2.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.0.3/dsh-skill-mcp-panel-2.0.3.tgz
    ```
 
    > 首选发行版 tarball：不走 Git，不受 pnpm v11 的构建脚本限制。
