@@ -48,15 +48,22 @@ DSH 插件，在 Web 设置页同时提供「技能」与「MCP」两个管理�
 
 ## 安装
 
-1. 安装本包（bundle 层自动挂载，无需编辑配置文件）
+1. 安装本包（bundle 层自动挂载，无需编辑配置文件），二选一：
+
+   **方式一：GitHub Release tarball**
 
    ```bash
    dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.0.4/dsh-skill-mcp-panel-2.0.4.tgz
    ```
 
-   > 首选发行版 tarball：不走 Git，不受 pnpm v11 的构建脚本限制。
-   > 也可以从 Git 安装（Git 来源的依赖默认禁止运行 prepare 构建脚本；若报
-   > “git-hosted plugins build on install...”，把 pnpm 在上面打印的 key 加到
+   **方式二：npm（预构建，插件市场同款通道）**
+
+   ```bash
+   dsh plugin --profile web add dsh-skill-mcp-panel
+   ```
+
+   > 两种方式都安装预构建产物，无需本地构建。也可以从 Git 安装（Git 来源的依赖默认禁止运行 prepare 构建脚本；若报
+   > "git-hosted plugins build on install..."，把 pnpm 在上面打印的 key 加到
    > profile 目录 `pnpm-workspace.yaml` 的 `allowBuilds` 下再重跑）：
    >
    > ```bash
