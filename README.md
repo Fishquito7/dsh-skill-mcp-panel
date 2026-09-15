@@ -7,8 +7,10 @@ DSH 插件，在 Web 设置页同时提供「技能」与「MCP」两个管理�
 
 注意：本项目提供的参考命令默认指定profile为默认的--profile web，需要更改profile的请自行注意。
 
-<img width="450" height="450" alt="image" src="https://github.com/user-attachments/assets/63ca0431-c920-4ae3-94c7-2839d78a7896" />
-<img width="450" height="450" alt="image" src="https://github.com/user-attachments/assets/16023783-9196-46c1-8a64-df28f23f5bdd" />
+<img width="602" height="599" alt="image" src="https://github.com/user-attachments/assets/e948d76c-dff2-433c-b80b-e29b3efa80aa" />
+<img width="601" height="598" alt="image" src="https://github.com/user-attachments/assets/7f84c5b7-5cf9-4805-a0fa-954b30a6c918" />
+<img width="599" height="598" alt="image" src="https://github.com/user-attachments/assets/99afb76f-5d6f-41cf-b691-d2a077aee52e" />
+
 
 
 
