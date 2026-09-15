@@ -2,6 +2,21 @@
   "name": "dsh-skill-mcp-panel",
   "version": "2.0.4",
   "description": "dsh-skill-mcp-panel: manage skills and MCP servers from the DSH web settings UI plus the unified dsh-panel CLI.",
+  "homepage": "https://github.com/Fishquito7/dsh-skill-mcp-panel#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Fishquito7/dsh-skill-mcp-panel.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Fishquito7/dsh-skill-mcp-panel/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "skills",
+    "mcp"
+  ],
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -22,6 +37,9 @@
     }
   },
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@deepseek-ai/dsh-home-paths": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-typert-protocol": "^0.1.0-rc.6",
@@ -33,7 +51,7 @@
     "chokidar": "^5.0.0"
   },
   "bin": {
-    "dsh-panel": "./lib/cli.js"
+    "dsh-panel": "lib/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && node scripts/strip-client-export.mjs",
