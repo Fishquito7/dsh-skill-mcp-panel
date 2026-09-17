@@ -209,7 +209,6 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssCategory 
 			catalog: "技能列表",
 			empty: "暂无技能。",
 			emptySearch: "没有匹配的技能。",
-			noSession: "打开一个会话后即可查看该会话的技能。",
 			contentLoading: "正在加载技能内容…",
 			contentError: "技能内容加载失败。",
 			contentMissing: "技能内容不可用。",
@@ -293,7 +292,6 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssCategory 
 			catalog: "Skills",
 			empty: "No skills are available.",
 			emptySearch: "No matching skills.",
-			noSession: "Open a session to view its skills.",
 			contentLoading: "Loading skill content…",
 			contentError: "Skill content failed to load.",
 			contentMissing: "Skill content is unavailable.",
@@ -1060,12 +1058,13 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssCategory 
 
 function SkillsSection(props) {
 			const { t, currentSessionId, subscribeSession, useSessions, listSkills, loadContent, setSkillEnabled, removeSkill, addSkill, listWorkspaces, batchMigrateSkill, listGroups, saveGroupSkill, deleteGroupSkill, checkUpdateRemote } = props;
-			// 当前会话 id。宿主客户端以「主视图引用计数」定义当前会话，判据是
+			// 当前会话 id，仅用于会话级项目作用域与「随会话刷新列表」，
+			// 不再门控任何 UI：技能页在没有会话时同样正常显示（服务端回退全局注册表）。
+			// 宿主客户端以「主视图引用计数」定义当前会话，判据是
 			//   sessions.list 快照 byId[id].retainedBy.mainView > 0
 			//（settings-general、layout、workspace 等宿主自己的代码用的都是这一条）。
 			// 该快照既没有 current 也没有 sessionId 字段，早先按 currentProvideInfo →
-			// selection → list.current 逐级探测的写法在本版恒为 undefined，技能页因此
-			// 始终显示“打开一个会话后即可查看该会话的技能”。
+			// selection → list.current 逐级探测的写法在本版恒为 undefined。
 			//
 			// 首选宿主为 root 作用域槽位注入的标准 hook prop useSessions（响应式，会话
 			// 切换自动重渲染）；旧外壳若未注入，则退回自行订阅 sessions.list 快照。
@@ -1974,11 +1973,8 @@ function SkillsSection(props) {
 								children: t("addDismiss")
 							})]
 						}) : null,
-						sessionId === undefined ? (0, react_jsx_runtime.jsx)("p", {
-							className: c.status,
-							children: t("noSession")
-						}) : null,
-						skills.length === 0 && sessionId !== undefined ? (0, react_jsx_runtime.jsx)("p", {
+						// 技能列表不再依赖「是否打开了会话」——没有会话时服务端回退全局注册表。
+						skills.length === 0 ? (0, react_jsx_runtime.jsx)("p", {
 							className: c.status,
 							children: t("empty")
 						}) : null,
@@ -2839,13 +2835,13 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
 			const mt = ctx.locale.bind(MCP_NS);
 			// 挂载远程贡献；所有远程调用都等待挂载完成后再取命名空间服务。
 			const mount = ctx.remote.$mount(CONTRIBUTION);
-			// 当前会话 id。宿主客户端以「主视图引用计数」定义当前会话：
+			// 当前会话 id，仅用于把会话级项目作用域传给服务端；技能页不再以「是否
+			// 打开会话」门控 UI。宿主客户端以「主视图引用计数」定义当前会话：
 			//   sessions.list 快照的 byId[id].retainedBy.mainView > 0
-			// （dsh-client-ui-session 的 isMain 用的就是这条判据）。
+			// （dsh-client-ui-session 的 isMain、settings-general 等用的都是这条判据）。
 			// 该快照既没有 current 也没有 sessionId 字段，早先按
 			// currentProvideInfo → selection → list.current 逐级探测的写法在本版恒为
-			// undefined，技能页因此始终显示“打开一个会话后即可查看该会话的技能”。
-			// 这里按 mainView 引用判定，并保留历史探测作为其它外壳的兜底。
+			// undefined。这里按 mainView 引用判定，并保留历史探测作为其它外壳的兜底。
 			// 都取不到时返回 undefined：服务端把 sessionId 视为可选，会回退全局注册表并
 			// 自行枚举工作区，仅丢失会话级项目作用域，功能仍可用。
 			const currentSessionId = () => {
