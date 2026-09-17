@@ -12,7 +12,33 @@ DSH 插件，在 Web 设置页同时提供「技能」与「MCP」两个管理�
 <img width="599" height="598" alt="image" src="https://github.com/user-attachments/assets/99afb76f-5d6f-41cf-b691-d2a077aee52e" />
 
 
+## 安装
 
+1. 安装本包（bundle 层自动挂载，无需编辑配置文件），二选一：
+
+   **方式一：GitHub Release tarball**
+
+   ```bash
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.0.5/dsh-skill-mcp-panel-2.0.5.tgz
+   ```
+
+   **方式二：npm（预构建，插件市场同款通道）**
+
+   ```bash
+   dsh plugin --profile web add dsh-skill-mcp-panel
+   ```
+
+   > 两种方式都安装预构建产物，无需本地构建。也可以从 Git 安装（Git 来源的依赖默认禁止运行 prepare 构建脚本；若报
+   > "git-hosted plugins build on install..."，把 pnpm 在上面打印的 key 加到
+   > profile 目录 `pnpm-workspace.yaml` 的 `allowBuilds` 下再重跑）：
+   >
+   > ```bash
+   > dsh plugin --profile web add github:Fishquito7/dsh-skill-mcp-panel
+   > ```
+
+2. 重启网关
+
+   重启后刷新页面：设置 → “插件”下方为“技能”，其下方为“MCP”。
 
 
 ## 功能
@@ -54,37 +80,7 @@ DSH 插件，在 Web 设置页同时提供「技能」与「MCP」两个管理�
 - 作用域选择器固定为折叠式下拉（最多显示 11 项，其余滚动）；分组栏改为换行布局。
 - 技能列表不再依赖「是否打开了会话」：没有会话时服务端回退全局注册表。
 
-## 安装
 
-1. 安装本包（bundle 层自动挂载，无需编辑配置文件），二选一：
-
-   **方式一：GitHub Release tarball**
-
-   ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.0.5/dsh-skill-mcp-panel-2.0.5.tgz
-   ```
-
-   **方式二：npm（预构建，插件市场同款通道）**
-
-   ```bash
-   dsh plugin --profile web add dsh-skill-mcp-panel
-   ```
-
-   > 两种方式都安装预构建产物，无需本地构建。也可以从 Git 安装（Git 来源的依赖默认禁止运行 prepare 构建脚本；若报
-   > "git-hosted plugins build on install..."，把 pnpm 在上面打印的 key 加到
-   > profile 目录 `pnpm-workspace.yaml` 的 `allowBuilds` 下再重跑）：
-   >
-   > ```bash
-   > dsh plugin --profile web add github:Fishquito7/dsh-skill-mcp-panel
-   > ```
-
-2. 重启网关
-
-   ```bash
-   dsh-restart
-   ```
-
-   重启后刷新页面：设置 → “插件”下方为“技能”，其下方为“MCP”。
 
 ## 命令行
 
