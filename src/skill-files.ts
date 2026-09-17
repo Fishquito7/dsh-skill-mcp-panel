@@ -187,11 +187,13 @@ const SKIP_DIR_NAMES = new Set(["node_modules", ".git", ".hg", ".svn"]);
 const MAX_RECURSE_DEPTH = 8;
 
 export async function collectSkillEntries(roots) {
-  const entries: any[] = [];
-  for (const root of roots) {
+  // 各根目录互不依赖，并行扫描；每根内保持深度优先顺序。
+  const perRoot = await Promise.all(roots.map(async (root) => {
+    const entries: any[] = [];
     await scanDir(root, root.path, "", 0, entries);
-  }
-  return entries;
+    return entries;
+  }));
+  return perRoot.flat();
 }
 
 /**
