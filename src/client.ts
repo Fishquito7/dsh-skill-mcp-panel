@@ -365,10 +365,14 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssCategory 
 		};
 
 		// ── 远程贡献 ─────────────────────────────────────────────────────────
-		// 客户端生成 Remote 只要求 codec.mode === "strict" 且调用 schema.parse()；
-		// schema 用 parse 直通即可（严格校验由服务端 manifest 承担，无需 zod 依赖）。
+		// 客户端 codec：schema 用 parse 直通即可（严格校验由服务端 manifest 承担，
+		// 无需引入 zod 依赖）。两代 harness 契约并存 —— 旧版（≤ 0.1.6-alpha.1）读
+		// schema.parse()，新版（≥ 0.1.6-alpha.2）读 create().parse()；两者都只做
+		// typeof 检查、都不拒绝多余属性，因此同一对象同时带上即可，无需版本探测。
+		// 本文件是浏览器束（不能 import），故与 src/codec.ts 的 strictCodec 保持同形。
 		const identity = (value) => value;
-		const codec = (symbol) => ({ mode: "strict", typeSymbol: symbol, schema: { parse: identity } });
+		const strictSchema = { parse: identity };
+		const codec = (symbol) => ({ mode: "strict", typeSymbol: symbol, schema: strictSchema, create: () => strictSchema });
 
 		const CONTRIBUTION = {
 			package: "dsh-skill-mcp-panel",
