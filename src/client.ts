@@ -1059,7 +1059,35 @@ const css = cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssCategory 
 		}
 
 function SkillsSection(props) {
-			const { t, currentSessionId, listSkills, loadContent, setSkillEnabled, removeSkill, addSkill, listWorkspaces, batchMigrateSkill, listGroups, saveGroupSkill, deleteGroupSkill, checkUpdateRemote } = props;
+			const { t, currentSessionId, subscribeSession, useSessions, listSkills, loadContent, setSkillEnabled, removeSkill, addSkill, listWorkspaces, batchMigrateSkill, listGroups, saveGroupSkill, deleteGroupSkill, checkUpdateRemote } = props;
+			// 当前会话 id。宿主客户端以「主视图引用计数」定义当前会话，判据是
+			//   sessions.list 快照 byId[id].retainedBy.mainView > 0
+			//（settings-general、layout、workspace 等宿主自己的代码用的都是这一条）。
+			// 该快照既没有 current 也没有 sessionId 字段，早先按 currentProvideInfo →
+			// selection → list.current 逐级探测的写法在本版恒为 undefined，技能页因此
+			// 始终显示“打开一个会话后即可查看该会话的技能”。
+			//
+			// 首选宿主为 root 作用域槽位注入的标准 hook prop useSessions（响应式，会话
+			// 切换自动重渲染）；旧外壳若未注入，则退回自行订阅 sessions.list 快照。
+			const selectMainSessionId = (state) => {
+				const rows = state !== null && typeof state === "object" ? state.byId : undefined;
+				if (rows === null || typeof rows !== "object") return undefined;
+				for (const id of Object.keys(rows)) {
+					const row = rows[id];
+					if (((row && row.retainedBy && row.retainedBy.mainView) || 0) > 0) return id;
+				}
+				return undefined;
+			};
+			const useHostSessions = typeof useSessions === "function";
+			const hostSessionId = useHostSessions ? useSessions(selectMainSessionId) : undefined;
+			const [fallbackSessionId, setFallbackSessionId] = react.useState(() => currentSessionId());
+			react.useEffect(() => {
+				if (useHostSessions) return undefined;
+				const sync = () => setFallbackSessionId(currentSessionId());
+				sync();
+				return subscribeSession(sync);
+			}, [useHostSessions]);
+			const sessionId = useHostSessions ? hostSessionId : fallbackSessionId;
 			const [query, setQuery] = react.useState("");
 			const [listState, setListState] = react.useState({ status: "loading" });
 			const [request, setRequest] = react.useState(0);
@@ -1945,11 +1973,11 @@ function SkillsSection(props) {
 								children: t("addDismiss")
 							})]
 						}) : null,
-						currentSessionId() === undefined ? (0, react_jsx_runtime.jsx)("p", {
+						sessionId === undefined ? (0, react_jsx_runtime.jsx)("p", {
 							className: c.status,
 							children: t("noSession")
 						}) : null,
-						skills.length === 0 && currentSessionId() !== undefined ? (0, react_jsx_runtime.jsx)("p", {
+						skills.length === 0 && sessionId !== undefined ? (0, react_jsx_runtime.jsx)("p", {
 							className: c.status,
 							children: t("empty")
 						}) : null,
@@ -2810,22 +2838,45 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
 			const mt = ctx.locale.bind(MCP_NS);
 			// 挂载远程贡献；所有远程调用都等待挂载完成后再取命名空间服务。
 			const mount = ctx.remote.$mount(CONTRIBUTION);
+			// 当前会话 id。宿主客户端以「主视图引用计数」定义当前会话：
+			//   sessions.list 快照的 byId[id].retainedBy.mainView > 0
+			// （dsh-client-ui-session 的 isMain 用的就是这条判据）。
+			// 该快照既没有 current 也没有 sessionId 字段，早先按
+			// currentProvideInfo → selection → list.current 逐级探测的写法在本版恒为
+			// undefined，技能页因此始终显示“打开一个会话后即可查看该会话的技能”。
+			// 这里按 mainView 引用判定，并保留历史探测作为其它外壳的兜底。
+			// 都取不到时返回 undefined：服务端把 sessionId 视为可选，会回退全局注册表并
+			// 自行枚举工作区，仅丢失会话级项目作用域，功能仍可用。
 			const currentSessionId = () => {
-				// 桌面外壳的 sessions 服务并非所有版本都有 currentProvideInfo
-				//（DSH Desktop 2.0.4 就没有），直接链式调用会抛同步 TypeError，
-				// 技能页因此整体显示“暂时无法读取技能”。改为逐级特性探测：
-				// currentProvideInfo → selection（持久化选择 store，快照含
-				// sessionId）→ list（快照 current 为会话 id）；都取不到时返回
-				// undefined——服务端把 sessionId 视为可选，将回退全局注册表
-				// 并自行枚举工作区，仅丢失会话级项目作用域，功能可用。
 				const sessions = ctx.get("sessions");
-				const store = sessions?.currentProvideInfo ?? sessions?.selection ?? sessions?.list;
-				const snapshot = store !== null && typeof store === "object" && typeof store.getSnapshot === "function" ? store.getSnapshot() : undefined;
-				const direct = snapshot?.sessionId;
-				if (typeof direct === "string" && direct !== "")
-					return direct;
-				const current = snapshot?.current;
-				return typeof current === "string" && current !== "" ? current : undefined;
+				const snapshotOf = (store) => store !== null && typeof store === "object" && typeof store.getSnapshot === "function" ? store.getSnapshot() : undefined;
+				try {
+					const rows = snapshotOf(sessions?.list)?.byId;
+					if (rows) {
+						for (const id of Object.keys(rows)) {
+							const row = rows[id];
+							if (((row && row.retainedBy && row.retainedBy.mainView) || 0) > 0) return id;
+						}
+					}
+				} catch {
+					// 快照不可用：继续走下面的历史探测
+				}
+				for (const store of [sessions?.currentProvideInfo, sessions?.selection, sessions?.list]) {
+					const snapshot = snapshotOf(store);
+					const direct = snapshot?.sessionId;
+					if (typeof direct === "string" && direct !== "") return direct;
+					const current = snapshot?.current;
+					if (typeof current === "string" && current !== "") return current;
+				}
+				return undefined;
+			};
+			
+			// 订阅「当前会话」变化：宿主 list 快照没有 current 字段，只能订阅它自行推导。
+			const subscribeSession = (listener) => {
+				const store = ctx.get("sessions")?.list;
+				if (store === null || typeof store !== "object" || typeof store.subscribe !== "function") return () => {};
+				const dispose = store.subscribe(listener);
+				return typeof dispose === "function" ? dispose : () => {};
 			};
 			const callRemote = async (method, ...args) => {
 				await mount;
@@ -2843,6 +2894,7 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
 			};
 			const sectionFace = () => ({
 				currentSessionId,
+				subscribeSession,
 				listSkills: () => callRemote("list", currentSessionId()),
 				listWorkspaces: () => callRemote("workspaces"),
 				loadContent: (name, scope) => callRemote("content", name, currentSessionId(), scope),
