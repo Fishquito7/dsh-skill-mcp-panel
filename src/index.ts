@@ -334,6 +334,27 @@ class SkillsViewerGateway extends TypertRemoteService {
     return this.ctx as any;
   }
 
+  /**
+   * 工作区枚举缓存：一次页面打开会并发触发多次 workspaces()（客户端
+   * listWorkspaces + list 内部的 allRoots / workspaceTitles），每次枚举都含
+   * stat + findProjectRoot 文件系统探测。3 秒 TTL，同 promise 去重，热操作
+   * （新增/迁移技能可能引入新工作区根）后显式失效。
+   */
+  private workspaceCache: { expiresAt: number; promise: Promise<{ workspaces: any[] }> } | undefined;
+
+  /** 远程方法：带缓存的已知工作区列表。 */
+  workspaces() {
+    const now = Date.now();
+    if (this.workspaceCache === undefined || now >= this.workspaceCache.expiresAt) {
+      this.workspaceCache = { expiresAt: now + 3000, promise: this.enumerateWorkspaces() };
+    }
+    return this.workspaceCache.promise;
+  }
+
+  private invalidateWorkspaces() {
+    this.workspaceCache = undefined;
+  }
+
   // ── 目录解析（镜像宿主 api-proxy 的 skill.list）────────────────────────
 
   registryFor(sessionId) {
@@ -453,9 +474,14 @@ class SkillsViewerGateway extends TypertRemoteService {
   /** 目录：注册表技能（全局）+ 按所属位置打标的每条文件条目。 */
   async list(sessionId) {
     const { registry, cwd, scope } = this.viewFor(sessionId);
-    const roots = await this.allRoots();
-    const listed = await registry.list({ cwd, scope });
-    const groupMap = await loadGroups(this.homes().dshHome);
+    const home = this.homes().dshHome;
+    // 并行取三份互不依赖的数据：工作区枚举（含文件系统探测）、会话注册表
+    // 列表（通常最慢：要读大量 SKILL.md 与分析 frontmatter）、分组配置。
+    const [roots, listed, groupMap] = await Promise.all([
+      this.allRoots(),
+      registry.list({ cwd, scope }),
+      loadGroups(home)
+    ]);
     const fileEntries = await collectSkillEntries(roots);
     // 嵌套技能的分类信息（rel）来自文件扫描：注册表 list() 的摘要会剥掉
     // 候选上的 rel（toSummary 只投影固定字段），这里按（名称, 作用域）回填。
@@ -548,7 +574,7 @@ class SkillsViewerGateway extends TypertRemoteService {
   }
 
   /** 所有已知工作区的互不相同的项目根（供工作区横栏使用）。 */
-  async workspaces() {
+  async enumerateWorkspaces() {
     const map = new Map();
     const keyOf = (path) => process.platform === "win32" ? path.toLowerCase() : path;
     const add = async (path, label, sessions) => {
@@ -744,6 +770,7 @@ class SkillsViewerGateway extends TypertRemoteService {
 
   /** 把单个技能移动或复制到另一个工作区文件夹。 */
   async migrate(name, sessionId, payload) {
+    this.invalidateWorkspaces();
     const { target: rawTarget, mode, from: rawFrom } = payload;
     const { dshHome } = this.homes();
     const targetProject = rawTarget === null || rawTarget === undefined ? null : await normalizeWorkspace(rawTarget);
@@ -759,6 +786,7 @@ class SkillsViewerGateway extends TypertRemoteService {
 
   /** 把一批技能迁移到一个或多个目标工作区；逐条返回结果。 */
   async batchMigrate(sessionId, payload) {
+    this.invalidateWorkspaces();
     const { from: rawFrom, targets: rawTargets, mode, names } = payload;
     if (mode === "move" && rawTargets.length > 1) throw new Error("移动模式只能选择一个目标工作区（多个目标请改用复制）");
     const { dshHome, agentsHome } = this.homes();
@@ -798,6 +826,7 @@ class SkillsViewerGateway extends TypertRemoteService {
    * 否则回滚文件并报告拒绝原因。
    */
   async addSkill(sessionId, payload) {
+    this.invalidateWorkspaces();
     const { kind: rawKind, files, workspace: rawWorkspace } = payload;
     if (files.length > MAX_ADD_FILES) throw new Error("文件数量过多（最多 " + MAX_ADD_FILES + " 个）");
     let kind = rawKind;
