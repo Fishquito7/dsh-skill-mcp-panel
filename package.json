@@ -1,7 +1,7 @@
 {
   "name": "dsh-skill-mcp-panel",
   "version": "2.0.5",
-  "description": "dsh-skill-mcp-panel: manage skills and MCP servers from the DSH web settings UI plus the unified dsh-panel CLI.",
+  "description": "dsh-skill-mcp-panel: manage skills and MCP servers from the DSH web sidebar plus the unified dsh-panel CLI.",
   "homepage": "https://github.com/Fishquito7/dsh-skill-mcp-panel#readme",
   "repository": {
     "type": "git",
@@ -29,7 +29,9 @@
       "platform": "web",
       "inject": [
         "@deepseek-ai/dsh-client-locale",
-        "@deepseek-ai/dsh-api-gateway"
+        "@deepseek-ai/dsh-api-gateway",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar"
       ]
     },
     "bundle": {

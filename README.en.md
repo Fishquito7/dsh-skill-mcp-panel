@@ -2,12 +2,14 @@
 
 English | [简体中文](README.md)
 
-A DSH plugin for managing skills right from the web UI and terminal
+A DSH plugin for managing skills and MCP servers right from the DSH web sidebar and the terminal
 
 <img width="602" height="599" alt="image" src="https://github.com/user-attachments/assets/23aabaf8-b1fa-43a7-8a9e-ea7c2186917e" />
 
 
 ## Features
+
+> Both panels are **sidebar global panels**, exactly like the built-in Plugins page: clicking Skills/MCP in the left column swaps the center main area to that panel (no modal), and clicking back to a session returns to the conversation.
 
 - Skill card list: preview installed skills; expand a card to read the full content
 - Status tags: Enabled / Disabled, styled like the built-in plugin list
@@ -29,6 +31,9 @@ A DSH plugin for managing skills right from the web UI and terminal
   bar wraps onto multiple lines.
 - The skill list no longer depends on whether a session is open; without one the host falls
   back to the global registry.
+- The management panels moved from the Settings dialog to the home sidebar (the same slot
+  mechanism the built-in Plugins page uses): the host must provide the `sidebar.panellist` and
+  `main` slots — verified on DSH 0.1.6-alpha.2.
 
 ## Install
 
@@ -60,7 +65,8 @@ A DSH plugin for managing skills right from the web UI and terminal
    dsh-restart
    ```
 
-   Then refresh the page: Settings → Skills appears right below Plugins.
+   Then refresh the page: in the home sidebar, Skills sits right below Plugins and MCP right below Skills.
+   Clicking one switches the main area to that panel (a global panel, not a settings dialog).
 
 ## CLI
 
