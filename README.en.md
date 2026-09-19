@@ -9,7 +9,7 @@ A DSH plugin for managing skills and MCP servers right from the DSH web sidebar 
 
 ## Features
 
-> Both panels are **sidebar global panels**, exactly like the built-in Plugins page: clicking Skills/MCP in the left column swaps the center main area to that panel (no modal). Each panel carries a "← Back to session" arrow at its top-left corner that returns you to the session you were reading; picking any session or Plugins from the sidebar also navigates away.
+> Both panels are **sidebar global panels**, exactly like the built-in Plugins page: clicking Skills/MCP in the left column swaps the center main area to that panel (no modal). Each panel carries a round "back to session" arrow button at its top-left corner (tooltip: Back to session) that returns you to the session you were reading; picking any session or Plugins from the sidebar also navigates away.
 
 - Skill card list: preview installed skills; expand a card to read the full content
 - Status tags: Enabled / Disabled, styled like the built-in plugin list

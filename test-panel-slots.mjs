@@ -217,12 +217,44 @@ check("both panels offer a back arrow that returns to the conversation", () => {
     const row = panels.find((r) => r.options.key === key);
     const button = renderBackButton(row.component(pageProps(row, namespace)));
     assert.equal(button.props.title, "返回会话", key + " back control should carry the zh tooltip");
-    // 展开成宿主侧数组：vm 沙箱里造的数组原型不同，直接 deepEqual 会被判为不等价。
-    assert.deepEqual([...button.props.children.map((child) => (child.type === "span" ? child.props.children : "<glyph>"))], ["<glyph>", "返回会话"]);
+    // 纯图标按钮：没有可见文案，无障碍名必须落在 aria-label 上。
+    assert.equal(button.props["aria-label"], "返回会话", key + " back control needs an accessible name");
+    const glyph = button.props.children;
+    assert.ok(!Array.isArray(glyph), key + " back control must be icon-only (no visible text label)");
+    // 本文件用空 primitives 桩，所以这里走的是内联 SVG 兜底分支。
+    assert.equal(glyph.type, "svg", key + " should fall back to the inline chevron without host icons");
     layoutCalls.length = 0;
     button.props.onClick();
     assert.deepEqual(layoutCalls, [null], key + " back control must call layout.selectPanel(null)");
   }
+});
+
+check("the host chevron is preferred over the inline fallback", () => {
+  const iconCalls = [];
+  const IconChevronLeftOutline14 = (props) => {
+    iconCalls.push(props);
+    return { type: "host-chevron", props: props ?? {} };
+  };
+  const withIcons = captured.factory((specifier) => {
+    if (specifier === "@deepseek-ai/dsh-client-ui-primitives") return { IconChevronLeftOutline14 };
+    return requireStub(specifier);
+  });
+  const seen = [];
+  withIcons.apply({
+    ...ctx,
+    slots: {
+      inject: (name, callback) => callback(),
+      register: (options, component) => {
+        seen.push({ options, component });
+        return () => {};
+      }
+    }
+  });
+  const row = seen.find((r) => r.options.name === "main" && r.options.key === "skills");
+  const button = renderBackButton(row.component(pageProps(row, "settings.skills")));
+  // 桩 jsx 不执行函数组件，所以字形元素自己就是那个图标组件（同一引用）。
+  assert.equal(button.props.children.type, IconChevronLeftOutline14, "should render the host icon when it exists");
+  assert.deepEqual({ ...button.props.children.props }, { size: 14 });
 });
 
 check("a host without the layout service leaves the arrow inert instead of throwing", () => {
