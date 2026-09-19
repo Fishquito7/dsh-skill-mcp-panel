@@ -7,12 +7,40 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 
 注意：本项目提供的参考命令默认指定profile为默认的--profile web，需要更改profile的请自行注意。
 
-<img width="602" height="599" alt="image" src="https://github.com/user-attachments/assets/e948d76c-dff2-433c-b80b-e29b3efa80aa" />
-<img width="601" height="598" alt="image" src="https://github.com/user-attachments/assets/7f84c5b7-5cf9-4805-a0fa-954b30a6c918" />
+<img width="400" height="400" alt="image" src="https://github.com/user-attachments/assets/797b8920-d192-4434-9075-94b349b52151" />
+<img width="400" height="400" alt="image" src="https://github.com/user-attachments/assets/9dfee9d9-93e2-4756-900a-d63ca1626cda" />
+<img width="600" height="599" alt="image" src="https://github.com/user-attachments/assets/26149282-3237-4010-8bb4-76b79f88971d" />
+
 <img width="599" height="598" alt="image" src="https://github.com/user-attachments/assets/99afb76f-5d6f-41cf-b691-d2a077aee52e" />
 
 
+## 安装
 
+1. 安装本包（bundle 层自动挂载，无需编辑配置文件），二选一：
+
+   **方式一：GitHub Release tarball**
+
+   ```bash
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.0/dsh-skill-mcp-panel-2.1.0.tgz
+   ```
+
+   **方式二：npm（预构建，插件市场同款通道）**
+
+   ```bash
+   dsh plugin --profile web add dsh-skill-mcp-panel
+   ```
+
+   > 两种方式都安装预构建产物，无需本地构建。也可以从 Git 安装（Git 来源的依赖默认禁止运行 prepare 构建脚本；若报
+   > "git-hosted plugins build on install..."，把 pnpm 在上面打印的 key 加到
+   > profile 目录 `pnpm-workspace.yaml` 的 `allowBuilds` 下再重跑）：
+   >
+   > ```bash
+   > dsh plugin --profile web add github:Fishquito7/dsh-skill-mcp-panel
+   > ```
+
+2. 重启网关
+
+   重启后刷新页面：左侧栏从「插件」往下依次是「技能」「MCP」，点击哪一个，中央主区就切换成哪一个面板。
 
 
 ## 功能
@@ -64,37 +92,7 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 - 作用域选择器固定为折叠式下拉（最多显示 11 项，其余滚动）；分组栏改为换行布局。
 - 技能列表不再依赖「是否打开了会话」：没有会话时服务端回退全局注册表。
 
-## 安装
 
-1. 安装本包（bundle 层自动挂载，无需编辑配置文件），二选一：
-
-   **方式一：GitHub Release tarball**
-
-   ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.0/dsh-skill-mcp-panel-2.1.0.tgz
-   ```
-
-   **方式二：npm（预构建，插件市场同款通道）**
-
-   ```bash
-   dsh plugin --profile web add dsh-skill-mcp-panel
-   ```
-
-   > 两种方式都安装预构建产物，无需本地构建。也可以从 Git 安装（Git 来源的依赖默认禁止运行 prepare 构建脚本；若报
-   > "git-hosted plugins build on install..."，把 pnpm 在上面打印的 key 加到
-   > profile 目录 `pnpm-workspace.yaml` 的 `allowBuilds` 下再重跑）：
-   >
-   > ```bash
-   > dsh plugin --profile web add github:Fishquito7/dsh-skill-mcp-panel
-   > ```
-
-2. 重启网关
-
-   ```bash
-   dsh-restart
-   ```
-
-   重启后刷新页面：左侧栏从「插件」往下依次是「技能」「MCP」，点击哪一个，中央主区就切换成哪一个面板。
 
 ## 命令行
 
