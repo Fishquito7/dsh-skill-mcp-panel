@@ -30,36 +30,37 @@ A DSH plugin that adds two management panels — **Skills** and **MCP** — to t
 
 ## Screenshots
 
-> These captures show the Skills panel UI. Its entry point moved from the Settings dialog to the home sidebar in v2.1.0; the page contents and interactions are unchanged.
+> The panels live in the home sidebar, right below Plugins (moved there from the Settings dialog in v2.1.0). Clicking Skills/MCP swaps the center main area to that panel, and each panel's top-left “← Back to session” arrow returns you to the session you were reading.
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/9dfee9d9-93e2-4756-900a-d63ca1626cda" width="700" alt="Workspace selector and expanded skill detail">
-  <br>
-  <sub>Workspace selector (collapsed dropdown; Global + each workspace) and the expanded skill detail</sub>
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/sidebar-entry.png" width="260" alt="DSH home sidebar: Plugins / Skills / MCP">
+  <br><sub>Entry · Skills and MCP in the home sidebar</sub>
 </p>
 
-<table>
-  <tr>
-    <td width="50%" align="center">
-      <img src="https://github.com/user-attachments/assets/797b8920-d192-4434-9075-94b349b52151" width="420" alt="Skills panel: search, workspace and group filters, enable/disable status tags">
-      <br><sub>Skill list · search / group filter / status tags</sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="https://github.com/user-attachments/assets/23aabaf8-b1fa-43a7-8a9e-ea7c2186917e" width="420" alt="Expanded skill card: content preview, enable switch and delete button">
-      <br><sub>Expanded card · content preview / enable / delete</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="https://github.com/user-attachments/assets/26149282-3237-4010-8bb4-76b79f88971d" width="420" alt="Group editor: create and rename groups, pick a workspace, batch-select members">
-      <br><sub>Group editor · create / rename / batch-select members</sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="https://github.com/user-attachments/assets/99afb76f-5d6f-41cf-b691-d2a077aee52e" width="420" alt="Batch migration: source workspace, multi-select targets, copy or move">
-      <br><sub>Batch migration · source / multi-target / copy or move</sub>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skills-panel.png" width="835" alt="Skills panel: search, workspace selector and an expanded skill card">
+  <br><sub>Skills panel · search / workspace selector (collapsed dropdown) / expand a card to read it</sub>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skill-groups.png" width="520" alt="Group editor: create a group, pick a workspace, batch-select members">
+  <br><sub>Skill groups · create / rename / batch-select members</sub>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skill-migrate.png" width="540" alt="Batch migration: source workspace, multi-select targets, copy or move">
+  <br><sub>Batch migration · source / multi-target / copy or move</sub>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/mcp-panel.png" width="560" alt="MCP panel: server card, tool count, enable switch, test and delete">
+  <br><sub>MCP panel · server card / tool count / enable / test connection</sub>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/mcp-add-server.png" width="520" alt="Add MCP server: STDIO and HTTP transports">
+  <br><sub>Add MCP server · STDIO / HTTP transports</sub>
+</p>
 
 ## Install
 

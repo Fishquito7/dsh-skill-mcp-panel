@@ -30,36 +30,37 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 
 ## 界面预览
 
-> 截图为技能面板的功能界面；面板入口已随 v2.1.0 从设置页迁移到主页侧边栏，页面内容与操作方式不变。
+> 面板入口在主页左侧栏「插件」下方（v2.1.0 起由设置页迁移到侧边栏），点「技能」/「MCP」即在中央主区打开；两个页面左上角都有「← 返回会话」，可直接回到进面板前那个会话。
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/9dfee9d9-93e2-4756-900a-d63ca1626cda" width="700" alt="工作区选择器与技能详情展开">
-  <br>
-  <sub>工作区选择器（折叠式下拉，全局 + 各工作区）与技能详情展开</sub>
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/sidebar-entry.png" width="260" alt="DSH 主页侧边栏：插件 / 技能 / MCP">
+  <br><sub>入口 · 主页侧边栏中的「技能」与「MCP」</sub>
 </p>
 
-<table>
-  <tr>
-    <td width="50%" align="center">
-      <img src="https://github.com/user-attachments/assets/797b8920-d192-4434-9075-94b349b52151" width="420" alt="技能面板：搜索、工作区与分组筛选、启停状态标签">
-      <br><sub>技能列表 · 搜索 / 分组筛选 / 启停状态标签</sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="https://github.com/user-attachments/assets/23aabaf8-b1fa-43a7-8a9e-ea7c2186917e" width="420" alt="技能卡片展开：内容预览、启停开关与删除按钮">
-      <br><sub>卡片展开 · 内容预览 / 启停 / 删除</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" align="center">
-      <img src="https://github.com/user-attachments/assets/26149282-3237-4010-8bb4-76b79f88971d" width="420" alt="分组编辑器：新建分组、选择工作区并批量勾选成员">
-      <br><sub>分组编辑器 · 新建 / 重命名 / 批量勾选成员</sub>
-    </td>
-    <td width="50%" align="center">
-      <img src="https://github.com/user-attachments/assets/99afb76f-5d6f-41cf-b691-d2a077aee52e" width="420" alt="批量迁移技能：源工作区、多选目标工作区、复制或移动">
-      <br><sub>批量迁移 · 源工作区 / 多选目标 / 复制或移动</sub>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skills-panel.png" width="835" alt="技能面板：搜索、工作区选择器与技能卡片展开">
+  <br><sub>技能面板 · 搜索 / 工作区选择器（折叠下拉）/ 卡片展开查看全文</sub>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skill-groups.png" width="520" alt="分组编辑器：新建分组、选择工作区并批量勾选成员">
+  <br><sub>技能分组 · 新建 / 重命名 / 批量勾选成员</sub>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skill-migrate.png" width="540" alt="批量迁移技能：源工作区、多选目标工作区、复制或移动">
+  <br><sub>批量迁移 · 源工作区 / 多选目标 / 复制或移动</sub>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/mcp-panel.png" width="560" alt="MCP 面板：服务器卡片、工具数量、启停、测试连接与删除">
+  <br><sub>MCP 面板 · 服务器卡片 / 工具数 / 启停 / 测试连接</sub>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/mcp-add-server.png" width="520" alt="添加 MCP 服务器：STDIO 与 HTTP 两种调用方式">
+  <br><sub>添加 MCP 服务器 · STDIO / HTTP 两种调用方式</sub>
+</p>
 
 ## 安装
 
