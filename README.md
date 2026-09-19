@@ -38,27 +38,27 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skills-panel.png" width="900" alt="技能面板：搜索、工作区选择器与技能卡片展开">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skills-panel.png" width="1000" alt="技能面板：搜索、工作区选择器与技能卡片展开">
   <br><sub>技能面板 · 搜索 / 工作区选择器（折叠下拉）/ 卡片展开查看全文</sub>
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skill-groups.png" width="820" alt="分组编辑器：新建分组、选择工作区并批量勾选成员">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skill-groups.png" width="1000" alt="分组编辑器：新建分组、选择工作区并批量勾选成员">
   <br><sub>技能分组 · 新建 / 重命名 / 批量勾选成员</sub>
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skill-migrate.png" width="820" alt="批量迁移技能：源工作区、多选目标工作区、复制或移动">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skill-migrate.png" width="1000" alt="批量迁移技能：源工作区、多选目标工作区、复制或移动">
   <br><sub>批量迁移 · 源工作区 / 多选目标 / 复制或移动</sub>
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/mcp-panel.png" width="760" alt="MCP 面板：服务器卡片、工具数量、启停、测试连接与删除">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/mcp-panel.png" width="1000" alt="MCP 面板：服务器卡片、工具数量、启停、测试连接与删除">
   <br><sub>MCP 面板 · 服务器卡片 / 工具数 / 启停 / 测试连接</sub>
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/mcp-add-server.png" width="820" alt="添加 MCP 服务器：STDIO 与 HTTP 两种调用方式">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/mcp-add-server.png" width="1000" alt="添加 MCP 服务器：STDIO 与 HTTP 两种调用方式">
   <br><sub>添加 MCP 服务器 · STDIO / HTTP 两种调用方式</sub>
 </p>
 
