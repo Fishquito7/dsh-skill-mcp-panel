@@ -7,11 +7,11 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 
 注意：本项目提供的参考命令默认指定profile为默认的--profile web，需要更改profile的请自行注意。
 
-<img width="400" height="400" alt="image" src="https://github.com/user-attachments/assets/797b8920-d192-4434-9075-94b349b52151" />
-<img width="400" height="400" alt="image" src="https://github.com/user-attachments/assets/9dfee9d9-93e2-4756-900a-d63ca1626cda" />
-<img width="600" height="599" alt="image" src="https://github.com/user-attachments/assets/26149282-3237-4010-8bb4-76b79f88971d" />
+<img width="400" height="400" alt="image" src="https://github.com/user-attachments/assets/a9d2cb84-e62a-40f9-bc4c-b5df1a78832b" /> 
+<img width="580" height="300" alt="image" src="https://github.com/user-attachments/assets/bd9f9987-6047-477e-8ad9-2eb046f339fd" />
+<img width="580" height="300" alt="image" src="https://github.com/user-attachments/assets/f64bf03e-4028-4996-86be-79ba75417db4" />
+<img width="600" height="330" alt="image" src="https://github.com/user-attachments/assets/69074f4d-4a1a-44c0-8b09-4ebb608a4daa" />
 
-<img width="599" height="598" alt="image" src="https://github.com/user-attachments/assets/99afb76f-5d6f-41cf-b691-d2a077aee52e" />
 
 
 ## 安装
