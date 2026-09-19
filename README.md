@@ -3,7 +3,7 @@
 [English](README.en.md) | 简体中文
 
 
-DSH 插件，在 Web 设置页同时提供「技能」与「MCP」两个管理面板，并随包提供统一终端命令 `dsh-panel`（`skill` / `mcp` 两个子命令族）。
+DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MCP」两个管理面板（点击即在中央主区打开，不是弹窗），并随包提供统一终端命令 `dsh-panel`（`skill` / `mcp` 两个子命令族）。
 
 注意：本项目提供的参考命令默认指定profile为默认的--profile web，需要更改profile的请自行注意。
 
@@ -21,7 +21,7 @@ DSH 插件，在 Web 设置页同时提供「技能」与「MCP」两个管理�
    **方式一：GitHub Release tarball**
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.0.5/dsh-skill-mcp-panel-2.0.5.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.0/dsh-skill-mcp-panel-2.1.0.tgz
    ```
 
    **方式二：npm（预构建，插件市场同款通道）**
@@ -40,10 +40,12 @@ DSH 插件，在 Web 设置页同时提供「技能」与「MCP」两个管理�
 
 2. 重启网关
 
-   重启后刷新页面：设置 → “插件”下方为“技能”，其下方为“MCP”。
+   重启后刷新页面：左侧栏从「插件」往下依次是「技能」「MCP」，点击哪一个，中央主区就切换成哪一个面板。
 
 
 ## 功能
+
+> 两个面板与宿主自带的「插件」页一样，是**侧边栏全局面板**：点击左栏的「技能」/「MCP」直接把中央主区切过去（不是设置页那种弹窗）。两个页面左上角各有一个「← 返回会话」箭头，点它立刻回到进面板之前那个会话；点会话列表里的任意会话或「插件」也能切走。
 
 ### 技能面板
 
@@ -68,11 +70,19 @@ DSH 插件，在 Web 设置页同时提供「技能」与「MCP」两个管理�
   命令行同名技能也需用 `--global` / `--project` / `--workspace` 显式指定。
 
 ### MCP 面板（v2.0.0）
-- 设置页「技能」下方新增「MCP」页，管理 profile `cordis.patch.yml` 中的 MCP 服务器受管块；
+- 主页侧边栏「技能」下方新增「MCP」面板，管理 profile `cordis.patch.yml` 中的 MCP 服务器受管块；
 - 支持 **Stdio**（本地命令）与 **HTTP**（streamable-http）两种调用方式；
 - 支持新增、编辑、启停、删除、测试连接；保存后由 DSH HMR 热加载，无需重启网关；
 - `env` / `headers` 密钥在 RPC 与页面中脱敏，编辑时缺省 key 保留旧值；
 - `cordis.patch.yml` 面板块外的用户内容逐字节保留。
+
+### 主页面板与返回会话（v2.1.0）
+- **管理面板从设置页迁移到主页侧边栏**：与宿主自带的「插件」页同一套槽位机制
+  （`sidebar.panellist` 列表槽位 + `main` 键控槽位），点击左栏「技能」/「MCP」直接在
+  中央主区切页，设置页不再有这两个 tab；面板自带整页外壳（滚动与页边距）。
+  需要宿主提供上述两个槽位，本机 DSH 0.1.6-alpha.2 已实测。
+- **「← 返回会话」箭头**：两个页面左上角各一个，点它立刻回到进面板之前那个会话
+  （调宿主 `ctx.layout.selectPanel(null)`，不改变当前会话）。
 
 ### DSH 版本兼容（v2.0.5）
 - 适配 DSH 自 `0.1.6-alpha.2` 起的 TypertCodec `create()` 工厂契约 —— 该改动会让仍写

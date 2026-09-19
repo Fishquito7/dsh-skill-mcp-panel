@@ -2,12 +2,14 @@
 
 English | [简体中文](README.md)
 
-A DSH plugin for managing skills right from the web UI and terminal
+A DSH plugin for managing skills and MCP servers right from the DSH web sidebar and the terminal
 
 <img width="602" height="599" alt="image" src="https://github.com/user-attachments/assets/23aabaf8-b1fa-43a7-8a9e-ea7c2186917e" />
 
 
 ## Features
+
+> Both panels are **sidebar global panels**, exactly like the built-in Plugins page: clicking Skills/MCP in the left column swaps the center main area to that panel (no modal). Each panel carries a "← Back to session" arrow at its top-left corner that returns you to the session you were reading; picking any session or Plugins from the sidebar also navigates away.
 
 - Skill card list: preview installed skills; expand a card to read the full content
 - Status tags: Enabled / Disabled, styled like the built-in plugin list
@@ -18,6 +20,17 @@ A DSH plugin for managing skills right from the web UI and terminal
 - **Skill groups** (0.5.0): a second bar below the scope bar (All + group names, wrapping onto multiple lines) filters the list to one group. The “Groups” button (left of the migrate button) opens the group editor: create/rename/delete groups, pick a scope, name the group and batch-check members. Groups live only in the plugin's own display config (`~/.dsh/skills/.system/skill-viewer/groups.json`) — skill directories are never touched.
 
 - **Scope-exact operations** (0.6.4): when the same skill name exists in both the global scope and a workspace, delete, enable/disable and content views act on exactly the (name, scope) row you clicked — each row expands and operates independently, other copies are never touched. Missing entries in the given scope fail loudly instead of falling back. The CLI likewise requires `--global` / `--project` / `--workspace` to disambiguate same-name skills in `enable`/`disable`/`delete`.
+
+### Home-sidebar panels and back-to-session (v2.1.0)
+- **The management panels moved from the Settings dialog to the home sidebar**, using the
+  same slot mechanism as the built-in Plugins page (`sidebar.panellist` list slot + `main`
+  keyed slot): clicking Skills/MCP in the left column swaps the center main area, the
+  Settings dialog no longer carries those two tabs, and each panel owns its own page shell
+  (scroll container and padding). The host must provide those two slots — verified on DSH
+  0.1.6-alpha.2.
+- **"← Back to session" arrow** at the top-left of both panels: it returns to the session
+  you were reading (host `ctx.layout.selectPanel(null)`, which never changes the selected
+  session).
 
 ### DSH version compatibility (v2.0.5)
 - Adapts to the TypertCodec `create()` factory contract introduced in DSH `0.1.6-alpha.2`
@@ -37,7 +50,7 @@ A DSH plugin for managing skills right from the web UI and terminal
    **Option 1: GitHub Release tarball**
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.0.5/dsh-skill-mcp-panel-2.0.5.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.0/dsh-skill-mcp-panel-2.1.0.tgz
    ```
 
    **Option 2: npm (prebuilt, same channel as the plugin marketplace)**
@@ -60,7 +73,8 @@ A DSH plugin for managing skills right from the web UI and terminal
    dsh-restart
    ```
 
-   Then refresh the page: Settings → Skills appears right below Plugins.
+   Then refresh the page: in the home sidebar, Skills sits right below Plugins and MCP right below Skills.
+   Clicking one switches the main area to that panel (a global panel, not a settings dialog).
 
 ## CLI
 
