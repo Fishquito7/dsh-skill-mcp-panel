@@ -83,12 +83,15 @@ check("bundle exports apply/inject", () => {
 const dictionaries = new Map();
 const registrations = [];
 const injections = [];
+// 「返回会话」要打到的宿主 layout 服务：selectPanel(null) 就是把主区还给会话。
+const layoutCalls = [];
+const layoutStub = { selectPanel: (panelId) => { layoutCalls.push(panelId); } };
 const ctx = {
   effect: (fn) => {
     const dispose = fn();
     return typeof dispose === "function" ? dispose : () => {};
   },
-  get: () => undefined,
+  get: (name) => (name === "layout" ? layoutStub : undefined),
   on: () => () => {},
   locale: {
     register: (namespace, tables) => {
@@ -175,10 +178,24 @@ check("glyph falls back to 16px when the host omits size", () => {
   assert.deepEqual({ ...renderGlyph(rows[0], {}).props.style }, { width: 16, height: 16 });
 });
 
+// 宿主把「槽位 owner props + 标准 props + inject face」合成后交给页面组件。
+const pageProps = (row, namespace) => ({ t: ctx.locale.bind(namespace), ...(row.options.inject ?? {})() });
+
+// 桩 jsx 不执行函数组件：这里显式展开「页面 → 左上角返回按钮」两层。
+const renderBackButton = (page) => {
+  const top = page.props.children[0];
+  assert.equal(top.props.className, "SKV_pageTop", "the back control must sit in the page's top-left row");
+  const back = top.props.children;
+  assert.equal(typeof back.type, "function", "top row should hold the shared back control");
+  const button = back.type(back.props);
+  assert.equal(button.type, "button");
+  return button;
+};
+
 check("skills page renders inside the full-page shell with its header", () => {
-  const page = panels.find((row) => row.options.key === "skills").component({ t: ctx.locale.bind("settings.skills") });
+  const page = panels.find((row) => row.options.key === "skills").component(pageProps(panels[0], "settings.skills"));
   assert.equal(page.props.className, "SKV_page", "main-slot page must own its own scroll/padding shell");
-  const [head, section] = page.props.children;
+  const [, head, section] = page.props.children;
   assert.equal(head.props.className, "SKV_pageHead");
   const [title, intro] = head.props.children;
   assert.equal(title.type, "h2");
@@ -189,9 +206,48 @@ check("skills page renders inside the full-page shell with its header", () => {
 });
 
 check("mcp page renders in the shell without a duplicate header", () => {
-  const page = panels.find((row) => row.options.key === "mcp").component({ t: ctx.locale.bind("settings.mcp") });
+  const row = panels.find((r) => r.options.key === "mcp");
+  const page = row.component(pageProps(row, "settings.mcp"));
   assert.equal(page.props.className, "SKV_page");
-  assert.equal(typeof page.props.children.type, "function");
+  assert.equal(typeof page.props.children[1].type, "function");
+});
+
+check("both panels offer a back arrow that returns to the conversation", () => {
+  for (const [key, namespace] of [["skills", "settings.skills"], ["mcp", "settings.mcp"]]) {
+    const row = panels.find((r) => r.options.key === key);
+    const button = renderBackButton(row.component(pageProps(row, namespace)));
+    assert.equal(button.props.title, "返回会话", key + " back control should carry the zh tooltip");
+    // 展开成宿主侧数组：vm 沙箱里造的数组原型不同，直接 deepEqual 会被判为不等价。
+    assert.deepEqual([...button.props.children.map((child) => (child.type === "span" ? child.props.children : "<glyph>"))], ["<glyph>", "返回会话"]);
+    layoutCalls.length = 0;
+    button.props.onClick();
+    assert.deepEqual(layoutCalls, [null], key + " back control must call layout.selectPanel(null)");
+  }
+});
+
+check("a host without the layout service leaves the arrow inert instead of throwing", () => {
+  layoutCalls.length = 0; // 上一条检查留下的调用记录不算数
+  // 真的把 apply 跑在「没有 layout 服务」的宿主上，取回注入面里的返回动作再调用，
+  // 而不是替换成一个空函数——这样才覆盖 bundle 里的 ctx.get("layout") 兜底分支。
+  const barren = [];
+  const ctxWithoutLayout = {
+    ...ctx,
+    get: () => undefined,
+    slots: {
+      inject: (name, callback) => callback(),
+      register: (options, component) => {
+        barren.push({ options, component });
+        return () => {};
+      }
+    }
+  };
+  mod.apply(ctxWithoutLayout);
+  const skills = barren.find((row) => row.options.name === "main" && row.options.key === "skills");
+  assert.ok(skills, "skills main panel should register even without the layout service");
+  const face = skills.options.inject();
+  assert.equal(typeof face.backToConversation, "function");
+  assert.doesNotThrow(() => face.backToConversation());
+  assert.deepEqual(layoutCalls, [], "no layout service must mean no selectPanel call");
 });
 
 check("icon mask artwork and dark-theme switch rules are still shipped", () => {
