@@ -48,6 +48,14 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 - `env` / `headers` 密钥在 RPC 与页面中脱敏，编辑时缺省 key 保留旧值；
 - `cordis.patch.yml` 面板块外的用户内容逐字节保留。
 
+### 主页面板与返回会话（v2.1.0）
+- **管理面板从设置页迁移到主页侧边栏**：与宿主自带的「插件」页同一套槽位机制
+  （`sidebar.panellist` 列表槽位 + `main` 键控槽位），点击左栏「技能」/「MCP」直接在
+  中央主区切页，设置页不再有这两个 tab；面板自带整页外壳（滚动与页边距）。
+  需要宿主提供上述两个槽位，本机 DSH 0.1.6-alpha.2 已实测。
+- **「← 返回会话」箭头**：两个页面左上角各一个，点它立刻回到进面板之前那个会话
+  （调宿主 `ctx.layout.selectPanel(null)`，不改变当前会话）。
+
 ### DSH 版本兼容（v2.0.5）
 - 适配 DSH 自 `0.1.6-alpha.2` 起的 TypertCodec `create()` 工厂契约 —— 该改动会让仍写
   `schema:` 的插件在注册阶段直接抛错、整个插件树加载失败（网关起不来）。同一份构建
@@ -55,7 +63,6 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
   无需按版本探测或分开维护分支。
 - 作用域选择器固定为折叠式下拉（最多显示 11 项，其余滚动）；分组栏改为换行布局。
 - 技能列表不再依赖「是否打开了会话」：没有会话时服务端回退全局注册表。
-- 管理面板从设置页迁移到主页侧边栏（与宿主「插件」页同一套槽位机制）：需要宿主提供 `sidebar.panellist` 与 `main` 槽位，本机 DSH 0.1.6-alpha.2 已实测。
 
 ## 安装
 
@@ -64,7 +71,7 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
    **方式一：GitHub Release tarball**
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.0.5/dsh-skill-mcp-panel-2.0.5.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.0/dsh-skill-mcp-panel-2.1.0.tgz
    ```
 
    **方式二：npm（预构建，插件市场同款通道）**

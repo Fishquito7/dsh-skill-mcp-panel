@@ -59,7 +59,9 @@ try {
 
   const version = run(["--version"]);
   assert.equal(version.status, 0, version.stderr);
-  assert.match(version.stdout, /dsh-panel v2\.0\.\d+/);
+  // 版本号从 package.json 读，避免每次发版都要改测试（旧写法硬编码 2.0.x）。
+  const declared = JSON.parse(await readFile(fileURLToPath(new URL("./package.json", import.meta.url)), "utf8")).version;
+  assert.equal(version.stdout.trim(), "dsh-panel v" + declared);
   pass("dsh-panel --version reports package version");
 } finally {
   await rm(dir, { recursive: true, force: true });
