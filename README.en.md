@@ -38,27 +38,27 @@ A DSH plugin that adds two management panels — **Skills** and **MCP** — to t
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skills-panel.png" width="835" alt="Skills panel: search, workspace selector and an expanded skill card">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skills-panel.png" width="900" alt="Skills panel: search, workspace selector and an expanded skill card">
   <br><sub>Skills panel · search / workspace selector (collapsed dropdown) / expand a card to read it</sub>
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skill-groups.png" width="520" alt="Group editor: create a group, pick a workspace, batch-select members">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skill-groups.png" width="820" alt="Group editor: create a group, pick a workspace, batch-select members">
   <br><sub>Skill groups · create / rename / batch-select members</sub>
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skill-migrate.png" width="540" alt="Batch migration: source workspace, multi-select targets, copy or move">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skill-migrate.png" width="820" alt="Batch migration: source workspace, multi-select targets, copy or move">
   <br><sub>Batch migration · source / multi-target / copy or move</sub>
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/mcp-panel.png" width="560" alt="MCP panel: server card, tool count, enable switch, test and delete">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/mcp-panel.png" width="760" alt="MCP panel: server card, tool count, enable switch, test and delete">
   <br><sub>MCP panel · server card / tool count / enable / test connection</sub>
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/mcp-add-server.png" width="520" alt="Add MCP server: STDIO and HTTP transports">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/mcp-add-server.png" width="820" alt="Add MCP server: STDIO and HTTP transports">
   <br><sub>Add MCP server · STDIO / HTTP transports</sub>
 </p>
 
