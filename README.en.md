@@ -66,17 +66,31 @@ A DSH plugin that adds two management panels — **Skills** and **MCP** — to t
 
 1. Install the package (its bundle layer auto-mounts it — no config editing). Pick either:
 
-   **Option 1: GitHub Release tarball**
+   **Option 1 (recommended): the stable tarball link — always the latest release**
+
+   ```bash
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/latest/download/dsh-skill-mcp-panel.tgz
+   ```
+
+   Its asset name carries **no version**, and GitHub resolves `latest` to the newest release on every
+   request — so the URL never goes stale and the command never needs editing. It bypasses the npm
+   registry without pulling the whole repository the way a `github:` spec does.
+
+   To **pin a version**, use the versioned asset link instead:
 
    ```bash
    dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.0/dsh-skill-mcp-panel-2.1.0.tgz
    ```
 
-   **Option 2: npm (prebuilt, same channel as the plugin marketplace)**
+   **Option 2: npm (what the plugin marketplace uses by default)**
 
    ```bash
    dsh plugin --profile web add dsh-skill-mcp-panel
    ```
+
+   > The marketplace (dshmarket) prefers **npm** and only falls back to the tarball, so installing from
+   > the market takes this path; `dsh-panel update` and the Settings "check for updates" action use the
+   > stable tarball link above.
 
    > Both install prebuilt artifacts — no local build needed. Installing from git also works
    > (git-hosted dependencies are blocked from running their prepare build scripts by default; if you see

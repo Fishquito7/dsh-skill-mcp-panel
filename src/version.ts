@@ -10,7 +10,19 @@ import { fileURLToPath } from "node:url";
 /** 本包 / 仓库 / 安装 spec（CLI update 与 UI 共用同一事实源）。 */
 export const PACKAGE_NAME = "dsh-skill-mcp-panel";
 export const REPO_SLUG = "Fishquito7/dsh-skill-mcp-panel";
-export const INSTALL_SPEC = `github:${REPO_SLUG}`;
+/**
+ * 稳定 tarball 链接：资产名**不带版本号**，GitHub 在每次请求时把 `latest` 解析成
+ * 当前最新 release，所以这条 URL 永远指向最新版、不会因为发新版而失效。
+ * 前提：每个 release 都要带上这个名字的资产 ——
+ * 见 .github/workflows/release-alias.yml（发布 release 时自动补传）。
+ */
+export const RELEASE_TARBALL_URL = `https://github.com/${REPO_SLUG}/releases/latest/download/${PACKAGE_NAME}.tgz`;
+/**
+ * 默认安装/更新通道 = 上面的无版本 tarball：
+ * 不经过 npm registry，也不像 `github:` 那样拉整个仓库；
+ * 更新只需重新 add 同一个 URL —— pnpm 会重新下载并在内容变化时更新（实测有效）。
+ */
+export const INSTALL_SPEC = RELEASE_TARBALL_URL;
 export const RELEASES_LATEST_URL = `https://api.github.com/repos/${REPO_SLUG}/releases/latest`;
 
 export interface UpdateCheckInfo {

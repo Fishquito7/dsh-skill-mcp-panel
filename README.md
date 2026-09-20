@@ -66,17 +66,30 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 
 1. 安装本包（bundle 层自动挂载，无需编辑配置文件），二选一：
 
-   **方式一：GitHub Release tarball**
+   **方式一（推荐）：稳定 tarball 链接 —— 永远指向最新 release**
+
+   ```bash
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/latest/download/dsh-skill-mcp-panel.tgz
+   ```
+
+   这条链接的资产名**不带版本号**，GitHub 每次请求都把 `latest` 解析成当前最新 release，
+   所以它不会因为发新版而失效，命令也不用跟着版本号改。它不经过 npm registry，
+   也不像 `github:` 那样拉整个仓库。
+
+   需要**锁定某个版本**时，改用带版本号的资产链接：
 
    ```bash
    dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.0/dsh-skill-mcp-panel-2.1.0.tgz
    ```
 
-   **方式二：npm（预构建，插件市场同款通道）**
+   **方式二：npm（插件市场默认走这条）**
 
    ```bash
    dsh plugin --profile web add dsh-skill-mcp-panel
    ```
+
+   > 插件市场（dshmarket）的安装通道是**优先 npm**、拿不到才回退 tarball，所以从市场点安装走的就是这条；
+   > 而 `dsh-panel update` 与设置页「检查更新」的自动更新默认走上面的稳定 tarball 链接。
 
    > 两种方式都安装预构建产物，无需本地构建。也可以从 Git 安装（Git 来源的依赖默认禁止运行 prepare 构建脚本；若报
    > `git-hosted plugins build on install...`，把 pnpm 在上面打印的 key 加到 profile 目录 `pnpm-workspace.yaml`
