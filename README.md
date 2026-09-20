@@ -66,7 +66,7 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 
 1. 安装本包（bundle 层自动挂载，无需编辑配置文件），二选一：
 
-   **方式一：GitHub Release tarball**
+   **方式一：GitHub Release tarball**（推荐）
 
    ```bash
    dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.0/dsh-skill-mcp-panel-2.1.0.tgz
@@ -88,9 +88,7 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 
 2. 重启网关
 
-   ```bash
-   dsh-restart
-   ```
+
 
    重启后刷新页面：左侧栏从「插件」往下依次是「技能」「MCP」，点击哪一个，中央主区就切换成哪一个面板。
 
