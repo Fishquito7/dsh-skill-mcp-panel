@@ -9,6 +9,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { scrubbedParentEnv } from "@deepseek-ai/dsh-subprocess";
 import { mcpServerInputSchema } from "./model.js";
 import type { McpServerInput } from "./model.js";
+import { currentVersion } from "../version.js";
 
 export interface McpProbeTool {
   name: string;
@@ -56,7 +57,7 @@ export async function probeMcpServer(raw: unknown, timeoutMs = PROBE_TIMEOUT_MS)
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-  const client = new Client({ name: "dsh-skill-mcp-panel", version: "2.0.0" });
+  const client = new Client({ name: "dsh-skill-mcp-panel", version: currentVersion() });
   let transport: StdioClientTransport | StreamableHTTPClientTransport | undefined;
   try {
     transport = createTransport(input);

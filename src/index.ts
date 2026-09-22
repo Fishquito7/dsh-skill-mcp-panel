@@ -29,6 +29,7 @@ import {
 } from "./groups.js";
 import { compareVersions, currentVersion, fetchLatestVersion } from "./version.js";
 import { McpManagerGateway } from "./mcp/gateway.js";
+import { WorkspaceMcpRuntime } from "./mcp/runtime.js";
 import { ensureGlobalShim } from "./global-shim.js";
 import { MCP_MANIFEST } from "./mcp/wire.js";
 import { NestedSkillProvider, NESTED_SKILL_RANK } from "./provider.js";
@@ -1005,8 +1006,11 @@ class SkillsViewerGateway extends TypertRemoteService {
 
 export function apply(ctx: any) {
   ensureGlobalShim(ctx.logger);
-  new SkillsViewerGateway(ctx);
-  new McpManagerGateway(ctx);
+  const skillsGateway = new SkillsViewerGateway(ctx);
+  // 工作区作用域 MCP：按会话 cwd 解析项目根，把声明挂进该 agent 的作用域。
+  // 结果只走日志；面板侧不再有"挂载报告"视图（见 runtime.ts 的说明）。
+  new WorkspaceMcpRuntime(ctx);
+  new McpManagerGateway(ctx, skillsGateway);
   ctx.effect(() => ctx.typert.register(PANEL_MANIFEST), "dsh-skill-mcp-panel: typert manifest");
   ctx.skills.registerProvider((control) => new NestedSkillProvider(NESTED_SKILL_RANK, control.signal, control.invalidate));
 }

@@ -21,6 +21,7 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 - 🗂️ **技能面板** —— 列表预览、搜索、工作区分栏与分组筛选、卡片展开查看全文、热启停 / 删除，支持 `.md` / `.zip` / 技能文件夹的添加与批量迁移
 - 🔌 **MCP 面板**（v2.0.0）—— 可视化维护 profile `cordis.patch.yml` 中的 MCP 受管块，Stdio / HTTP 两种调用方式，支持测试连接，保存后由 DSH HMR 热加载
 - 🧩 **主页侧边栏面板**（v2.1.0）—— 与宿主内置「插件」页同一套槽位机制，点左栏即在中央主区切页，页面左上角另有「← 返回会话」
+- 🗺️ **MCP 工作区作用域** —— MCP 可按工作区声明（`<工作区>/.dsh/mcp.json`），只对 cwd 落在该工作区的会话生效；文件只记键名，值走 DSH 官方凭证存储
 - ⌨️ **统一 CLI** —— `dsh-panel skill …` 与 `dsh-panel mcp …` 覆盖两个面板的全部能力
 - 📦 **无需本地构建** —— npm 与 Release tarball 安装的都是预构建产物
 
@@ -115,6 +116,19 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 - `env` / `headers` 密钥在 RPC 与页面中脱敏，编辑时缺省 key 保留旧值；
 - `cordis.patch.yml` 面板块外的用户内容逐字节保留。
 
+### MCP 工作区作用域
+
+MCP 服务器有两条作用域，面板顶部可切换：
+
+- **全局**：写进 profile 的 `cordis.patch.yml` 受管块，对所有会话生效（行为不变）；
+- **工作区**：写进 `<工作区>/.dsh/mcp.json`，只对 cwd 落在该工作区（项目根）的会话生效。
+
+工作区文件**只记键名、不存值**——`envKeys` 是环境变量名（同时就是凭证引用名），`headerRefs` 是 header 名 → 引用名的映射——所以它可以随工作区仓库一起提交。编辑体验与全局作用域一致：`env` / `headers` 照旧按 `键=值` 填写，保存时由宿主把值写进 DSH 官方凭证存储，挂载时再解析出来；显式删键会同步清除凭证，留空或未出现的键保留原值。
+
+- 与全局**同名**的 `serverName` 会被拒绝（否则该会话会解析出两组 `mcp__X__*` 工具名）；
+- 工具只注册进**该会话的 agent 作用域**，随会话释放自动注销；
+- 改动只对**新开的会话**生效（与 DSH「组合读取一次、不重读」的语义一致）。
+
 ### 主页面板与返回会话（v2.1.0）
 
 - **管理面板从设置页迁移到主页侧边栏**：与宿主自带的「插件」页同一套槽位机制（`sidebar.panellist` 列表槽位 + `main` 键控槽位），点击左栏「技能」/「MCP」直接在中央主区切页，设置页不再有这两个 tab；面板自带整页外壳（滚动与页边距）。需要宿主提供上述两个槽位，本机 DSH 0.1.6-alpha.2 已实测。
@@ -158,10 +172,23 @@ dsh-panel mcp remove <serverName> [--yes] [--profile <name>]
 dsh-panel mcp test <serverName> [--profile <name>]
 dsh-panel mcp update [--yes] [--profile <name>]
 dsh-panel update [--yes] [--profile <name>]      # 更新整个 dsh-skill-mcp-panel
+
+# 工作区作用域（写 <工作区>/.dsh/mcp.json；只声明键名，不存密钥值）
+dsh-panel mcp list --workspace <path>
+dsh-panel mcp add --workspace <path> --name <serverName> --stdio --command <cmd> [--args <arg> ...] [--env-key NAME ...] [--cwd <path>]
+dsh-panel mcp add --workspace <path> --name <serverName> --http --url <url> [--header-key NAME ...]
+dsh-panel mcp enable|disable --workspace <path> <serverName>
+dsh-panel mcp remove --workspace <path> <serverName> [--yes]
+dsh-panel mcp test --workspace <path> <serverName>
 ```
 
-MCP 配置写入目标 profile 的 `cordis.patch.yml` 受管块；网关在线时自动热加载。面板块由
+全局作用域的 MCP 配置写入目标 profile 的 `cordis.patch.yml` 受管块；网关在线时自动热加载。面板块由
 `# >>> dsh-skill-mcp-panel:mcp:begin` / `# <<< ...end` 标记，请勿手改块内内容。
+
+工作区作用域写 `<工作区>/.dsh/mcp.json`（`--workspace` 的路径会先归一到该项目的 git 根）。
+CLI 没有运行中的 host，**读不到 DSH 凭证存储**，所以 `--env-key` / `--header-key` 只声明键名：
+值请在 Web 面板的「MCP」页该卡片的「凭证」里设置。`mcp test --workspace` 只能用 CLI 进程环境里已有的值探活，
+缺值时会打印提示。
 
 CLI 只扫描当前目录锚定的项目根与用户根；管理其他工作区的技能请加 `--cwd <工作区路径>`。
 同名技能存在于多个作用域时，`enable`/`disable`/`delete` 需加 `--global`/`--project`/`--workspace` 指定操作哪一份。
@@ -179,7 +206,23 @@ CLI 只扫描当前目录锚定的项目根与用户根；管理其他工作区�
 
 ### MCP 部分
 
-负责把 MCP 服务器配置写进 profile 的 `cordis.patch.yml` 受管块；真正连接和注册工具的是 DSH 官方插件 @deepseek-ai/dsh-mcp-client，由 DSH 的 HMR 自动加载。
+**全局作用域**：把服务器配置写进 profile 的 `cordis.patch.yml` 受管块，真正连接与注册工具的是 DSH 官方插件
+`@deepseek-ai/dsh-mcp-client`，由 DSH 的 HMR 自动加载。
+
+**工作区作用域**：宿主半区监听 `agent/created`，按该会话的 `cwd` 解析出项目根，读取 `<项目根>/.dsh/mcp.json`、
+解析凭证，然后把每个服务器**挂进这个 agent 自己的作用域**。机制与官方 `dsh-acp` 逐字一致
+（`agentCtx.plugin(@deepseek-ai/dsh-mcp-client, config)`），依据是官方契约：
+
+- 官方 mcp-client 的 `serverName` 预留是**按注册作用域**隔离的（`scopeOf(ctx) ?? ctx.root` 的 WeakMap），独立 agent 作用域可复用同名；
+- `ToolRuntime`：*scoped registrations shadow globals*；
+- `Agent.ctx`：*contributions are agent-local, unwind on disposal*。
+
+第三方插件拿不到 `agents.create()` 的 `setup` 窗口（Web 会话的 setup 由 `dsh-api-session-controller` 独占），
+所以面板在 `agent/created` 之后挂载，并在 `agent/pre-step` 里先等挂载 settle——保证**首个请求**的请求装配就能看到工作区工具。
+
+官方包（`@deepseek-ai/dsh-mcp-client` / `@deepseek-ai/dsh-credentials`）声明为 **optional peer**，运行时先裸 `import`、
+失败再从宿主锚点（cordis 上下文 `baseUrl`、正在运行的 dsh 入口）解析绝对路径再导入——因此自定义 `DSH_HOME`、
+`file:` 直连检出、甚至把插件装到非系统盘，都能找到宿主自带的那一份官方实现，而不是静默退化。
 
 ## 开发
 
