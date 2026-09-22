@@ -21,6 +21,7 @@ A DSH plugin that adds two management panels — **Skills** and **MCP** — to t
 - 🗂️ **Skills panel** — list and preview installed skills, search, workspace split and group filters, expand a card to read the full content, hot enable/disable and delete, plus `.md` / `.zip` / skill-folder adding and batch migration
 - 🔌 **MCP panel** (v2.0.0) — visually maintain the MCP managed block in the profile's `cordis.patch.yml`, with Stdio / HTTP transports, connection tests, and hot reload through DSH HMR after saving
 - 🧩 **Home-sidebar panels** (v2.1.0) — the same slot mechanism as the host's built-in Plugins page; clicking the left column swaps the center main area, and each panel carries a “← Back to session” arrow
+- 🗺️ **MCP workspace scope** — declare MCP servers per workspace (`<workspace>/.dsh/mcp.json`), in effect only for sessions whose cwd resolves there; the file records key names only and values live in DSH's official credential store
 - ⌨️ **Unified CLI** — `dsh-panel skill …` and `dsh-panel mcp …` expose everything the two panels can do
 - 📦 **No local build** — both the npm package and the Release tarball ship prebuilt artifacts
 
@@ -118,6 +119,19 @@ A DSH plugin that adds two management panels — **Skills** and **MCP** — to t
 - `env` / `headers` secrets are redacted in RPC and in the UI, and editing keeps the old value when a key is omitted;
 - User content outside the managed block in `cordis.patch.yml` is preserved byte for byte.
 
+### MCP workspace scope
+
+MCP servers have two scopes, switchable at the top of the panel:
+
+- **Global**: the managed block of the profile's `cordis.patch.yml`, in effect for every session (unchanged);
+- **Workspace**: `<workspace>/.dsh/mcp.json`, in effect only for sessions whose cwd resolves to that workspace (its project root).
+
+A workspace file **records key names, never values** — `envKeys` are environment variable names (which double as credential references) and `headerRefs` maps a header name to its reference — so it can be committed with the workspace repo. Editing matches the global scope: `env` / `headers` are still typed as `KEY=VALUE`, the host writes the values into DSH's official credential store on save, and mounting resolves them; deleting a key clears its credential too, while a blank or absent key keeps its stored value.
+
+- A `serverName` already used by the global scope is **refused** (the session would otherwise resolve two sets of `mcp__X__*` tool names);
+- tools are registered **into that session's agent scope only** and unregister with it;
+- changes apply to **newly opened sessions** only (consistent with DSH's "compositions are read once, never re-read").
+
 ### Home-sidebar panels and back-to-session (v2.1.0)
 
 - **The management panels moved from the Settings dialog to the home sidebar**, using the same slot mechanism as the host's built-in Plugins page (the `sidebar.panellist` list slot plus the `main` keyed slot): clicking Skills/MCP in the left column swaps the center main area, the Settings dialog no longer carries those two tabs, and each panel owns its own page shell (scroll container and padding). The host must provide those two slots — verified on DSH 0.1.6-alpha.2.
@@ -161,9 +175,20 @@ dsh-panel mcp remove <serverName> [--yes] [--profile <name>]
 dsh-panel mcp test <serverName> [--profile <name>]
 dsh-panel mcp update [--yes] [--profile <name>]
 dsh-panel update [--yes] [--profile <name>]      # update the whole dsh-skill-mcp-panel package
+
+# Workspace scope (writes <workspace>/.dsh/mcp.json; declares key names only, never a value)
+dsh-panel mcp list --workspace <path>
+dsh-panel mcp add --workspace <path> --name <serverName> --stdio --command <cmd> [--args <arg> ...] [--env-key NAME ...] [--cwd <path>]
+dsh-panel mcp add --workspace <path> --name <serverName> --http --url <url> [--header-key NAME ...]
+dsh-panel mcp enable|disable --workspace <path> <serverName>
+dsh-panel mcp remove --workspace <path> <serverName> [--yes]
+dsh-panel mcp test --workspace <path> <serverName>
 ```
 
-MCP configuration is written to the managed block in the target profile's `cordis.patch.yml` and hot-reloaded while the gateway is online. The block is delimited by `# >>> dsh-skill-mcp-panel:mcp:begin` / `# <<< ...end` — do not edit inside it.
+Global-scope MCP configuration is written to the managed block in the target profile's `cordis.patch.yml` and hot-reloaded while the gateway is online. The block is delimited by `# >>> dsh-skill-mcp-panel:mcp:begin` / `# <<< ...end` — do not edit inside it.
+
+Workspace scope writes `<workspace>/.dsh/mcp.json` (the `--workspace` path is first normalized to that project's git root).
+The CLI has no running host and therefore **cannot read DSH's credential store**, so `--env-key` / `--header-key` declare key names only: set the values under "Credentials" on that server's card in the web panel. `mcp test --workspace` can only probe with values already present in the CLI process environment and prints a notice when one is missing.
 
 The CLI only scans the cwd-anchored project roots and the user roots; add `--cwd <workspace-path>` to manage a different workspace's skills. If a skill name exists in several scopes, `enable`/`disable`/`delete` require `--global`/`--project`/`--workspace` to pick which copy to operate on.
 
@@ -180,7 +205,17 @@ Every action in the page or via `dsh-panel skill` ends up as a change to the ski
 
 ### MCP
 
-The plugin writes MCP server configuration into the managed block in the profile's `cordis.patch.yml`; the actual connection and tool registration are done by the official DSH plugin @deepseek-ai/dsh-mcp-client, loaded automatically through DSH HMR.
+**Global scope**: the plugin writes server configuration into the managed block in the profile's `cordis.patch.yml`; the actual connection and tool registration are done by the official DSH plugin `@deepseek-ai/dsh-mcp-client`, loaded automatically through DSH HMR.
+
+**Workspace scope**: the host half listens for `agent/created`, resolves the project root from that session's `cwd`, reads `<project-root>/.dsh/mcp.json`, resolves credentials, and mounts each server **into that agent's own scope**. The mechanism matches the official `dsh-acp` verbatim (`agentCtx.plugin(@deepseek-ai/dsh-mcp-client, config)`), resting on three official contracts:
+
+- the official mcp-client reserves `serverName` **per registration scope** (a WeakMap keyed by `scopeOf(ctx) ?? ctx.root`), so independent agent scopes may reuse a name;
+- `ToolRuntime`: *scoped registrations shadow globals*;
+- `Agent.ctx`: *contributions are agent-local, unwind on disposal*.
+
+A third-party plugin cannot reach the `setup` window of `agents.create()` (a web session's setup belongs to `dsh-api-session-controller`), so the panel mounts after `agent/created` and awaits the mount inside `agent/pre-step` — guaranteeing the workspace tools are already visible when the **first** request assembles its tool table.
+
+The official packages (`@deepseek-ai/dsh-mcp-client` / `@deepseek-ai/dsh-credentials`) are declared as **optional peers** and resolved at runtime: first a bare `import`, and on failure an absolute path resolved from host anchors (the cordis context `baseUrl`, the running dsh entry point). A custom `DSH_HOME`, a `file:` checkout, or an install on a non-system drive therefore still finds the harness's own copy instead of silently degrading.
 
 ## Development
 
