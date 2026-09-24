@@ -9,6 +9,15 @@
 		let react = require("react");
 		let primitives = require("@deepseek-ai/dsh-client-ui-primitives");
 
+		// 宿主 primitives 的图标在 dsh 0.1.7 换了命名：像素后缀（…Outline16 / …Outline14）
+		// 换成描边档位（…OutlineRegular = 1px、…OutlineMedium = 1.3px），尺寸改由 size
+		// prop 传——本文件每个调用点本来就显式传 size，两代命名渲染结果一致。
+		// 本插件声明的 peer 范围（>=0.1.0-rc.6 <0.2.0）同时覆盖两代宿主，因此按序取第一个
+		// 存在的导出；等最低支持宿主升到 0.1.7 以上时删掉 legacy 入参。
+		function primitiveIcon(current, legacy) {
+			return primitives[current] ?? primitives[legacy];
+		}
+
 		// ── 技能树构建：从技能条目（含 rel）构建与文件树一致的分层结构 ──────
 		// 正确性：叶子只能是扫描器验证过的技能条目（含 SKILL.md 的目录）；
 		// rel 中间段是分类文件夹（永远不是技能）；rel 为空 = 根层叶子。
@@ -1546,7 +1555,7 @@ function SkillsSection(props) {
 						},
 						children: [(0, react_jsx_runtime.jsx)("span", {
 							className: c.cardLeading,
-							children: (0, react_jsx_runtime.jsx)(primitives.IconSkillOutline16, { size: 14 })
+							children: (0, react_jsx_runtime.jsx)(primitiveIcon("IconSkillOutlineRegular", "IconSkillOutline16"), { size: 14 })
 						}), (0, react_jsx_runtime.jsx)("strong", {
 							className: c.cardTitle,
 							"data-disabled": enabled ? void 0 : "true",
@@ -1562,7 +1571,7 @@ function SkillsSection(props) {
 								className: c.configTag,
 								"data-enabled": enabled ? "true" : "false",
 								children: enabled ? t("enabledTag") : t("disabledTag")
-							}), (0, react_jsx_runtime.jsx)(primitives.IconChevronDownOutline14, {
+							}), (0, react_jsx_runtime.jsx)(primitiveIcon("IconChevronDownOutlineRegular", "IconChevronDownOutline14"), {
 								className: c.chevron,
 								size: 12,
 								"aria-hidden": "true"
@@ -1643,7 +1652,7 @@ function SkillsSection(props) {
 					onClick: () => {
 						toggleCollapsed(folder.path);
 					},
-					children: [(0, react_jsx_runtime.jsx)(primitives.IconChevronDownOutline14, {
+					children: [(0, react_jsx_runtime.jsx)(primitiveIcon("IconChevronDownOutlineRegular", "IconChevronDownOutline14"), {
 						className: collapsed.has(folder.path) ? c.treeChevron : c.treeChevronOpen,
 						size: 12,
 						"aria-hidden": "true"
@@ -1781,7 +1790,7 @@ function SkillsSection(props) {
 							children: [(0, react_jsx_runtime.jsx)("span", {
 								className: c.searchIcon,
 								"aria-hidden": "true",
-								children: (0, react_jsx_runtime.jsx)(primitives.IconSearchOutline16, {})
+								children: (0, react_jsx_runtime.jsx)(primitiveIcon("IconSearchOutlineRegular", "IconSearchOutline16"), {})
 							}), (0, react_jsx_runtime.jsx)("input", {
 								type: "search",
 								className: c.searchField,
@@ -1930,7 +1939,7 @@ function SkillsSection(props) {
 								children: [(0, react_jsx_runtime.jsx)("span", {
 									className: c.scopeSelectLabel,
 									children: scopeFilter === "global" ? t("scopeGlobal") : labelOf(scopeFilter)
-								}), (0, react_jsx_runtime.jsx)(primitives.IconChevronDownOutline14, {
+								}), (0, react_jsx_runtime.jsx)(primitiveIcon("IconChevronDownOutlineRegular", "IconChevronDownOutline14"), {
 									size: 14,
 									className: c.scopeSelectChevron
 								})]
@@ -2821,7 +2830,7 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
 		 * 所以返回的就是进来之前那个会话。沿用宿主「面包屑」的外观（14px 左向折角 + 文案）。
 		 */
 		function PageBack({ label, onBack }) {
-			const chevron = primitives.IconChevronLeftOutline14;
+			const chevron = primitiveIcon("IconChevronLeftOutlineRegular", "IconChevronLeftOutline14");
 			const glyph = chevron !== void 0
 				? (0, react_jsx_runtime.jsx)(chevron, { size: 14 })
 				: (0, react_jsx_runtime.jsx)("svg", {
