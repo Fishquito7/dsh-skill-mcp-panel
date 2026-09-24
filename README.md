@@ -7,7 +7,7 @@
 [![npm version](https://img.shields.io/npm/v/dsh-skill-mcp-panel?color=cb3837&logo=npm&label=npm)](https://www.npmjs.com/package/dsh-skill-mcp-panel)
 [![npm downloads](https://img.shields.io/npm/dm/dsh-skill-mcp-panel?color=cb3837&label=downloads)](https://www.npmjs.com/package/dsh-skill-mcp-panel)
 [![GitHub release](https://img.shields.io/github/v/release/Fishquito7/dsh-skill-mcp-panel?color=2ea043&label=release)](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)
-[![DSH](https://img.shields.io/badge/DSH-0.1.5--rc.2%20%7C%200.1.6--alpha.2%2B-4c6ef5)](https://github.com/Fishquito7/dsh-skill-mcp-panel)
+[![DSH](https://img.shields.io/badge/DSH-0.1.6--alpha.2%20~%200.1.7--rc.1-4c6ef5)](https://github.com/Fishquito7/dsh-skill-mcp-panel)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [简体中文](README.md) · [English](README.en.md)
@@ -21,6 +21,7 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 - 🗂️ **技能面板** —— 列表预览、搜索、工作区分栏与分组筛选、卡片展开查看全文、热启停 / 删除，支持 `.md` / `.zip` / 技能文件夹的添加与批量迁移
 - 🔌 **MCP 面板**（v2.0.0）—— 可视化维护 profile `cordis.patch.yml` 中的 MCP 受管块，Stdio / HTTP 两种调用方式，支持测试连接，保存后由 DSH HMR 热加载
 - 🧩 **主页侧边栏面板**（v2.1.0）—— 与宿主内置「插件」页同一套槽位机制，点左栏即在中央主区切页，页面左上角另有「← 返回会话」
+- 🩹 **适配 DSH 0.1.7**（v2.1.1）—— 跟进宿主在 `0.1.7-alpha.1` 重命名的图标导出（旧名在新宿主上已不存在），技能页不再一片空白；并补上 `test-host-icons.mjs` 回归守卫
 - ⌨️ **统一 CLI** —— `dsh-panel skill …` 与 `dsh-panel mcp …` 覆盖两个面板的全部能力
 - 📦 **无需本地构建** —— npm 与 Release tarball 安装的都是预构建产物
 
@@ -69,7 +70,7 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
    **方式一：GitHub Release tarball**（推荐）
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.0/dsh-skill-mcp-panel-2.1.0.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.1/dsh-skill-mcp-panel-2.1.1.tgz
    ```
 
    **方式二：npm（预构建，插件市场同款通道）**
@@ -120,9 +121,23 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 - **管理面板从设置页迁移到主页侧边栏**：与宿主自带的「插件」页同一套槽位机制（`sidebar.panellist` 列表槽位 + `main` 键控槽位），点击左栏「技能」/「MCP」直接在中央主区切页，设置页不再有这两个 tab；面板自带整页外壳（滚动与页边距）。需要宿主提供上述两个槽位，本机 DSH 0.1.6-alpha.2 已实测。
 - **「← 返回会话」箭头**：两个页面左上角各一个，点它立刻回到进面板之前那个会话（调宿主 `ctx.layout.selectPanel(null)`，不改变当前会话）。
 
-### DSH 版本兼容（v2.0.5）
+### DSH 版本兼容
 
-- 适配 DSH 自 `0.1.6-alpha.2` 起的 TypertCodec `create()` 工厂契约——该改动会让仍写 `schema:` 的插件在注册阶段直接抛错、整个插件树加载失败（网关起不来）。同一份构建**同时兼容** `0.1.5-rc.2` 及更早（读 `schema`）与 `0.1.6-alpha.2` 及以后（读 `create`），无需按版本探测或分开维护分支。
+本插件对宿主有**三处**版本敏感的依赖，彼此无关，同一份构建同时满足全部三条：
+
+| 宿主版本 | ① 插件树加载（TypertCodec） | ② 技能页图标（primitives 导出名） | ③ 侧栏面板槽位 |
+| --- | :---: | :---: | :---: |
+| `0.1.5-rc.x` | ✅ 读 `schema` | ✅ 旧名 | ⚠️ 未验证 |
+| `0.1.6-alpha.1` | ✅ 读 `schema` | ✅ 旧名 | ⚠️ 未验证 |
+| `0.1.6-alpha.2` ~ `0.1.7-alpha.0` | ✅ 读 `create` | ✅ 旧名 | ✅ |
+| `0.1.7-alpha.1` 及以后 | ✅ 读 `create` | ✅ 新名 | ✅ |
+
+- **① TypertCodec `create()` 契约**：自 `0.1.6-alpha.2` 起 strict codec 改为持 `schema` 工厂 `create()`；仍写 `schema:` 的插件在注册阶段直接抛错，**整个插件树加载失败、网关起不来**（Issue #20）。本插件的每个 codec 同时携带 `schema` 与 `create`，两代宿主都只做 `typeof` 检查、都不拒绝多余属性，因此一份构建通吃，无需版本探测。守卫：`test-codec.mjs`。
+- **② 技能页图标导出名**：`0.1.7-alpha.1` 把图标的像素后缀换成描边档位（`IconSkillOutline16` → `IconSkillOutlineRegular`，尺寸改由 `size` prop 传），**两代命名没有交集**。技能半区 6 处引用改走 `primitiveIcon(cur, legacy)`「新名优先、旧名回退」；若直接换成新名，`0.1.6` 及更早的用户会反向打不开。守卫：`test-host-icons.mjs`。
+- **③ 侧栏面板槽位**：v2.1.0 起面板挂在宿主 `sidebar.panellist`（list 槽位）+ `main`（键控槽位）上，需要宿主提供这两个槽位。`0.1.6-alpha.2` 实测通过，`0.1.7` 系列槽位名未变。`0.1.5-rc.x` / `0.1.6-alpha.1` **未验证**；即使槽位缺失，插件树与 CLI 仍然可用，只是左栏不会出现「技能」「MCP」两行。
+
+### 面板行为调整（v2.0.5）
+
 - 作用域选择器固定为折叠式下拉（最多显示 11 项，其余滚动）；分组栏改为换行布局。
 - 技能列表不再依赖「是否打开了会话」：没有会话时服务端回退全局注册表。
 

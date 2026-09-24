@@ -1,6 +1,6 @@
 {
   "name": "dsh-skill-mcp-panel",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "dsh-skill-mcp-panel: manage skills and MCP servers from the DSH web sidebar plus the unified dsh-panel CLI.",
   "homepage": "https://github.com/Fishquito7/dsh-skill-mcp-panel#readme",
   "repository": {
