@@ -7,7 +7,7 @@
 [![npm version](https://img.shields.io/npm/v/dsh-skill-mcp-panel?color=cb3837&logo=npm&label=npm)](https://www.npmjs.com/package/dsh-skill-mcp-panel)
 [![npm downloads](https://img.shields.io/npm/dm/dsh-skill-mcp-panel?color=cb3837&label=downloads)](https://www.npmjs.com/package/dsh-skill-mcp-panel)
 [![GitHub release](https://img.shields.io/github/v/release/Fishquito7/dsh-skill-mcp-panel?color=2ea043&label=release)](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)
-[![DSH](https://img.shields.io/badge/DSH-0.1.5--rc.2%20%7C%200.1.6--alpha.2%2B-4c6ef5)](https://github.com/Fishquito7/dsh-skill-mcp-panel)
+[![DSH](https://img.shields.io/badge/DSH-0.1.6--alpha.2%20~%200.1.7--rc.1-4c6ef5)](https://github.com/Fishquito7/dsh-skill-mcp-panel)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [English](README.en.md) · [简体中文](README.md)
@@ -21,6 +21,7 @@ A DSH plugin that adds two management panels — **Skills** and **MCP** — to t
 - 🗂️ **Skills panel** — list and preview installed skills, search, workspace split and group filters, expand a card to read the full content, hot enable/disable and delete, plus `.md` / `.zip` / skill-folder adding and batch migration
 - 🔌 **MCP panel** (v2.0.0) — visually maintain the MCP managed block in the profile's `cordis.patch.yml`, with Stdio / HTTP transports, connection tests, and hot reload through DSH HMR after saving
 - 🧩 **Home-sidebar panels** (v2.1.0) — the same slot mechanism as the host's built-in Plugins page; clicking the left column swaps the center main area, and each panel carries a “← Back to session” arrow
+- 🩹 **DSH 0.1.7 support** (v2.1.1) — tracks the host's renamed icon exports in `0.1.7-alpha.1` (the old names no longer exist there) so the Skills page renders again, plus a `test-host-icons.mjs` regression guard
 - ⌨️ **Unified CLI** — `dsh-panel skill …` and `dsh-panel mcp …` expose everything the two panels can do
 - 📦 **No local build** — both the npm package and the Release tarball ship prebuilt artifacts
 
@@ -69,7 +70,7 @@ A DSH plugin that adds two management panels — **Skills** and **MCP** — to t
    **Option 1: GitHub Release tarball**
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.0/dsh-skill-mcp-panel-2.1.0.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.1/dsh-skill-mcp-panel-2.1.1.tgz
    ```
 
    **Option 2: npm (prebuilt, same channel as the plugin marketplace)**
@@ -123,9 +124,23 @@ A DSH plugin that adds two management panels — **Skills** and **MCP** — to t
 - **The management panels moved from the Settings dialog to the home sidebar**, using the same slot mechanism as the host's built-in Plugins page (the `sidebar.panellist` list slot plus the `main` keyed slot): clicking Skills/MCP in the left column swaps the center main area, the Settings dialog no longer carries those two tabs, and each panel owns its own page shell (scroll container and padding). The host must provide those two slots — verified on DSH 0.1.6-alpha.2.
 - **“← Back to session” arrow**: one at the top-left of each panel; it returns to the session you were reading (host `ctx.layout.selectPanel(null)`, which never changes the selected session).
 
-### DSH version compatibility (v2.0.5)
+### DSH version compatibility
 
-- Adapts to the TypertCodec `create()` factory contract introduced in DSH `0.1.6-alpha.2` — that change makes plugins still declaring `schema:` throw during registration and fail the whole plugin tree (the gateway will not boot). One build now works on **both** `0.1.5-rc.2` and earlier (reads `schema`) and `0.1.6-alpha.2` and later (reads `create`), with no version probing and no separate branches.
+Three independent host-facing dependencies are version-sensitive; one build satisfies all three at once:
+
+| Host version | ① Plugin tree load (TypertCodec) | ② Skills-page icons (primitives exports) | ③ Sidebar panel slots |
+| --- | :---: | :---: | :---: |
+| `0.1.5-rc.x` | ✅ reads `schema` | ✅ legacy names | ⚠️ unverified |
+| `0.1.6-alpha.1` | ✅ reads `schema` | ✅ legacy names | ⚠️ unverified |
+| `0.1.6-alpha.2` – `0.1.7-alpha.0` | ✅ reads `create` | ✅ legacy names | ✅ |
+| `0.1.7-alpha.1` and later | ✅ reads `create` | ✅ new names | ✅ |
+
+- **① TypertCodec `create()` contract** — since `0.1.6-alpha.2` a strict codec holds a `schema` factory (`create()`); a plugin still declaring `schema:` throws during registration and **fails the whole plugin tree, so the gateway will not boot** (Issue #20). Every codec here carries both `schema` and `create`; both generations only run `typeof` checks and neither rejects extra properties, so one build works everywhere with no version probing. Guard: `test-codec.mjs`.
+- **② Skills-page icon export names** — `0.1.7-alpha.1` replaced the pixel suffix with a stroke tier (`IconSkillOutline16` → `IconSkillOutlineRegular`, with size moved to the `size` prop) and the **two generations share no names**. The six Skills-half references now go through `primitiveIcon(cur, legacy)` (prefer the new name, fall back to the legacy one); switching straight to the new names would break everyone on `0.1.6` and earlier. Guard: `test-host-icons.mjs`.
+- **③ Sidebar panel slots** — since v2.1.0 the panels mount on the host's `sidebar.panellist` (list slot) plus `main` (keyed slot), so the host must provide both. Verified on `0.1.6-alpha.2`, and the slot names are unchanged across the `0.1.7` line. `0.1.5-rc.x` / `0.1.6-alpha.1` are **unverified**; even without the slots the plugin tree and CLI still work — the left column just won't show the Skills/MCP rows.
+
+### Panel behaviour changes (v2.0.5)
+
 - The scope selector is always a collapsed dropdown (11 rows max, then scrolls); the group bar wraps onto multiple lines.
 - The skill list no longer depends on whether a session is open; without one the host falls back to the global registry.
 
