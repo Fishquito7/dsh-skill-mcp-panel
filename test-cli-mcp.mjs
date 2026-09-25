@@ -15,6 +15,9 @@ const dir = await mkdtemp(join(tmpdir(), "dsh-panel-cli-"));
 try {
   const profileDir = join(dir, "profiles", "test");
   await mkdir(profileDir, { recursive: true });
+  // 「profile 存在」的判据是它有自己的 package.json（没有它 dsh 也起不动这个 profile）。
+  // CLI 靠这条在派发 dsh plugin 之前拒绝错名，所以夹具必须是真的 profile。
+  await writeFile(join(profileDir, "package.json"), JSON.stringify({ name: "dsh-profile-test", private: true, dsh: { profile: { bundles: ["@deepseek-ai/dsh-base"] } } }, null, 2));
   await writeFile(join(profileDir, "cordis.patch.yml"), "[]\n");
   const cli = fileURLToPath(new URL("./lib/cli.js", import.meta.url));
   const run = (args) => spawnSync(process.execPath, [cli, ...args], {

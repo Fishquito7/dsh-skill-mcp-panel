@@ -16,16 +16,17 @@
 
 ---
 
-A DSH plugin that adds two management panels — **Skills** and **MCP** — to the web home sidebar, right below the built-in **Plugins** entry. Clicking either one swaps the center main area to that panel (a full panel, not a modal). The package also ships the unified `dsh-panel` terminal command, with two sub-command families: `skill` and `mcp`.
+A DSH plugin that adds two management panels — **Skills** and **MCP** — to the web home sidebar, right below the built-in **Plugins** entry. Clicking either one swaps the center main area to that panel (a full panel, not a modal). The package also ships the unified `dsh-panel` terminal command, with `skill`, `mcp`, `update` and `profiles`.
 
 - 🗂️ **Skills panel** — list and preview installed skills, search, workspace split and group filters, expand a card to read the full content, hot enable/disable and delete, plus `.md` / `.zip` / skill-folder adding and batch migration
 - 🔌 **MCP panel** (v2.0.0) — visually maintain the MCP managed block in the profile's `cordis.patch.yml`, with Stdio / HTTP transports, connection tests, and hot reload through DSH HMR after saving
 - 🧩 **Home-sidebar panels** (v2.1.0) — the same slot mechanism as the host's built-in Plugins page; clicking the left column swaps the center main area, and each panel carries a “← Back to session” arrow
 - 🩹 **DSH 0.1.7 support** (v2.1.1) — tracks the host's renamed icon exports in `0.1.7-alpha.1` (the old names no longer exist there) so the Skills page renders again, plus a `test-host-icons.mjs` regression guard
+- 🧭 **Explicit profiles** (v2.1.2) — the `mcp` sub-commands require an explicit `--profile` (no more implicit `web`), a typo is rejected and **never creates a profile**; `dsh-panel update` without `--profile` updates **every** profile and compares against each profile's own installed version; new `dsh-panel profiles` overview
 - ⌨️ **Unified CLI** — `dsh-panel skill …` and `dsh-panel mcp …` expose everything the two panels can do
 - 📦 **No local build** — both the npm package and the Release tarball ship prebuilt artifacts
 
-> **Profile note**: the example commands in this document default to `--profile web`; adjust them if your profile differs.
+> **Profile note**: the `mcp` sub-commands **require** an explicit `--profile <name>`, and the name must already exist — a typo is rejected rather than creating a profile. The `skill` sub-commands are not split per profile (skills live under the user root / workspace), so they need no `--profile`. `dsh-panel update` without `--profile` updates every profile that has the plugin installed (`desktop` is owned by the desktop app and is skipped automatically).
 
 **Contents**: [Screenshots](#screenshots) · [Install](#install) · [Features](#features) · [CLI](#cli) · [How it works](#how-it-works) · [Development](#development) · [Uninstall](#uninstall) · [Links](#links) · [License](#license)
 
@@ -70,7 +71,7 @@ A DSH plugin that adds two management panels — **Skills** and **MCP** — to t
    **Option 1: GitHub Release tarball**
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.1/dsh-skill-mcp-panel-2.1.1.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.2/dsh-skill-mcp-panel-2.1.2.tgz
    ```
 
    **Option 2: npm (prebuilt, same channel as the plugin marketplace)**
@@ -138,6 +139,15 @@ Three independent host-facing dependencies are version-sensitive; one build sati
 - **① TypertCodec `create()` contract** — since `0.1.6-alpha.2` a strict codec holds a `schema` factory (`create()`); a plugin still declaring `schema:` throws during registration and **fails the whole plugin tree, so the gateway will not boot** (Issue #20). Every codec here carries both `schema` and `create`; both generations only run `typeof` checks and neither rejects extra properties, so one build works everywhere with no version probing. Guard: `test-codec.mjs`.
 - **② Skills-page icon export names** — `0.1.7-alpha.1` replaced the pixel suffix with a stroke tier (`IconSkillOutline16` → `IconSkillOutlineRegular`, with size moved to the `size` prop) and the **two generations share no names**. The six Skills-half references now go through `primitiveIcon(cur, legacy)` (prefer the new name, fall back to the legacy one); switching straight to the new names would break everyone on `0.1.6` and earlier. Guard: `test-host-icons.mjs`.
 - **③ Sidebar panel slots** — since v2.1.0 the panels mount on the host's `sidebar.panellist` (list slot) plus `main` (keyed slot), so the host must provide both. Verified on `0.1.6-alpha.2`, and the slot names are unchanged across the `0.1.7` line. `0.1.5-rc.x` / `0.1.6-alpha.1` are **unverified**; even without the slots the plugin tree and CLI still work — the left column just won't show the Skills/MCP rows.
+- **④ peerDependencies gate** (v2.1.2) — this package declares `"@deepseek-ai/dsh": ">=0.1.5-rc.0 <0.2.0-0"`. DSH's `evaluatePluginCompatibility` checks it **at install time** and **at profile startup**, refusing to load (and printing the exact-version exemption command) when it does not match — turning a silent breakage into a loud refusal. Without that field the check returns early and passes everything, which is exactly why the 0.1.7-rc.1 breakage could happen unnoticed.
+  - The upper bound is `<0.2.0-0` rather than `<0.2.0` because the check runs with `includePrerelease`: `<0.2.0` would let `0.2.0-rc.1` through.
+  - The lower bound `0.1.5-rc.0` is where the plugin tree still loads — wider than the "panels verified" range in the table above. Being inside the range does not mean the panels are verified.
+  - To use it on a host outside the range, grant an exemption for that exact host version:
+
+    ```bash
+    dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.1.2 --dsh-version <host-version> --accept-risk
+    ```
+  - Guard: `test-cli-profiles.mjs` (calls the host's real `evaluatePluginCompatibility` to check both ends of the range).
 
 ### Panel behaviour changes (v2.0.5)
 
@@ -147,6 +157,16 @@ Three independent host-facing dependencies are version-sensitive; one build sati
 ## CLI
 
 The unified parent command is `dsh-panel`.
+
+The `mcp` sub-commands **require** an explicit `--profile <name>`, and the name must already exist (a profile is a directory with a `package.json` under `$DSH_HOME/profiles/<name>`). A typo exits with code 2 — it will **not** silently create a profile the way `dsh plugin` does. The `skill` sub-commands do **not** need it: skills live under the user root / workspace and are not split per profile. `dsh-panel update` without `--profile` updates every profile that has the plugin installed.
+
+### Profile overview
+
+```bash
+dsh-panel profiles        # installed version / bundle mount / install spec for every profile
+```
+
+The first line is the **current dsh-panel entry point** and its version. That matters: `dsh-panel` is a single global shim, written by whichever profile booted last (`src/global-shim.ts`), so it has no necessary relationship to any row in that table.
 
 ### Skill sub-commands
 
@@ -158,27 +178,40 @@ dsh-panel skill add <path>                            # add to global (.md file,
 dsh-panel skill add <path> --workspace D:\projA        # add directly into a workspace
 dsh-panel skill scope <name> --global                 # migrate one skill to global
 dsh-panel skill scope <name> --workspace D:\projA      # migrate one skill into a workspace (--copy to copy)
-dsh-panel skill migrate <name...|--all> --from <global|path> --to <global|path> [--copy] [--yes]   # batch migrate (copy or move)
-dsh-panel skill update [--profile <name>]             # check for updates and install (default profile: web)
+dsh-panel skill migrate <name...|--all> --from <global|path> --to <global|path> [--copy] [--yes]
 dsh-panel skill disable <name>                        # disable
 dsh-panel skill enable <name>                         # enable
 dsh-panel skill delete <name>                         # delete (asks for confirmation)
 ```
 
+Skill files are **shared globally** (`~/.dsh/skills` and `<workspace>/.dsh/skills`) and are not split per profile, so the `skill` sub-commands need no `--profile`. Passing it optionally confirms that profile exists and warns you when it has not mounted this plugin in `dsh.profile.bundles` (such a profile simply will not show the panels).
+
 ### MCP sub-commands
 
 ```bash
-dsh-panel mcp list [--profile <name>]
-dsh-panel mcp add --name <serverName> --stdio --command <cmd> [--args <arg> ...] [--env KEY=VALUE ...] [--cwd <path>] [--profile <name>]
-dsh-panel mcp add --name <serverName> --http --url <url> [--header KEY=VALUE ...] [--profile <name>]
-dsh-panel mcp enable|disable <serverName> [--profile <name>]
-dsh-panel mcp remove <serverName> [--yes] [--profile <name>]
-dsh-panel mcp test <serverName> [--profile <name>]
-dsh-panel mcp update [--yes] [--profile <name>]
-dsh-panel update [--yes] [--profile <name>]      # update the whole dsh-skill-mcp-panel package
+dsh-panel mcp list --profile web
+dsh-panel mcp add --name <serverName> --stdio --command <cmd> [--args <arg> ...] [--env KEY=VALUE ...] [--cwd <path>] --profile web
+dsh-panel mcp add --name <serverName> --http --url <url> [--header KEY=VALUE ...] --profile web
+dsh-panel mcp enable|disable <serverName> --profile web
+dsh-panel mcp remove <serverName> [--yes] --profile web
+dsh-panel mcp test <serverName> --profile web
 ```
 
 MCP configuration is written to the managed block in the target profile's `cordis.patch.yml` and hot-reloaded while the gateway is online. The block is delimited by `# >>> dsh-skill-mcp-panel:mcp:begin` / `# <<< ...end` — do not edit inside it.
+
+### Updating the plugin
+
+```bash
+dsh-panel update                          # update every profile that has the plugin installed
+dsh-panel update --yes                    # same, without prompting
+dsh-panel update --profile web            # update only web
+dsh-panel mcp update                      # same as dsh-panel update
+```
+
+- The comparison baseline is the version **each profile has installed in its own `node_modules`**, not the version of whichever CLI copy happens to be running.
+- Profiles already on the latest version are skipped, never reinstalled.
+- `desktop` is owned exclusively by the DSH desktop app — the host rejects `dsh plugin --profile desktop`; it is skipped with an explanation during an automatic sweep, and exits with code 2 when named explicitly.
+- After an update: client bundles hot-swap (just refresh the page); server-side changes need that profile's gateway restarted.
 
 The CLI only scans the cwd-anchored project roots and the user roots; add `--cwd <workspace-path>` to manage a different workspace's skills. If a skill name exists in several scopes, `enable`/`disable`/`delete` require `--global`/`--project`/`--workspace` to pick which copy to operate on.
 
