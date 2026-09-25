@@ -3,6 +3,10 @@
  *
  * 与 Web 端共用 profile cordis.patch.yml 受管块和 mcp 模型；CLI 写盘后，
  * 运行中的网关由 DSH watchUserPatches 热加载，无需重启。
+ *
+ * --profile 是必填的：MCP 配置本来就是按 profile 存的，默认成 web 会让人在
+ * 别的 profile 里改配置却写进了 web。名字必须已存在，否则拒绝（dsh plugin
+ * 会拿错名新建 profile，本命令不允许这种副作用）。
  */
 import { readFile } from "node:fs/promises";
 import { createInterface } from "node:readline";
@@ -27,6 +31,7 @@ import {
 } from "./mcp/model.js";
 import { probeMcpServer } from "./mcp/probe.js";
 import { runSkillCli } from "./cli-skill.js";
+import { ProfileError, knownProfileList, requireProfile, type ProfileInfo } from "./profiles.js";
 
 function profilePatchPath(profile: string): string {
   return join(resolveDshHome(), "profiles", profile, "cordis.patch.yml");
@@ -47,16 +52,20 @@ async function readRows(profile: string) {
 function usage() {
   console.log([
     "用法:",
-    "  dsh-panel mcp list [--profile <name>]",
-    "  dsh-panel mcp add --name <serverName> --stdio --command <cmd> [--args <arg> ...] [--env KEY=VALUE ...] [--cwd <path>]",
-    "  dsh-panel mcp add --name <serverName> --http --url <url> [--header KEY=VALUE ...]",
-    "  dsh-panel mcp remove <serverName> [--yes] [--profile <name>]",
-    "  dsh-panel mcp enable <serverName> [--profile <name>]",
-    "  dsh-panel mcp disable <serverName> [--profile <name>]",
-    "  dsh-panel mcp test <serverName> [--profile <name>]",
-    "  dsh-panel mcp update [--yes] [--profile <name>]",
+    "  dsh-panel mcp list --profile <name>",
+    "  dsh-panel mcp add --name <serverName> --stdio --command <cmd> [--args <arg> ...] [--env KEY=VALUE ...] [--cwd <path>] --profile <name>",
+    "  dsh-panel mcp add --name <serverName> --http --url <url> [--header KEY=VALUE ...] --profile <name>",
+    "  dsh-panel mcp remove <serverName> [--yes] --profile <name>",
+    "  dsh-panel mcp enable <serverName> --profile <name>",
+    "  dsh-panel mcp disable <serverName> --profile <name>",
+    "  dsh-panel mcp test <serverName> --profile <name>",
+    "  dsh-panel mcp update [--yes] [--profile <name>]      等价于 dsh-panel update",
     "",
-    "说明: MCP 配置写入当前 profile 的 cordis.patch.yml 受管块；网关在线时自动热加载。",
+    "公共参数:",
+    "  --profile <name>                    目标 profile，必须已存在；除 update 外必填",
+    "                                      名字打错会被拒绝，绝不会新建 profile",
+    "",
+    "说明: MCP 配置写入指定 profile 的 cordis.patch.yml 受管块；网关在线时自动热加载。",
     "密钥参数可通过 --env/--header 重复传入；已配置密钥在编辑表单中留空保持不变。"
   ].join("\n"));
 }
@@ -85,8 +94,8 @@ function parsePairs(values: string[]): Record<string, string> {
   return out;
 }
 
-async function buildInputFromArgs(args: string[]): Promise<{ input: McpServerInput; profile: string }> {
-  const flags: any = { profile: "web", args: [], env: [], headers: [] };
+async function buildInputFromArgs(args: string[]): Promise<{ input: McpServerInput }> {
+  const flags: any = { profile: undefined, args: [], env: [], headers: [] };
   const positional: string[] = [];
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -153,7 +162,7 @@ async function buildInputFromArgs(args: string[]): Promise<{ input: McpServerInp
     if (flags.url === undefined) throw new Error("--http 需要 --url");
     input = mcpServerInputSchema.parse({ ...common, transport: "streamable-http", url: flags.url, headers: parsePairs(flags.headers) });
   }
-  return { input, profile: flags.profile };
+  return { input };
 }
 
 export async function runMcpCli(args: string[]): Promise<number> {
@@ -167,7 +176,7 @@ export async function runMcpCli(args: string[]): Promise<number> {
     return runSkillCli(["update", ...args.slice(1)]);
   }
 
-  const flags: any = { profile: "web", yes: false };
+  const flags: any = { profile: undefined, yes: false };
   const positional: string[] = [];
   for (let i = 1; i < args.length; i++) {
     const arg = args[i];
@@ -179,15 +188,32 @@ export async function runMcpCli(args: string[]): Promise<number> {
     else positional.push(arg);
   }
 
-  if (command === "add") {
-    const built = await buildInputFromArgs(args.slice(1));
-    const { managed, external } = await readRows(built.profile);
-    for (const row of [...managed, ...external]) {
-      if (rowServerName(row) === built.input.serverName) throw new Error('serverName "' + built.input.serverName + '" 已存在');
+  // profile 校验必须在任何读写之前：错名要在这一层挡掉，
+  // 否则 dsh plugin 会安静地按错名新建一个 profile。
+  if (flags.profile === undefined) {
+    console.error("必须用 --profile <name> 指定目标 profile（mcp 子命令不再默认 web）。有效：" + knownProfileList());
+    return 2;
+  }
+  let profile: ProfileInfo;
+  try {
+    profile = requireProfile(flags.profile);
+  } catch (error) {
+    if (error instanceof ProfileError) {
+      console.error(error.message);
+      return 2;
     }
-    const row = { id: rowIdForServerName(built.input.serverName), name: "@deepseek-ai/dsh-mcp-client", config: toOfficialConfig(built.input) };
-    await writeManagedRows(profilePatchPath(built.profile), [...managed, row].sort((a, b) => String(a.config?.serverName ?? "").localeCompare(String(b.config?.serverName ?? ""))));
-    console.log('已添加 MCP 服务器 "' + built.input.serverName + '"（' + built.input.transport + "，网关在线时自动热加载）");
+    throw error;
+  }
+
+  if (command === "add") {
+    const { input } = await buildInputFromArgs(args.slice(1));
+    const { managed, external } = await readRows(profile.name);
+    for (const row of [...managed, ...external]) {
+      if (rowServerName(row) === input.serverName) throw new Error('serverName "' + input.serverName + '" 已存在');
+    }
+    const row = { id: rowIdForServerName(input.serverName), name: "@deepseek-ai/dsh-mcp-client", config: toOfficialConfig(input) };
+    await writeManagedRows(profilePatchPath(profile.name), [...managed, row].sort((a, b) => String(a.config?.serverName ?? "").localeCompare(String(b.config?.serverName ?? ""))));
+    console.log('已添加 MCP 服务器 "' + input.serverName + '"（' + input.transport + "，网关在线时自动热加载）");
     return 0;
   }
 

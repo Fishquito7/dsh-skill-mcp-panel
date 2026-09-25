@@ -16,16 +16,17 @@
 
 ---
 
-DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MCP」两个管理面板（点击即在中央主区打开，不是弹窗），并随包提供统一终端命令 `dsh-panel`（`skill` / `mcp` 两个子命令族）。
+DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MCP」两个管理面板（点击即在中央主区打开，不是弹窗），并随包提供统一终端命令 `dsh-panel`（`skill` / `mcp` / `update` / `profiles`）。
 
 - 🗂️ **技能面板** —— 列表预览、搜索、工作区分栏与分组筛选、卡片展开查看全文、热启停 / 删除，支持 `.md` / `.zip` / 技能文件夹的添加与批量迁移
 - 🔌 **MCP 面板**（v2.0.0）—— 可视化维护 profile `cordis.patch.yml` 中的 MCP 受管块，Stdio / HTTP 两种调用方式，支持测试连接，保存后由 DSH HMR 热加载
 - 🧩 **主页侧边栏面板**（v2.1.0）—— 与宿主内置「插件」页同一套槽位机制，点左栏即在中央主区切页，页面左上角另有「← 返回会话」
 - 🩹 **适配 DSH 0.1.7**（v2.1.1）—— 跟进宿主在 `0.1.7-alpha.1` 重命名的图标导出（旧名在新宿主上已不存在），技能页不再一片空白；并补上 `test-host-icons.mjs` 回归守卫
+- 🧭 **profile 显式化**（v2.1.2）—— `mcp` 子命令必须显式 `--profile`（不再默认 `web`），错名一律拒绝且**不会新建 profile**；`dsh-panel update` 不带 `--profile` 时升级**全部** profile，比较基准改为各 profile 自己已装的版本；新增 `dsh-panel profiles` 一览
 - ⌨️ **统一 CLI** —— `dsh-panel skill …` 与 `dsh-panel mcp …` 覆盖两个面板的全部能力
 - 📦 **无需本地构建** —— npm 与 Release tarball 安装的都是预构建产物
 
-> **profile 提示**：本项目提供的参考命令默认指定 profile 为 `--profile web`，需要更改 profile 的请自行注意。
+> **profile 提示**：`mcp` 子命令**必须**显式写 `--profile <name>`，且名字必须已存在——打错会被拒绝，不会新建 profile。`skill` 不按 profile 分家（技能按用户根 / 工作区存放），不需要该参数。不带 `--profile` 的 `dsh-panel update` 升级全部已安装本插件的 profile（`desktop` 由桌面应用独占，自动跳过）。
 
 **目录**：[界面预览](#界面预览) · [安装](#安装) · [功能](#功能) · [命令行](#命令行) · [工作原理](#工作原理) · [开发](#开发) · [卸载](#卸载) · [链接](#链接) · [License](#license)
 
@@ -70,7 +71,7 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
    **方式一：GitHub Release tarball**（推荐）
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.1/dsh-skill-mcp-panel-2.1.1.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.2/dsh-skill-mcp-panel-2.1.2.tgz
    ```
 
    **方式二：npm（预构建，插件市场同款通道）**
@@ -135,6 +136,15 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 - **① TypertCodec `create()` 契约**：自 `0.1.6-alpha.2` 起 strict codec 改为持 `schema` 工厂 `create()`；仍写 `schema:` 的插件在注册阶段直接抛错，**整个插件树加载失败、网关起不来**（Issue #20）。本插件的每个 codec 同时携带 `schema` 与 `create`，两代宿主都只做 `typeof` 检查、都不拒绝多余属性，因此一份构建通吃，无需版本探测。守卫：`test-codec.mjs`。
 - **② 技能页图标导出名**：`0.1.7-alpha.1` 把图标的像素后缀换成描边档位（`IconSkillOutline16` → `IconSkillOutlineRegular`，尺寸改由 `size` prop 传），**两代命名没有交集**。技能半区 6 处引用改走 `primitiveIcon(cur, legacy)`「新名优先、旧名回退」；若直接换成新名，`0.1.6` 及更早的用户会反向打不开。守卫：`test-host-icons.mjs`。
 - **③ 侧栏面板槽位**：v2.1.0 起面板挂在宿主 `sidebar.panellist`（list 槽位）+ `main`（键控槽位）上，需要宿主提供这两个槽位。`0.1.6-alpha.2` 实测通过，`0.1.7` 系列槽位名未变。`0.1.5-rc.x` / `0.1.6-alpha.1` **未验证**；即使槽位缺失，插件树与 CLI 仍然可用，只是左栏不会出现「技能」「MCP」两行。
+- **④ peerDependencies 硬闸门**（v2.1.2）：本包声明 `"@deepseek-ai/dsh": ">=0.1.5-rc.0 <0.2.0-0"`。DSH 的 `evaluatePluginCompatibility` 会在**安装时**与**profile 启动时**校验它，不满足就拒绝加载并打印精确豁免命令——把「静默崩」换成「明着拦」。没有这个字段时该校验直接放行，这正是 0.1.7-rc.1 那次断裂能静默发生的原因。
+  - 上界写成 `<0.2.0-0` 而不是 `<0.2.0`：该校验带 `includePrerelease`，`<0.2.0` 会把 `0.2.0-rc.1` 也放进来。
+  - 下限 `0.1.5-rc.0` 是「插件树还能加载」的边界，比上表「面板已实测」的范围更宽——区间内不等于面板已验证。
+  - 在区间外的宿主上确需使用时，用宿主自己的精确版本豁免：
+
+    ```bash
+    dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.1.2 --dsh-version <宿主版本> --accept-risk
+    ```
+  - 守卫：`test-cli-profiles.mjs`（直接调用宿主真实的 `evaluatePluginCompatibility` 验证区间两端）。
 
 ### 面板行为调整（v2.0.5）
 
@@ -145,6 +155,20 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 
 统一父命令为 `dsh-panel`。
 
+`mcp` 子命令**必须**用 `--profile <name>` 指定目标 profile，名字必须已存在（判据是
+`$DSH_HOME/profiles/<name>/package.json`）。打错名字会以退出码 2 被拒绝，**不会**像 `dsh plugin`
+那样顺手新建一个 profile。`skill` 子命令**不需要** `--profile`——技能按用户根 / 工作区存放，不按
+profile 分家。`dsh-panel update` 不带 `--profile` 时升级全部已安装本插件的 profile。
+
+### profile 概览
+
+```bash
+dsh-panel profiles        # 每个 profile 的已装版本 / bundles 挂载情况 / 安装 spec
+```
+
+输出的第一行是**当前 dsh-panel 入口**的路径与版本。这条信息是必要的：`dsh-panel` 是全局单例 shim，
+由最后启动的那个 profile 写入（`src/global-shim.ts`），因此它与表中任何一行都没有必然关系。
+
 ### 技能子命令
 
 ```bash
@@ -154,29 +178,45 @@ dsh-panel skill list                                  # 列出技能（含工作
 dsh-panel skill add <path>                            # 添加到全局（.md 文件、目录束或 .zip 压缩包）
 dsh-panel skill add <path> --workspace D:\项目A        # 直接添加到指定工作区
 dsh-panel skill scope <name> --global                 # 迁移单个技能到全局
-dsh-panel skill scope <name> --workspace D:\项目A      # 迁移单个技能到指定工作区（--copy 复制）
-dsh-panel skill migrate <name...|--all> --from <全局|路径> --to <全局|路径> [--copy] [--yes]   # 批量迁移（复制/移动）
-dsh-panel skill update [--profile <name>]             # 检查并更新插件（默认 web 配置）
+dsh-panel skill scope <name> --workspace D:\项目A      # 迁移到指定工作区（--copy 复制）
+dsh-panel skill migrate <name...|--all> --from <全局|路径> --to <全局|路径> [--copy] [--yes]
 dsh-panel skill disable <name>                        # 停用
 dsh-panel skill enable <name>                         # 启用
 dsh-panel skill delete <name>                         # 删除（需确认）
 ```
 
+技能文件**全局共享**（`~/.dsh/skills` 与 `<工作区>/.dsh/skills`），不按 profile 分家，所以
+`skill` 子命令不需要 `--profile`。可选地加上它，会顺便确认该 profile 存在，并在它没把本插件
+挂进 `dsh.profile.bundles` 时提醒你「这个 profile 看不到面板」。
+
 ### MCP 子命令
 
 ```bash
-dsh-panel mcp list [--profile <name>]
-dsh-panel mcp add --name <serverName> --stdio --command <cmd> [--args <arg> ...] [--env KEY=VALUE ...] [--cwd <path>] [--profile <name>]
-dsh-panel mcp add --name <serverName> --http --url <url> [--header KEY=VALUE ...] [--profile <name>]
-dsh-panel mcp enable|disable <serverName> [--profile <name>]
-dsh-panel mcp remove <serverName> [--yes] [--profile <name>]
-dsh-panel mcp test <serverName> [--profile <name>]
-dsh-panel mcp update [--yes] [--profile <name>]
-dsh-panel update [--yes] [--profile <name>]      # 更新整个 dsh-skill-mcp-panel
+dsh-panel mcp list --profile web
+dsh-panel mcp add --name <serverName> --stdio --command <cmd> [--args <arg> ...] [--env KEY=VALUE ...] [--cwd <path>] --profile web
+dsh-panel mcp add --name <serverName> --http --url <url> [--header KEY=VALUE ...] --profile web
+dsh-panel mcp enable|disable <serverName> --profile web
+dsh-panel mcp remove <serverName> [--yes] --profile web
+dsh-panel mcp test <serverName> --profile web
 ```
 
 MCP 配置写入目标 profile 的 `cordis.patch.yml` 受管块；网关在线时自动热加载。面板块由
 `# >>> dsh-skill-mcp-panel:mcp:begin` / `# <<< ...end` 标记，请勿手改块内内容。
+
+### 更新插件
+
+```bash
+dsh-panel update                          # 升级全部已安装本插件的 profile
+dsh-panel update --yes                    # 同上，不询问
+dsh-panel update --profile web            # 只更新 web
+dsh-panel mcp update                      # 等价于 dsh-panel update
+```
+
+- 对比基准是**每个 profile 自己 `node_modules` 里已装的版本**，不是正在执行的那份 CLI 的版本。
+- 已经是最新的 profile 会被跳过，不会被重装。
+- `desktop` 由 DSH 桌面应用独占，宿主的 `dsh plugin --profile desktop` 会直接报错；自动枚举时跳过并说明，
+  显式 `--profile desktop` 时以退出码 2 报错。
+- 更新完成后：客户端 bundle 热更新（刷新页面即可），服务端改动需要重启对应 profile 的网关。
 
 CLI 只扫描当前目录锚定的项目根与用户根；管理其他工作区的技能请加 `--cwd <工作区路径>`。
 同名技能存在于多个作用域时，`enable`/`disable`/`delete` 需加 `--global`/`--project`/`--workspace` 指定操作哪一份。
