@@ -29,7 +29,7 @@ const reconnectSchema = z.object({
 export const stdioServerSchema = z.object({
   serverName: serverNameSchema,
   transport: z.literal("stdio"),
-  command: z.string().min(1),
+  command: z.string().min(1, "命令不能为空"),
   args: z.array(z.string()).default([]),
   env: secretMapSchema,
   cwd: z.string().default(""),
@@ -41,7 +41,7 @@ export const stdioServerSchema = z.object({
 export const httpServerSchema = z.object({
   serverName: serverNameSchema,
   transport: z.literal("streamable-http"),
-  url: z.string().url(),
+  url: z.string().url("服务器地址必须是合法 URL"),
   headers: secretMapSchema,
   toolCallTimeoutMs: z.number().int().min(1).default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
   failOnStartupError: z.boolean().default(false),
@@ -49,6 +49,25 @@ export const httpServerSchema = z.object({
 });
 
 export const mcpServerInputSchema = z.discriminatedUnion("transport", [stdioServerSchema, httpServerSchema]);
+
+/**
+ * 把 zod 的校验失败压成一行「字段：原因」。
+ *
+ * 网关边界（`codec.create().parse`）失败时宿主只回一句泛化的
+ * `wire field "payload" failed boundary validation`，zod 的字段说明到不了前端，
+ * 用户看到的就是天书（典型：名称里带空格）。所以字段校验放在 handler 里做，
+ * 用这个函数生成可读错误，前端原样展示。
+ */
+export function describeSchemaError(error: unknown): string {
+  const issues = (error as { issues?: unknown })?.issues;
+  if (!Array.isArray(issues) || issues.length === 0) return String((error as { message?: unknown })?.message ?? error);
+  return issues
+    .map((issue: any) => {
+      const path = Array.isArray(issue?.path) && issue.path.length > 0 ? issue.path.join(".") : "payload";
+      return path + "：" + String(issue?.message ?? "无效");
+    })
+    .join("；");
+}
 
 export type McpServerInput = z.infer<typeof mcpServerInputSchema>;
 export type McpTransport = McpServerInput["transport"];

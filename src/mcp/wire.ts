@@ -5,6 +5,17 @@ import { z } from "zod";
 import { strictCodec } from "../codec.js";
 import { mcpServerInputSchema } from "./model.js";
 
+/**
+ * 网关边界用的宽松 payload schema：只要求能拿到一个 JSON 值，字段校验全部交给
+ * handler（save/removeServer/setEnabled/test 各自 parse 一次严格 schema）。
+ *
+ * 背景：边界 codec 内嵌 mcpServerInputSchema 时，名称不合法会在边界上就被拒，
+ * 宿主只回 `gateway/input-invalid: typert gateway: mcpManager/save: wire field
+ * "payload" failed boundary validation` —— zod 的字段说明到不了前端。
+ * 校验下沉后抛出的是 `describeSchemaError` 生成的中文错误，用户能看懂。
+ */
+const boundaryPayloadSchema = z.unknown();
+
 const fiberPhaseSchema = z.enum(["pending", "loading", "active", "failed", "unloading"]).nullable();
 
 const reconnectViewSchema = z.object({
@@ -104,7 +115,7 @@ export const MCP_MANIFEST = {
       method: "save",
       invocation: { kind: "direct" },
       parameters: [
-        { name: "payload", wire: "payload", source: "json", codec: strictCodec("dsh-skill-mcp-panel#McpSavePayload", mcpSavePayloadSchema) }
+        { name: "payload", wire: "payload", source: "json", codec: strictCodec("dsh-skill-mcp-panel#McpSavePayload", boundaryPayloadSchema) }
       ],
       result: strictCodec("dsh-skill-mcp-panel#McpSaveResult", mcpSaveResultSchema)
     },
@@ -115,7 +126,7 @@ export const MCP_MANIFEST = {
       method: "removeServer",
       invocation: { kind: "direct" },
       parameters: [
-        { name: "payload", wire: "payload", source: "json", codec: strictCodec("dsh-skill-mcp-panel#McpRemovePayload", mcpRemovePayloadSchema) }
+        { name: "payload", wire: "payload", source: "json", codec: strictCodec("dsh-skill-mcp-panel#McpRemovePayload", boundaryPayloadSchema) }
       ],
       result: strictCodec("dsh-skill-mcp-panel#McpRemoveResult", mcpRemoveResultSchema)
     },
@@ -126,7 +137,7 @@ export const MCP_MANIFEST = {
       method: "setEnabled",
       invocation: { kind: "direct" },
       parameters: [
-        { name: "payload", wire: "payload", source: "json", codec: strictCodec("dsh-skill-mcp-panel#McpSetEnabledPayload", mcpSetEnabledPayloadSchema) }
+        { name: "payload", wire: "payload", source: "json", codec: strictCodec("dsh-skill-mcp-panel#McpSetEnabledPayload", boundaryPayloadSchema) }
       ],
       result: strictCodec("dsh-skill-mcp-panel#McpSaveResult", mcpSaveResultSchema)
     },
@@ -137,7 +148,7 @@ export const MCP_MANIFEST = {
       method: "test",
       invocation: { kind: "direct" },
       parameters: [
-        { name: "payload", wire: "payload", source: "json", codec: strictCodec("dsh-skill-mcp-panel#McpTestPayload", mcpTestPayloadSchema) }
+        { name: "payload", wire: "payload", source: "json", codec: strictCodec("dsh-skill-mcp-panel#McpTestPayload", boundaryPayloadSchema) }
       ],
       result: strictCodec("dsh-skill-mcp-panel#McpTestResult", mcpTestResultSchema)
     },
