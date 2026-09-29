@@ -23,6 +23,7 @@ A DSH plugin that adds two management panels — **Skills** and **MCP** — to t
 - 🧩 **Home-sidebar panels** (v2.1.0) — the same slot mechanism as the host's built-in Plugins page; clicking the left column swaps the center main area, and each panel carries a “← Back to session” arrow
 - 🩹 **DSH 0.1.7 support** (v2.1.1) — tracks the host's renamed icon exports in `0.1.7-alpha.1` (the old names no longer exist there) so the Skills page renders again, plus a `test-host-icons.mjs` regression guard
 - 🧭 **Explicit profiles** (v2.1.2) — the `mcp` sub-commands require an explicit `--profile` (no more implicit `web`), a typo is rejected and **never creates a profile**; `dsh-panel update` without `--profile` updates **every** profile and compares against each profile's own installed version; new `dsh-panel profiles` overview
+- 🔧 **DSH 0.2.0 support and a readable MCP form error** (v2.1.3) — the peer upper bound moved from `<0.2.0-0` to `<0.3.0-0`: once the desktop app updated to `0.2.0-rc.2`, the old range was judged incompatible and the host **denied the whole row at startup**, making the Skills/MCP entries vanish from the sidebar. An illegal MCP server name (e.g. one containing a space) no longer answers with a bare gateway error — the form validates as you type and failures report “field: reason” in plain language. **Restart from the tray after upgrading**
 - ⌨️ **Unified CLI** — `dsh-panel skill …` and `dsh-panel mcp …` expose everything the two panels can do
 - 📦 **No local build** — both the npm package and the Release tarball ship prebuilt artifacts
 
@@ -71,7 +72,7 @@ A DSH plugin that adds two management panels — **Skills** and **MCP** — to t
    **Option 1: GitHub Release tarball**
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.2/dsh-skill-mcp-panel-2.1.2.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.3/dsh-skill-mcp-panel-2.1.3.tgz
    ```
 
    **Option 2: npm (prebuilt, same channel as the plugin marketplace)**
@@ -147,7 +148,7 @@ Three independent host-facing dependencies are version-sensitive; one build sati
   - To use it on a host outside the range, grant an exemption for that exact host version:
 
     ```bash
-    dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.1.2 --dsh-version <host-version> --accept-risk
+    dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.1.3 --dsh-version <host-version> --accept-risk
     ```
   - Guard: `test-cli-profiles.mjs` (calls the host's real `evaluatePluginCompatibility` to check both ends of the range).
 

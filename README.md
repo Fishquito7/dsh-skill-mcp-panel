@@ -23,6 +23,7 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 - 🧩 **主页侧边栏面板**（v2.1.0）—— 与宿主内置「插件」页同一套槽位机制，点左栏即在中央主区切页，页面左上角另有「← 返回会话」
 - 🩹 **适配 DSH 0.1.7**（v2.1.1）—— 跟进宿主在 `0.1.7-alpha.1` 重命名的图标导出（旧名在新宿主上已不存在），技能页不再一片空白；并补上 `test-host-icons.mjs` 回归守卫
 - 🧭 **profile 显式化**（v2.1.2）—— `mcp` 子命令必须显式 `--profile`（不再默认 `web`），错名一律拒绝且**不会新建 profile**；`dsh-panel update` 不带 `--profile` 时升级**全部** profile，比较基准改为各 profile 自己已装的版本；新增 `dsh-panel profiles` 一览
+- 🔧 **适配 DSH 0.2.0、修掉 MCP 表单天书**（v2.1.3）—— peer 上界从 `<0.2.0-0` 抬到 `<0.3.0-0`：桌面端升到 `0.2.0-rc.2` 后旧区间会被宿主判成不兼容并在启动时**禁用整行**，侧栏的「技能」「MCP」两行会整体消失；MCP 服务器名非法（如带空格）时不再只回一句网关「天书」，改为表单即时校验 + 「字段：原因」的中文报错。**升级后需从托盘彻底退出并重启**
 - ⌨️ **统一 CLI** —— `dsh-panel skill …` 与 `dsh-panel mcp …` 覆盖两个面板的全部能力
 - 📦 **无需本地构建** —— npm 与 Release tarball 安装的都是预构建产物
 
@@ -71,7 +72,7 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
    **方式一：GitHub Release tarball**（推荐）
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.2/dsh-skill-mcp-panel-2.1.2.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.3/dsh-skill-mcp-panel-2.1.3.tgz
    ```
 
    **方式二：npm（预构建，插件市场同款通道）**
@@ -144,7 +145,7 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
   - 在区间外的宿主上确需使用时，用宿主自己的精确版本豁免：
 
     ```bash
-    dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.1.2 --dsh-version <宿主版本> --accept-risk
+    dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.1.3 --dsh-version <宿主版本> --accept-risk
     ```
   - 守卫：`test-cli-profiles.mjs`（直接调用宿主真实的 `evaluatePluginCompatibility` 验证区间两端）。
 
