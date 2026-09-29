@@ -254,6 +254,7 @@ dsh plugin --profile web remove dsh-skill-mcp-panel
 
 Only version notes that **change how you use the plugin**; see [Releases](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases) for the full history.
 
+- **Unreleased (next version)** — `dsh-panel update` now **stays on the channel each profile was installed from** (tarball / npm / git) instead of always switching to a git tag, and the README install guide uses the version-less stable tarball link. The code is already on `main` and ships with the next release.
 - **v2.1.3** — DSH `0.2.0` support (peer upper bound raised to `<0.3.0-0`, without which the host denies the whole row at profile startup); an illegal MCP server name no longer answers with a bare gateway error
 - **v2.1.2** — `mcp` sub-commands require an explicit `--profile`, a typo is rejected instead of creating a profile; `dsh-panel update` updates every profile; new `dsh-panel profiles`
 - **v2.1.1** — DSH `0.1.7` support for the host's renamed icon exports, so the Skills page renders again

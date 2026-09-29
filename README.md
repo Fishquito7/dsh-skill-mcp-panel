@@ -258,6 +258,7 @@ dsh plugin --profile web remove dsh-skill-mcp-panel
 
 只列**会改变使用方式**的版本要点；完整改动见 [Releases](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)。
 
+- **待发布（下一版）** —— `dsh-panel update` 改为**保持各 profile 原本的安装渠道**（tarball / npm / Git），不再一律换成 Git tag；README 安装指引改用无版本号的稳定 tarball 链接。代码已在 `main`，随下一个版本一起发布。
 - **v2.1.3** —— 适配 DSH `0.2.0`（peer 上界抬到 `<0.3.0-0`，否则宿主会在 profile 启动时禁用整行）；MCP 表单里非法的服务器名不再只报一句网关「天书」
 - **v2.1.2** —— `mcp` 子命令必须显式 `--profile`，错名一律拒绝且不会新建 profile；`dsh-panel update` 不带 `--profile` 时升级全部 profile；新增 `dsh-panel profiles`
 - **v2.1.1** —— 适配 DSH `0.1.7` 重命名的图标导出，技能页不再一片空白
