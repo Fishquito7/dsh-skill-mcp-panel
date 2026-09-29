@@ -241,6 +241,11 @@ The source is TypeScript under `src/`; the compiled `lib/*.js` is committed with
 After editing the source, run `pnpm build`: `tsc` compiles to `lib/` and strips the extra module marker from the browser bundle.
 When publishing, `npm pack` rebuilds automatically through prepack — no manual compile step.
 
+> **Local linked development**: `dsh plugin --profile <name> add <this-repo-path>` installs the plugin
+> through pnpm `link:`, which only creates a symlink and **does not install the plugin's own
+> dependencies**. Run `pnpm install` inside the repository after cloning, otherwise the host fails at
+> the import stage and the plugin manager only reports a bare `failed to import`.
+
 ## Uninstall
 
 ```bash

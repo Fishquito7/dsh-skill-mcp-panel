@@ -247,6 +247,10 @@ CLI 只扫描当前目录锚定的项目根与用户根；管理其他工作区�
 改完源码后运行 `pnpm build`：`tsc` 编译到 `lib/` 并剥离浏览器束的多余模块标记。
 发布时 `npm pack` 会通过 prepack 自动重新构建，无需手工编译。
 
+> **链接式本地调试**：用 `dsh plugin --profile <name> add <本仓库路径>` 装进来的是 pnpm `link:`，
+> 而 `link:` 只建软链、**不会安装本插件的依赖**。克隆后先在仓库内执行一次 `pnpm install`，
+> 否则宿主加载插件时会在导入阶段失败，插件管理器只会显示一句 `failed to import`。
+
 ## 卸载
 
 ```bash

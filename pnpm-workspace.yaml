@@ -1,0 +1,11 @@
+packages:
+  - .
+
+# 本地开发时 DSH 以 pnpm `link:` 方式安装本插件，而 `link:` 只为被链接目录建软链、
+# 不会安装它自己的依赖——所以克隆后必须先在本仓库跑一次 `pnpm install`，
+# 否则宿主加载插件时会在导入阶段失败（插件管理器显示 "failed to import"）。
+#
+# 运行期真正需要的 peer 只有 @deepseek-ai/cordis（已列入 devDependencies）；
+# 打开 autoInstallPeers 会把可选的 @deepseek-ai/dsh peer 整份装进来
+# （约 600 个包，含 node-pty / koffi 等原生构建），对本插件运行时毫无用处。
+autoInstallPeers: false
