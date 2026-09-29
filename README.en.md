@@ -23,6 +23,7 @@ A DSH plugin that adds two management panels — **Skills** and **MCP** — to t
 - 🧩 **Home-sidebar panels** (v2.1.0) — the same slot mechanism as the host's built-in Plugins page; clicking the left column swaps the center main area, and each panel carries a “← Back to session” arrow
 - 🩹 **DSH 0.1.7 support** (v2.1.1) — tracks the host's renamed icon exports in `0.1.7-alpha.1` (the old names no longer exist there) so the Skills page renders again, plus a `test-host-icons.mjs` regression guard
 - 🧭 **Explicit profiles** (v2.1.2) — the `mcp` sub-commands require an explicit `--profile` (no more implicit `web`), a typo is rejected and **never creates a profile**; `dsh-panel update` without `--profile` updates **every** profile and compares against each profile's own installed version; new `dsh-panel profiles` overview
+- 🔧 **DSH 0.2.0 support and a readable MCP form error** (v2.1.3) — the peer upper bound moved from `<0.2.0-0` to `<0.3.0-0`: once the desktop app updated to `0.2.0-rc.2`, the old range was judged incompatible and the host **denied the whole row at startup**, making the Skills/MCP entries vanish from the sidebar. An illegal MCP server name (e.g. one containing a space) no longer answers with a bare gateway error — the form validates as you type and failures report “field: reason” in plain language. **Restart from the tray after upgrading**
 - ⌨️ **Unified CLI** — `dsh-panel skill …` and `dsh-panel mcp …` expose everything the two panels can do
 - 📦 **No local build** — both the npm package and the Release tarball ship prebuilt artifacts
 
@@ -71,7 +72,7 @@ A DSH plugin that adds two management panels — **Skills** and **MCP** — to t
    **Option 1: GitHub Release tarball**
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.2/dsh-skill-mcp-panel-2.1.2.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.3/dsh-skill-mcp-panel-2.1.3.tgz
    ```
 
    **Option 2: npm (prebuilt, same channel as the plugin marketplace)**
@@ -134,18 +135,20 @@ Three independent host-facing dependencies are version-sensitive; one build sati
 | `0.1.5-rc.x` | ✅ reads `schema` | ✅ legacy names | ⚠️ unverified |
 | `0.1.6-alpha.1` | ✅ reads `schema` | ✅ legacy names | ⚠️ unverified |
 | `0.1.6-alpha.2` – `0.1.7-alpha.0` | ✅ reads `create` | ✅ legacy names | ✅ |
-| `0.1.7-alpha.1` and later | ✅ reads `create` | ✅ new names | ✅ |
+| `0.1.7-alpha.1` – `0.1.8` | ✅ reads `create` | ✅ new names | ✅ |
+| `0.2.0-rc.x` | ✅ reads `create` | ✅ new names | ✅ |
 
 - **① TypertCodec `create()` contract** — since `0.1.6-alpha.2` a strict codec holds a `schema` factory (`create()`); a plugin still declaring `schema:` throws during registration and **fails the whole plugin tree, so the gateway will not boot** (Issue #20). Every codec here carries both `schema` and `create`; both generations only run `typeof` checks and neither rejects extra properties, so one build works everywhere with no version probing. Guard: `test-codec.mjs`.
 - **② Skills-page icon export names** — `0.1.7-alpha.1` replaced the pixel suffix with a stroke tier (`IconSkillOutline16` → `IconSkillOutlineRegular`, with size moved to the `size` prop) and the **two generations share no names**. The six Skills-half references now go through `primitiveIcon(cur, legacy)` (prefer the new name, fall back to the legacy one); switching straight to the new names would break everyone on `0.1.6` and earlier. Guard: `test-host-icons.mjs`.
 - **③ Sidebar panel slots** — since v2.1.0 the panels mount on the host's `sidebar.panellist` (list slot) plus `main` (keyed slot), so the host must provide both. Verified on `0.1.6-alpha.2`, and the slot names are unchanged across the `0.1.7` line. `0.1.5-rc.x` / `0.1.6-alpha.1` are **unverified**; even without the slots the plugin tree and CLI still work — the left column just won't show the Skills/MCP rows.
-- **④ peerDependencies gate** (v2.1.2) — this package declares `"@deepseek-ai/dsh": ">=0.1.5-rc.0 <0.2.0-0"`. DSH's `evaluatePluginCompatibility` checks it **at install time** and **at profile startup**, refusing to load (and printing the exact-version exemption command) when it does not match — turning a silent breakage into a loud refusal. Without that field the check returns early and passes everything, which is exactly why the 0.1.7-rc.1 breakage could happen unnoticed.
-  - The upper bound is `<0.2.0-0` rather than `<0.2.0` because the check runs with `includePrerelease`: `<0.2.0` would let `0.2.0-rc.1` through.
+- **④ peerDependencies gate** (v2.1.2) — this package declares `"@deepseek-ai/dsh": ">=0.1.5-rc.0 <0.3.0-0"`. DSH's `evaluatePluginCompatibility` checks it **at install time** and **at profile startup**, refusing to load (and printing the exact-version exemption command) when it does not match — turning a silent breakage into a loud refusal. Without that field the check returns early and passes everything, which is exactly why the 0.1.7-rc.1 breakage could happen unnoticed.
+  - The upper bound is `<0.3.0-0` rather than `<0.3.0` because the check runs with `includePrerelease`: `<0.3.0` would let `0.3.0-rc.1` through.
+  - v2.1.3 raised the upper bound from `<0.2.0-0` to `<0.3.0-0`: once the desktop app auto-updated to `0.2.0-rc.2`, the old range was judged incompatible and the host **denied the whole row at profile startup** (`dsh: disabling profile plugin row "skill-mcp-panel": ...`), making the panels vanish from the sidebar. None of the three host-facing contracts changed in 0.2.0 (icon export names, the `sidebar.panellist` + `main` slots, and TypertCodec still reading `create()`), and this was verified against 0.2.0's own `evaluatePluginCompatibility` and registry validator.
   - The lower bound `0.1.5-rc.0` is where the plugin tree still loads — wider than the "panels verified" range in the table above. Being inside the range does not mean the panels are verified.
   - To use it on a host outside the range, grant an exemption for that exact host version:
 
     ```bash
-    dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.1.2 --dsh-version <host-version> --accept-risk
+    dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.1.3 --dsh-version <host-version> --accept-risk
     ```
   - Guard: `test-cli-profiles.mjs` (calls the host's real `evaluatePluginCompatibility` to check both ends of the range).
 

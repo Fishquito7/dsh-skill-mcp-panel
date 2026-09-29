@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { McpManagerGateway } from "./lib/mcp/gateway.js";
-import { mcpListResultSchema } from "./lib/mcp/wire.js";
+import { MCP_MANIFEST, mcpListResultSchema } from "./lib/mcp/wire.js";
 
 let passed = 0;
 function pass(name) {
@@ -60,6 +60,25 @@ try {
   assert.equal(JSON.stringify(parsed).includes("undefined"), false);
   assert.equal(JSON.stringify(parsed).includes("url"), false); // stdio view must not carry undefined optional fields
   pass("gateway list validates at the Typert JSON boundary");
+
+  // 4. 名称不合法：校验在 handler 里做，错误必须是「字段 + 原因」的人话，
+  //    而不是宿主那句泛化的「wire field "payload" failed boundary validation」。
+  await assert.rejects(
+    () => gateway.save({ input: { serverName: "Windows MCP", transport: "stdio", command: "node" } }),
+    (error) => {
+      assert.match(String(error.message), /serverName/);
+      assert.match(String(error.message), /字母、数字、下划线或连字符/);
+      assert.doesNotMatch(String(error.message), /boundary validation/);
+      return true;
+    }
+  );
+  pass("gateway save rejects an illegal serverName with a readable message");
+
+  // 5. 网关边界 codec 必须放行这份 payload（校验已下沉到 handler），
+  //    否则非法名称仍然会在边界上被拒，用户又只能看到天书。
+  const saveParam = MCP_MANIFEST.invocations.find((item) => item.method === "save").parameters[0];
+  assert.equal(saveParam.codec.create().safeParse({ input: { serverName: "Windows MCP" } }).success, true);
+  pass("gateway boundary codec defers payload validation to the handler");
 } finally {
   await rm(dir, { recursive: true, force: true });
 }

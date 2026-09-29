@@ -14,6 +14,7 @@ import {
 } from "../patch-editor.js";
 import {
   applyServerEdit,
+  describeSchemaError,
   inputFromPatchRow,
   mcpServerInputSchema,
   patchRowToView,
@@ -43,6 +44,17 @@ const MANAGED_ROW_IDS = new Set<string>();
 
 function isManagedRow(row: PatchRow): boolean {
   return typeof row.id === "string" && row.id.startsWith("panel-mcp-");
+}
+
+/**
+ * handler 内校验 payload：失败抛「字段：原因」的中文错误。
+ * 网关边界的 codec 是宽松 schema（见 wire.ts），校验必须在这里做，
+ * 否则失败会退化成宿主那句泛化的 `failed boundary validation`。
+ */
+function parseWirePayload(schema: { safeParse: (value: unknown) => any }, raw: unknown, label: string): any {
+  const result = schema.safeParse(raw);
+  if (result.success) return result.data;
+  throw new Error(label + "：" + describeSchemaError(result.error));
 }
 
 export class McpManagerGateway extends TypertRemoteService {
@@ -123,7 +135,7 @@ export class McpManagerGateway extends TypertRemoteService {
   }
 
   async save(rawPayload: unknown) {
-    const payload = mcpSavePayloadSchema.parse(rawPayload);
+    const payload = parseWirePayload(mcpSavePayloadSchema, rawPayload, "MCP 配置无效");
     const input = payload.input;
     const previousName = payload.previousServerName ?? input.serverName;
     const { managed, external } = await this.readRows();
@@ -161,7 +173,7 @@ export class McpManagerGateway extends TypertRemoteService {
   }
 
   async removeServer(rawPayload: unknown) {
-    const payload = mcpRemovePayloadSchema.parse(rawPayload);
+    const payload = parseWirePayload(mcpRemovePayloadSchema, rawPayload, "删除参数无效");
     const { managed } = await this.readRows();
     const row = managed.find((candidate) => serverNameFromRowId(candidate.id) === payload.serverName || candidate.config?.serverName === payload.serverName);
     if (row === undefined) {
@@ -174,7 +186,7 @@ export class McpManagerGateway extends TypertRemoteService {
   }
 
   async setEnabled(rawPayload: unknown) {
-    const payload = mcpSetEnabledPayloadSchema.parse(rawPayload);
+    const payload = parseWirePayload(mcpSetEnabledPayloadSchema, rawPayload, "启用参数无效");
     const { managed } = await this.readRows();
     const row = managed.find((candidate) => serverNameFromRowId(candidate.id) === payload.serverName || candidate.config?.serverName === payload.serverName);
     if (row === undefined) throw new Error('MCP 行 "' + payload.serverName + '" 不存在或不是面板受管行');
@@ -190,7 +202,7 @@ export class McpManagerGateway extends TypertRemoteService {
   }
 
   async test(rawPayload: unknown) {
-    const payload = mcpTestPayloadSchema.parse(rawPayload);
+    const payload = parseWirePayload(mcpTestPayloadSchema, rawPayload, "测试参数无效");
     if (payload !== null && typeof payload === "object" && !("transport" in payload) && "serverName" in payload) {
       const { managed, external } = await this.readRows();
       const row = [...managed, ...external].find((candidate) => candidate.config?.serverName === payload.serverName || serverNameFromRowId(candidate.id) === payload.serverName);
