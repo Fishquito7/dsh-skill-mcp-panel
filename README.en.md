@@ -66,11 +66,16 @@ A DSH plugin that brings **skill** and **MCP server** management into the DSH we
 
 1. Install the package (its bundle layer auto-mounts it — no config editing). Pick either:
 
-   **Option 1: GitHub Release tarball**
+   **Option 1: GitHub Release tarball** (recommended — always the latest)
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.3/dsh-skill-mcp-panel-2.1.3.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/latest/download/dsh-skill-mcp-panel.tgz
    ```
+
+   This is the **version-less stable link**: every release uploads both the `dsh-skill-mcp-panel.tgz` alias (always
+   pointing at the latest build) and a versioned `dsh-skill-mcp-panel-<version>.tgz`, so this command never
+   needs editing. To pin a specific version, swap `latest/download/dsh-skill-mcp-panel.tgz` for
+   `download/v<version>/dsh-skill-mcp-panel-<version>.tgz`.
 
    **Option 2: npm (prebuilt, same channel as the plugin marketplace)**
 
@@ -209,6 +214,9 @@ dsh-panel mcp update                      # same as dsh-panel update
 ```
 
 - The comparison baseline is the version **each profile has installed in its own `node_modules`**, not the version of whichever CLI copy happens to be running.
+- Updates **stay on the channel that profile was installed from**: a tarball install updates from the versioned
+  tarball URL, an npm install updates from npm pinned to that version, and a git (or unknown) install keeps
+  using `github:Fishquito7/dsh-skill-mcp-panel#v<version>`.
 - Profiles already on the latest version are skipped, never reinstalled.
 - `desktop` is owned exclusively by the DSH desktop app — the host rejects `dsh plugin --profile desktop`; it is skipped with an explanation during an automatic sweep, and exits with code 2 when named explicitly.
 - After an update: client bundles hot-swap (just refresh the page); server-side changes need that profile's gateway restarted.

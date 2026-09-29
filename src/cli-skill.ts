@@ -46,7 +46,7 @@ import {
   workspaceSkillRoot,
   workspaceTitleMap
 } from "./scope.js";
-import { INSTALL_SPEC, PACKAGE_NAME, compareVersions, fetchUpdateCheck } from "./version.js";
+import { INSTALL_SPEC, PACKAGE_NAME, REPO_SLUG, compareVersions, fetchUpdateCheck } from "./version.js";
 import {
   ProfileError,
   electronBlockedMessage,
@@ -282,10 +282,32 @@ function scopeLabel(entry, titles) {
   return "全局";
 }
 
-/** 执行一次 `dsh plugin --profile <p> add <spec>#v<version>`（透传输出），返回退出码。 */
-function runPluginAdd(profile: string, version: string): Promise<number> {
+/**
+ * 按该 profile **原本的安装渠道**构造更新目标。
+ *
+ * 旧实现一律用 `github:<repo>#v<version>` 重装，等于把 tarball / npm 装来的 profile
+ * 悄悄换成 Git 通道——而选这两个渠道的人往往正是因为本机 Git 通道不可用（网络受限，
+ * 或 Git 来源被 pnpm 的构建脚本闸门挡住）。保持原渠道后，update 才不会在这些人身上失败。
+ *
+ *   https://…（Release tarball） → 该版本的版本化 tarball URL
+ *   裸包名 / 包名@范围           → `<包名>@<版本>`（精确版本，绕开发布年龄门）
+ *   github: / 其它 / 未声明      → `github:<repo>#v<版本>`（原行为）
+ *
+ * 导出供 test-cli-profiles.mjs 直接做渠道矩阵回归。
+ */
+export function installTargetForDeclaredSpec(spec: string | null | undefined, version: string): string {
+  const value = typeof spec === "string" ? spec.trim() : "";
+  if (/^https?:\/\//i.test(value)) {
+    return "https://github.com/" + REPO_SLUG + "/releases/download/v" + version + "/" + PACKAGE_NAME + "-" + version + ".tgz";
+  }
+  if (value === PACKAGE_NAME || value.startsWith(PACKAGE_NAME + "@")) return PACKAGE_NAME + "@" + version;
+  return INSTALL_SPEC + "#v" + version;
+}
+
+/** 执行一次 `dsh plugin --profile <p> add <spec>`（透传输出），返回退出码。 */
+function runPluginAdd(profile: string, spec: string): Promise<number> {
   return new Promise<number>((resolve) => {
-    const child = spawn("dsh", ["plugin", "--profile", profile, "add", INSTALL_SPEC + "#v" + version], {
+    const child = spawn("dsh", ["plugin", "--profile", profile, "add", spec], {
       stdio: "inherit",
       shell: process.platform === "win32"
     });
@@ -363,7 +385,8 @@ async function runUpdateCommand(flags: any): Promise<number> {
   const plan = targets.map((target) => ({
     profile: target,
     from: target.installedVersion,
-    needed: target.installedVersion === null || compareVersions(latest, target.installedVersion) > 0
+    needed: target.installedVersion === null || compareVersions(latest, target.installedVersion) > 0,
+    target: installTargetForDeclaredSpec(target.spec, latest)
   }));
   for (const item of plan) {
     const state = !item.needed
@@ -371,7 +394,7 @@ async function runUpdateCommand(flags: any): Promise<number> {
       : item.from === null
         ? "未安装 → 将安装 v" + latest
         : "v" + item.from + " → v" + latest;
-    console.log("  " + item.profile.name + "\t" + state + (item.profile.mountsPanel ? "" : "\t（bundles 里没有本插件，装完也不会加载）"));
+    console.log("  " + item.profile.name + "\t" + state + "\t" + item.target + (item.profile.mountsPanel ? "" : "\t（bundles 里没有本插件，装完也不会加载）"));
   }
   for (const item of skipped) console.log("  跳过 " + item.name + "\t" + item.reason);
 
@@ -381,7 +404,7 @@ async function runUpdateCommand(flags: any): Promise<number> {
     return 0;
   }
   if (!flags.yes) {
-    const ok = await confirm("是否更新以上 " + pending.length + " 个 profile？每个都会运行 dsh plugin --profile <name> add " + INSTALL_SPEC + "#v" + latest + " (y/N): ");
+    const ok = await confirm("是否更新以上 " + pending.length + " 个 profile？每个都会按该 profile 原本的安装渠道重装，目标见上表 (y/N): ");
     if (!ok) {
       console.log("已取消");
       return 0;
@@ -391,7 +414,7 @@ async function runUpdateCommand(flags: any): Promise<number> {
   const results: Array<{ name: string; ok: boolean; code: number; after: string | null }> = [];
   for (const item of pending) {
     console.log("\n--- " + item.profile.name + " ---");
-    const code = await runPluginAdd(item.profile.name, latest);
+    const code = await runPluginAdd(item.profile.name, item.target);
     results.push({
       name: item.profile.name,
       ok: code === 0,

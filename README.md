@@ -66,11 +66,15 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 
 1. 安装本包（bundle 层自动挂载，无需编辑配置文件），二选一：
 
-   **方式一：GitHub Release tarball**（推荐）
+   **方式一：GitHub Release tarball**（推荐，恒定指向最新版）
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.3/dsh-skill-mcp-panel-2.1.3.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/latest/download/dsh-skill-mcp-panel.tgz
    ```
+
+   这是**无版本号的稳定链接**：每次发版都同时上传别名 `dsh-skill-mcp-panel.tgz`（恒定指向最新版）与带版本号的
+   `dsh-skill-mcp-panel-<版本>.tgz`，所以这条命令不随版本改。需要锁定具体版本时，把 `latest/download/dsh-skill-mcp-panel.tgz`
+   换成 `download/v<版本>/dsh-skill-mcp-panel-<版本>.tgz` 即可。
 
    **方式二：npm（预构建，插件市场同款通道）**
 
@@ -213,6 +217,8 @@ dsh-panel mcp update                      # 等价于 dsh-panel update
 ```
 
 - 对比基准是**每个 profile 自己 `node_modules` 里已装的版本**，不是正在执行的那份 CLI 的版本。
+- 更新**保持该 profile 原本的安装渠道**：tarball 装的仍走 tarball（换成对应版本的版本化 URL），npm 装的仍走 npm 并钉到该版本，
+  Git（或来源未知）装的仍用 `github:Fishquito7/dsh-skill-mcp-panel#v<版本>`。
 - 已经是最新的 profile 会被跳过，不会被重装。
 - `desktop` 由 DSH 桌面应用独占，宿主的 `dsh plugin --profile desktop` 会直接报错；自动枚举时跳过并说明，
   显式 `--profile desktop` 时以退出码 2 报错。
