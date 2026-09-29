@@ -7,7 +7,7 @@
 [![npm version](https://img.shields.io/npm/v/dsh-skill-mcp-panel?color=cb3837&logo=npm&label=npm)](https://www.npmjs.com/package/dsh-skill-mcp-panel)
 [![npm downloads](https://img.shields.io/npm/dm/dsh-skill-mcp-panel?color=cb3837&label=downloads)](https://www.npmjs.com/package/dsh-skill-mcp-panel)
 [![GitHub release](https://img.shields.io/github/v/release/Fishquito7/dsh-skill-mcp-panel?color=2ea043&label=release)](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)
-[![DSH](https://img.shields.io/badge/DSH-0.1.6--alpha.2%20~%200.1.7--rc.1-4c6ef5)](https://github.com/Fishquito7/dsh-skill-mcp-panel)
+[![DSH](https://img.shields.io/badge/DSH-0.1.6--alpha.2%20~%200.2.0--rc.1-4c6ef5)](https://github.com/Fishquito7/dsh-skill-mcp-panel)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [English](README.en.md) · [简体中文](README.md)
@@ -23,6 +23,7 @@ A DSH plugin that adds two management panels — **Skills** and **MCP** — to t
 - 🧩 **Home-sidebar panels** (v2.1.0) — the same slot mechanism as the host's built-in Plugins page; clicking the left column swaps the center main area, and each panel carries a “← Back to session” arrow
 - 🩹 **DSH 0.1.7 support** (v2.1.1) — tracks the host's renamed icon exports in `0.1.7-alpha.1` (the old names no longer exist there) so the Skills page renders again, plus a `test-host-icons.mjs` regression guard
 - 🧭 **Explicit profiles** (v2.1.2) — the `mcp` sub-commands require an explicit `--profile` (no more implicit `web`), a typo is rejected and **never creates a profile**; `dsh-panel update` without `--profile` updates **every** profile and compares against each profile's own installed version; new `dsh-panel profiles` overview
+- 🆕 **DSH 0.2.0-rc.1 support** (v2.1.3) — the peer gate's upper bound widens from `<0.2.0-0` to `<0.3.0-0`, so the 0.2 line is no longer refused; every host contract it relies on (a Typert codec that only accepts a `create()` factory, the four icon exports, the `sidebar.panellist` + `main` slots, the `ctx.remote.$mount` descriptor shape) was **checked one by one against the 0.2.0-rc.1 bytecode** — but this is a **static review only, not yet smoke-tested on a live 0.2.0-rc.1 host**
 - ⌨️ **Unified CLI** — `dsh-panel skill …` and `dsh-panel mcp …` expose everything the two panels can do
 - 📦 **No local build** — both the npm package and the Release tarball ship prebuilt artifacts
 
@@ -71,7 +72,7 @@ A DSH plugin that adds two management panels — **Skills** and **MCP** — to t
    **Option 1: GitHub Release tarball**
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.2/dsh-skill-mcp-panel-2.1.2.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.3/dsh-skill-mcp-panel-2.1.3.tgz
    ```
 
    **Option 2: npm (prebuilt, same channel as the plugin marketplace)**
@@ -134,20 +135,24 @@ Three independent host-facing dependencies are version-sensitive; one build sati
 | `0.1.5-rc.x` | ✅ reads `schema` | ✅ legacy names | ⚠️ unverified |
 | `0.1.6-alpha.1` | ✅ reads `schema` | ✅ legacy names | ⚠️ unverified |
 | `0.1.6-alpha.2` – `0.1.7-alpha.0` | ✅ reads `create` | ✅ legacy names | ✅ |
-| `0.1.7-alpha.1` and later | ✅ reads `create` | ✅ new names | ✅ |
+| `0.1.7-alpha.1` – `0.1.7-rc.2` | ✅ reads `create` | ✅ new names | ✅ |
+| `0.2.0-rc.1` | ✅ reads `create` | ✅ new names | 🔍 static review only, not run live |
+
+> Legend: ✅ = verified (including a live run); ⚠️ = unverified; 🔍 = **static review only** (the host bytecode was inspected item by item, confirming each API exists with an unchanged shape), never loaded on a real host. `0.2.0-rc.1` is in the last class: the peer gate now lets it through, but the panels and CLI still need one live smoke test.
 
 - **① TypertCodec `create()` contract** — since `0.1.6-alpha.2` a strict codec holds a `schema` factory (`create()`); a plugin still declaring `schema:` throws during registration and **fails the whole plugin tree, so the gateway will not boot** (Issue #20). Every codec here carries both `schema` and `create`; both generations only run `typeof` checks and neither rejects extra properties, so one build works everywhere with no version probing. Guard: `test-codec.mjs`.
 - **② Skills-page icon export names** — `0.1.7-alpha.1` replaced the pixel suffix with a stroke tier (`IconSkillOutline16` → `IconSkillOutlineRegular`, with size moved to the `size` prop) and the **two generations share no names**. The six Skills-half references now go through `primitiveIcon(cur, legacy)` (prefer the new name, fall back to the legacy one); switching straight to the new names would break everyone on `0.1.6` and earlier. Guard: `test-host-icons.mjs`.
 - **③ Sidebar panel slots** — since v2.1.0 the panels mount on the host's `sidebar.panellist` (list slot) plus `main` (keyed slot), so the host must provide both. Verified on `0.1.6-alpha.2`, and the slot names are unchanged across the `0.1.7` line. `0.1.5-rc.x` / `0.1.6-alpha.1` are **unverified**; even without the slots the plugin tree and CLI still work — the left column just won't show the Skills/MCP rows.
-- **④ peerDependencies gate** (v2.1.2) — this package declares `"@deepseek-ai/dsh": ">=0.1.5-rc.0 <0.2.0-0"`. DSH's `evaluatePluginCompatibility` checks it **at install time** and **at profile startup**, refusing to load (and printing the exact-version exemption command) when it does not match — turning a silent breakage into a loud refusal. Without that field the check returns early and passes everything, which is exactly why the 0.1.7-rc.1 breakage could happen unnoticed.
-  - The upper bound is `<0.2.0-0` rather than `<0.2.0` because the check runs with `includePrerelease`: `<0.2.0` would let `0.2.0-rc.1` through.
-  - The lower bound `0.1.5-rc.0` is where the plugin tree still loads — wider than the "panels verified" range in the table above. Being inside the range does not mean the panels are verified.
-  - To use it on a host outside the range, grant an exemption for that exact host version:
+- **④ peerDependencies gate** (added in v2.1.2, upper bound widened in v2.1.3) — this package declares `"@deepseek-ai/dsh": ">=0.1.5-rc.0 <0.3.0-0"`. DSH's `evaluatePluginCompatibility` checks it **at install time** and **at profile startup**, refusing to load (and printing the exact-version exemption command) when it does not match — turning a silent breakage into a loud refusal. Without that field the check returns early and passes everything, which is exactly why the 0.1.7-rc.1 breakage could happen unnoticed.
+  - The upper bound is `<0.3.0-0` rather than `<0.3.0` because the check runs with `includePrerelease`: `<0.3.0` would let `0.3.0` pre-releases through. The `<0.2.0-0` used in v2.1.2 shut the whole 0.2 line out (including `0.2.0-rc.1`); v2.1.3 admits the 0.2 line, and `0.3.0` is the next unverified minor.
+  - The lower bound `0.1.5-rc.0` is where the plugin tree still loads — wider than the "panels verified" range in the table above. Being inside the range does not mean the panels are verified. `0.2.0-rc.1` sits in the table's 🔍 class (static review) and has not been smoke-tested live.
+  - `peerDependenciesMeta` `optional: true` **does not** buy an exemption: the host checker reads only `manifest.peerDependencies`, never `peerDependenciesMeta`.
+  - To use it on a host outside the range, grant an exemption for that exact host version (exact-to-exact; it expires as soon as either the plugin or the host is upgraded):
 
     ```bash
-    dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.1.2 --dsh-version <host-version> --accept-risk
+    dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.1.3 --dsh-version <host-version> --accept-risk
     ```
-  - Guard: `test-cli-profiles.mjs` (calls the host's real `evaluatePluginCompatibility` to check both ends of the range).
+  - Guard: `test-cli-profiles.mjs` (calls the host's real `evaluatePluginCompatibility` to check both ends of the range). Note it needs to resolve `@deepseek-ai/dsh-app-boot`; under a desktop install (app-boot packed inside `app.asar`) it SKIPs, and then neither end of the range is exercised.
 
 ### Panel behaviour changes (v2.0.5)
 

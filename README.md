@@ -7,7 +7,7 @@
 [![npm version](https://img.shields.io/npm/v/dsh-skill-mcp-panel?color=cb3837&logo=npm&label=npm)](https://www.npmjs.com/package/dsh-skill-mcp-panel)
 [![npm downloads](https://img.shields.io/npm/dm/dsh-skill-mcp-panel?color=cb3837&label=downloads)](https://www.npmjs.com/package/dsh-skill-mcp-panel)
 [![GitHub release](https://img.shields.io/github/v/release/Fishquito7/dsh-skill-mcp-panel?color=2ea043&label=release)](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)
-[![DSH](https://img.shields.io/badge/DSH-0.1.6--alpha.2%20~%200.1.7--rc.1-4c6ef5)](https://github.com/Fishquito7/dsh-skill-mcp-panel)
+[![DSH](https://img.shields.io/badge/DSH-0.1.6--alpha.2%20~%200.2.0--rc.1-4c6ef5)](https://github.com/Fishquito7/dsh-skill-mcp-panel)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [简体中文](README.md) · [English](README.en.md)
@@ -23,6 +23,7 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 - 🧩 **主页侧边栏面板**（v2.1.0）—— 与宿主内置「插件」页同一套槽位机制，点左栏即在中央主区切页，页面左上角另有「← 返回会话」
 - 🩹 **适配 DSH 0.1.7**（v2.1.1）—— 跟进宿主在 `0.1.7-alpha.1` 重命名的图标导出（旧名在新宿主上已不存在），技能页不再一片空白；并补上 `test-host-icons.mjs` 回归守卫
 - 🧭 **profile 显式化**（v2.1.2）—— `mcp` 子命令必须显式 `--profile`（不再默认 `web`），错名一律拒绝且**不会新建 profile**；`dsh-panel update` 不带 `--profile` 时升级**全部** profile，比较基准改为各 profile 自己已装的版本；新增 `dsh-panel profiles` 一览
+- 🆕 **适配 DSH 0.2.0-rc.1**（v2.1.3）—— peer 硬闸门上界从 `<0.2.0-0` 放宽到 `<0.3.0-0`，0.2 系列不再被拒；宿主契约（Typert codec 只认 `create()` 工厂、四个图标导出名、`sidebar.panellist` + `main` 槽位、`ctx.remote.$mount` descriptor 形状）已按 0.2.0-rc.1 **逐条静态核对**，**尚未实机装载验收**
 - ⌨️ **统一 CLI** —— `dsh-panel skill …` 与 `dsh-panel mcp …` 覆盖两个面板的全部能力
 - 📦 **无需本地构建** —— npm 与 Release tarball 安装的都是预构建产物
 
@@ -71,7 +72,7 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
    **方式一：GitHub Release tarball**（推荐）
 
    ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.2/dsh-skill-mcp-panel-2.1.2.tgz
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/download/v2.1.3/dsh-skill-mcp-panel-2.1.3.tgz
    ```
 
    **方式二：npm（预构建，插件市场同款通道）**
@@ -131,20 +132,24 @@ DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MC
 | `0.1.5-rc.x` | ✅ 读 `schema` | ✅ 旧名 | ⚠️ 未验证 |
 | `0.1.6-alpha.1` | ✅ 读 `schema` | ✅ 旧名 | ⚠️ 未验证 |
 | `0.1.6-alpha.2` ~ `0.1.7-alpha.0` | ✅ 读 `create` | ✅ 旧名 | ✅ |
-| `0.1.7-alpha.1` 及以后 | ✅ 读 `create` | ✅ 新名 | ✅ |
+| `0.1.7-alpha.1` ~ `0.1.7-rc.2` | ✅ 读 `create` | ✅ 新名 | ✅ |
+| `0.2.0-rc.1` | ✅ 读 `create` | ✅ 新名 | 🔍 已静态核对，未实机 |
+
+> 图例：✅ = 已核实（含实机验证）；⚠️ = 未验证；🔍 = **只做过静态核对**（对照宿主字节码逐条确认 API 存在且形状未变），尚未在真实宿主上装载运行过。`0.2.0-rc.1` 属于最后一类：peer 闸门已放行，但面板/CLI 的运行时行为仍需一次实机冒烟。
 
 - **① TypertCodec `create()` 契约**：自 `0.1.6-alpha.2` 起 strict codec 改为持 `schema` 工厂 `create()`；仍写 `schema:` 的插件在注册阶段直接抛错，**整个插件树加载失败、网关起不来**（Issue #20）。本插件的每个 codec 同时携带 `schema` 与 `create`，两代宿主都只做 `typeof` 检查、都不拒绝多余属性，因此一份构建通吃，无需版本探测。守卫：`test-codec.mjs`。
 - **② 技能页图标导出名**：`0.1.7-alpha.1` 把图标的像素后缀换成描边档位（`IconSkillOutline16` → `IconSkillOutlineRegular`，尺寸改由 `size` prop 传），**两代命名没有交集**。技能半区 6 处引用改走 `primitiveIcon(cur, legacy)`「新名优先、旧名回退」；若直接换成新名，`0.1.6` 及更早的用户会反向打不开。守卫：`test-host-icons.mjs`。
 - **③ 侧栏面板槽位**：v2.1.0 起面板挂在宿主 `sidebar.panellist`（list 槽位）+ `main`（键控槽位）上，需要宿主提供这两个槽位。`0.1.6-alpha.2` 实测通过，`0.1.7` 系列槽位名未变。`0.1.5-rc.x` / `0.1.6-alpha.1` **未验证**；即使槽位缺失，插件树与 CLI 仍然可用，只是左栏不会出现「技能」「MCP」两行。
-- **④ peerDependencies 硬闸门**（v2.1.2）：本包声明 `"@deepseek-ai/dsh": ">=0.1.5-rc.0 <0.2.0-0"`。DSH 的 `evaluatePluginCompatibility` 会在**安装时**与**profile 启动时**校验它，不满足就拒绝加载并打印精确豁免命令——把「静默崩」换成「明着拦」。没有这个字段时该校验直接放行，这正是 0.1.7-rc.1 那次断裂能静默发生的原因。
-  - 上界写成 `<0.2.0-0` 而不是 `<0.2.0`：该校验带 `includePrerelease`，`<0.2.0` 会把 `0.2.0-rc.1` 也放进来。
-  - 下限 `0.1.5-rc.0` 是「插件树还能加载」的边界，比上表「面板已实测」的范围更宽——区间内不等于面板已验证。
-  - 在区间外的宿主上确需使用时，用宿主自己的精确版本豁免：
+- **④ peerDependencies 硬闸门**（v2.1.2 引入，v2.1.3 放宽上界）：本包声明 `"@deepseek-ai/dsh": ">=0.1.5-rc.0 <0.3.0-0"`。DSH 的 `evaluatePluginCompatibility` 会在**安装时**与**profile 启动时**校验它，不满足就拒绝加载并打印精确豁免命令——把「静默崩」换成「明着拦」。没有这个字段时该校验直接放行，这正是 0.1.7-rc.1 那次断裂能静默发生的原因。
+  - 上界写成 `<0.3.0-0` 而不是 `<0.3.0`：该校验带 `includePrerelease`，`<0.3.0` 会把 `0.3.0` 的预发布也放进来。v2.1.2 用的 `<0.2.0-0` 会把整个 0.2 系列挡在门外（含 `0.2.0-rc.1`），v2.1.3 起纳入 0.2 系列——下一个未验证的次版本号是 `0.3.0`。
+  - 下限 `0.1.5-rc.0` 是「插件树还能加载」的边界，比上表「面板已实测」的范围更宽——区间内不等于面板已验证。`0.2.0-rc.1` 目前是上表里的 🔍（静态核对），尚未实机装载验收。
+  - `peerDependenciesMeta` 里的 `optional: true` **换不到豁免**：宿主校验器只读 `manifest.peerDependencies`，不读 `peerDependenciesMeta`。
+  - 在区间外的宿主上确需使用时，用宿主自己的精确版本豁免（exact 对 exact，插件或宿主一升级即失效）：
 
     ```bash
-    dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.1.2 --dsh-version <宿主版本> --accept-risk
+    dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.1.3 --dsh-version <宿主版本> --accept-risk
     ```
-  - 守卫：`test-cli-profiles.mjs`（直接调用宿主真实的 `evaluatePluginCompatibility` 验证区间两端）。
+  - 守卫：`test-cli-profiles.mjs`（直接调用宿主真实的 `evaluatePluginCompatibility` 验证区间两端）。注意该守卫需要能解析到 `@deepseek-ai/dsh-app-boot`；桌面安装（app-boot 打包在 `app.asar` 里）解析不到时会 SKIP，那时区间两端不会被执行。
 
 ### 面板行为调整（v2.0.5）
 

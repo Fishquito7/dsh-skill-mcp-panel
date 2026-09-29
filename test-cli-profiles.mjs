@@ -248,13 +248,17 @@ try {
 		// 没有 peerDependencies 时闸门直接放行——这正是 0.1.7-rc.1 那次断裂能静默发生的原因。
 		check("无 peerDependencies 的 manifest 会被闸门直接放行（说明该字段才是开关）", evaluate({ name: manifest.name, version: manifest.version }) === undefined);
 		check("当前运行的 DSH 接受本插件（否则 profile 起不来）", evaluate(manifest) === undefined, JSON.stringify(evaluate(manifest)));
-		// README 兼容矩阵里承诺支持的版本必须全部通过（区间写窄了会让 profile 起不来）
-		for (const version of ["0.1.5-rc.0", "0.1.6-alpha.1", "0.1.6-alpha.2", "0.1.7-alpha.1", "0.1.7-rc.1", "0.1.8"]) {
+		// README 兼容矩阵里承诺支持的版本必须全部通过（区间写窄了会让 profile 起不来）。
+		// 0.2 系列自 v2.1.3 起纳入：宿主契约已按 0.2.0-rc.1 逐条静态核对（Typert codec
+		// 仍只认 create() 工厂、四个图标导出名仍在、sidebar.panellist + main 槽位未变、
+		// descriptor 形状未变），但**尚未在 0.2.0-rc.1 上实机装载验收**——区间内不等于已验证。
+		for (const version of ["0.1.5-rc.0", "0.1.6-alpha.1", "0.1.6-alpha.2", "0.1.7-alpha.1", "0.1.7-rc.1", "0.1.7-rc.2", "0.1.8", "0.2.0-0", "0.2.0-rc.1", "0.2.0", "0.2.1"]) {
 			check("区间接受 " + version, evaluate(manifest, {}, version) === undefined, JSON.stringify(evaluate(manifest, {}, version)));
 		}
-		// 区间外必须拒绝：低于下限没验证过；0.2.x 是未验证的新次版本号，
-		// includePrerelease 会让 <0.2.0 把 0.2.0-rc.1 也放进来，所以上界必须写 <0.2.0-0。
-		for (const version of ["0.1.4-rc.1", "0.2.0-0", "0.2.0-rc.1", "0.2.0", "0.2.1"]) {
+		// 区间外必须拒绝：低于下限没验证过；0.3.x 是下一个未验证的次版本号。
+		// 上界写成 <0.3.0-0 而不是 <0.3.0：该校验带 includePrerelease，
+		// <0.3.0 会把 0.3.0 的预发布也放进来。
+		for (const version of ["0.1.4-rc.1", "0.3.0-0", "0.3.0"]) {
 			check("区间拒绝 " + version, evaluate(manifest, {}, version) !== undefined);
 		}
 		const exempted = evaluate(manifest, { [manifest.name + "@" + manifest.version]: ["0.1.4-rc.1"] }, "0.1.4-rc.1");
