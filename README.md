@@ -7,7 +7,7 @@
 [![npm version](https://img.shields.io/npm/v/dsh-skill-mcp-panel?color=cb3837&logo=npm&label=npm)](https://www.npmjs.com/package/dsh-skill-mcp-panel)
 [![npm downloads](https://img.shields.io/npm/dm/dsh-skill-mcp-panel?color=cb3837&label=downloads)](https://www.npmjs.com/package/dsh-skill-mcp-panel)
 [![GitHub release](https://img.shields.io/github/v/release/Fishquito7/dsh-skill-mcp-panel?color=2ea043&label=release)](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)
-[![DSH](https://img.shields.io/badge/DSH-0.1.6--alpha.2%20~%200.1.7--rc.1-4c6ef5)](https://github.com/Fishquito7/dsh-skill-mcp-panel)
+[![DSH](https://img.shields.io/badge/DSH-0.1.6--alpha.2%20~%200.2.0--rc.2-4c6ef5)](https://github.com/Fishquito7/dsh-skill-mcp-panel)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [简体中文](README.md) · [English](README.en.md)
@@ -16,20 +16,17 @@
 
 ---
 
-DSH 插件，在 Web 主页左侧栏「插件」下方提供「技能」与「MCP」两个管理面板（点击即在中央主区打开，不是弹窗），并随包提供统一终端命令 `dsh-panel`（`skill` / `mcp` / `update` / `profiles`）。
+DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页侧边栏——点左栏的「技能」/「MCP」，中央主区直接切到整页面板（不是弹窗，也不是设置页里的 tab），改完即生效。随包附带统一终端命令 `dsh-panel`：面板能做的事命令行都能做，另外多一个跨 profile 升级。
 
-- 🗂️ **技能面板** —— 列表预览、搜索、工作区分栏与分组筛选、卡片展开查看全文、热启停 / 删除，支持 `.md` / `.zip` / 技能文件夹的添加与批量迁移
-- 🔌 **MCP 面板**（v2.0.0）—— 可视化维护 profile `cordis.patch.yml` 中的 MCP 受管块，Stdio / HTTP 两种调用方式，支持测试连接，保存后由 DSH HMR 热加载
-- 🧩 **主页侧边栏面板**（v2.1.0）—— 与宿主内置「插件」页同一套槽位机制，点左栏即在中央主区切页，页面左上角另有「← 返回会话」
-- 🩹 **适配 DSH 0.1.7**（v2.1.1）—— 跟进宿主在 `0.1.7-alpha.1` 重命名的图标导出（旧名在新宿主上已不存在），技能页不再一片空白；并补上 `test-host-icons.mjs` 回归守卫
-- 🧭 **profile 显式化**（v2.1.2）—— `mcp` 子命令必须显式 `--profile`（不再默认 `web`），错名一律拒绝且**不会新建 profile**；`dsh-panel update` 不带 `--profile` 时升级**全部** profile，比较基准改为各 profile 自己已装的版本；新增 `dsh-panel profiles` 一览
-- 🔧 **适配 DSH 0.2.0、修掉 MCP 表单天书**（v2.1.3）—— peer 上界从 `<0.2.0-0` 抬到 `<0.3.0-0`：桌面端升到 `0.2.0-rc.2` 后旧区间会被宿主判成不兼容并在启动时**禁用整行**，侧栏的「技能」「MCP」两行会整体消失；MCP 服务器名非法（如带空格）时不再只回一句网关「天书」，改为表单即时校验 + 「字段：原因」的中文报错。**升级后需从托盘彻底退出并重启**
-- ⌨️ **统一 CLI** —— `dsh-panel skill …` 与 `dsh-panel mcp …` 覆盖两个面板的全部能力
-- 📦 **无需本地构建** —— npm 与 Release tarball 安装的都是预构建产物
+- 🗂️ **技能管理** —— 列表预览、搜索、工作区分栏与分组筛选、卡片展开查看全文、热启停 / 删除，支持 `.md` / `.zip` / 技能文件夹的添加与批量迁移
+- 🔌 **MCP 服务器管理** —— 可视化维护 profile `cordis.patch.yml` 中的 MCP 受管块，Stdio / HTTP 两种调用方式，支持测试连接，保存后由 DSH HMR 热加载
+- 🧩 **整页面板** —— 与宿主内置「插件」页同一套槽位机制，点左栏即在中央主区切页，页面左上角另有「← 返回会话」
+- ⌨️ **`dsh-panel` 命令行** —— `dsh-panel skill …` 与 `dsh-panel mcp …` 覆盖两个面板的全部能力
+- 📦 **装上就能用** —— npm 与 Release tarball 安装的都是预构建产物
 
 > **profile 提示**：`mcp` 子命令**必须**显式写 `--profile <name>`，且名字必须已存在——打错会被拒绝，不会新建 profile。`skill` 不按 profile 分家（技能按用户根 / 工作区存放），不需要该参数。不带 `--profile` 的 `dsh-panel update` 升级全部已安装本插件的 profile（`desktop` 由桌面应用独占，自动跳过）。
 
-**目录**：[界面预览](#界面预览) · [安装](#安装) · [功能](#功能) · [命令行](#命令行) · [工作原理](#工作原理) · [开发](#开发) · [卸载](#卸载) · [链接](#链接) · [License](#license)
+**目录**：[界面预览](#界面预览) · [安装](#安装) · [功能](#功能) · [命令行](#命令行) · [工作原理](#工作原理) · [开发](#开发) · [卸载](#卸载) · [更新日志](#更新日志) · [链接](#链接) · [License](#license)
 
 ## 界面预览
 
@@ -250,6 +247,16 @@ CLI 只扫描当前目录锚定的项目根与用户根；管理其他工作区�
 ```bash
 dsh plugin --profile web remove dsh-skill-mcp-panel
 ```
+
+## 更新日志
+
+只列**会改变使用方式**的版本要点；完整改动见 [Releases](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)。
+
+- **v2.1.3** —— 适配 DSH `0.2.0`（peer 上界抬到 `<0.3.0-0`，否则宿主会在 profile 启动时禁用整行）；MCP 表单里非法的服务器名不再只报一句网关「天书」
+- **v2.1.2** —— `mcp` 子命令必须显式 `--profile`，错名一律拒绝且不会新建 profile；`dsh-panel update` 不带 `--profile` 时升级全部 profile；新增 `dsh-panel profiles`
+- **v2.1.1** —— 适配 DSH `0.1.7` 重命名的图标导出，技能页不再一片空白
+- **v2.1.0** —— 面板从设置页迁移到主页侧边栏，每个面板带「← 返回会话」
+- **v2.0.0** —— MCP 面板上线
 
 ## 链接
 

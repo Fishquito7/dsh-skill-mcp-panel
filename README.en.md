@@ -7,7 +7,7 @@
 [![npm version](https://img.shields.io/npm/v/dsh-skill-mcp-panel?color=cb3837&logo=npm&label=npm)](https://www.npmjs.com/package/dsh-skill-mcp-panel)
 [![npm downloads](https://img.shields.io/npm/dm/dsh-skill-mcp-panel?color=cb3837&label=downloads)](https://www.npmjs.com/package/dsh-skill-mcp-panel)
 [![GitHub release](https://img.shields.io/github/v/release/Fishquito7/dsh-skill-mcp-panel?color=2ea043&label=release)](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)
-[![DSH](https://img.shields.io/badge/DSH-0.1.6--alpha.2%20~%200.1.7--rc.1-4c6ef5)](https://github.com/Fishquito7/dsh-skill-mcp-panel)
+[![DSH](https://img.shields.io/badge/DSH-0.1.6--alpha.2%20~%200.2.0--rc.2-4c6ef5)](https://github.com/Fishquito7/dsh-skill-mcp-panel)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [English](README.en.md) · [简体中文](README.md)
@@ -16,20 +16,17 @@
 
 ---
 
-A DSH plugin that adds two management panels — **Skills** and **MCP** — to the web home sidebar, right below the built-in **Plugins** entry. Clicking either one swaps the center main area to that panel (a full panel, not a modal). The package also ships the unified `dsh-panel` terminal command, with `skill`, `mcp`, `update` and `profiles`.
+A DSH plugin that brings **skill** and **MCP server** management into the DSH web home sidebar — click Skills or MCP in the left column and the center main area switches to a full panel (not a modal, not a tab in the Settings dialog), and changes take effect immediately. The package also ships the unified `dsh-panel` command: everything the panels can do, plus cross-profile upgrades.
 
-- 🗂️ **Skills panel** — list and preview installed skills, search, workspace split and group filters, expand a card to read the full content, hot enable/disable and delete, plus `.md` / `.zip` / skill-folder adding and batch migration
-- 🔌 **MCP panel** (v2.0.0) — visually maintain the MCP managed block in the profile's `cordis.patch.yml`, with Stdio / HTTP transports, connection tests, and hot reload through DSH HMR after saving
-- 🧩 **Home-sidebar panels** (v2.1.0) — the same slot mechanism as the host's built-in Plugins page; clicking the left column swaps the center main area, and each panel carries a “← Back to session” arrow
-- 🩹 **DSH 0.1.7 support** (v2.1.1) — tracks the host's renamed icon exports in `0.1.7-alpha.1` (the old names no longer exist there) so the Skills page renders again, plus a `test-host-icons.mjs` regression guard
-- 🧭 **Explicit profiles** (v2.1.2) — the `mcp` sub-commands require an explicit `--profile` (no more implicit `web`), a typo is rejected and **never creates a profile**; `dsh-panel update` without `--profile` updates **every** profile and compares against each profile's own installed version; new `dsh-panel profiles` overview
-- 🔧 **DSH 0.2.0 support and a readable MCP form error** (v2.1.3) — the peer upper bound moved from `<0.2.0-0` to `<0.3.0-0`: once the desktop app updated to `0.2.0-rc.2`, the old range was judged incompatible and the host **denied the whole row at startup**, making the Skills/MCP entries vanish from the sidebar. An illegal MCP server name (e.g. one containing a space) no longer answers with a bare gateway error — the form validates as you type and failures report “field: reason” in plain language. **Restart from the tray after upgrading**
-- ⌨️ **Unified CLI** — `dsh-panel skill …` and `dsh-panel mcp …` expose everything the two panels can do
-- 📦 **No local build** — both the npm package and the Release tarball ship prebuilt artifacts
+- 🗂️ **Skill management** — list and preview installed skills, search, workspace split and group filters, expand a card to read the full content, hot enable/disable and delete, plus `.md` / `.zip` / skill-folder adding and batch migration
+- 🔌 **MCP server management** — visually maintain the MCP managed block in the profile's `cordis.patch.yml`, with Stdio / HTTP transports, connection tests, and hot reload through DSH HMR after saving
+- 🧩 **Full panels, not modals** — the same slot mechanism as the host's built-in Plugins page; clicking the left column swaps the center main area, and each panel carries a “← Back to session” arrow
+- ⌨️ **The `dsh-panel` CLI** — `dsh-panel skill …` and `dsh-panel mcp …` expose everything the two panels can do
+- 📦 **Works out of the box** — both the npm package and the Release tarball ship prebuilt artifacts
 
 > **Profile note**: the `mcp` sub-commands **require** an explicit `--profile <name>`, and the name must already exist — a typo is rejected rather than creating a profile. The `skill` sub-commands are not split per profile (skills live under the user root / workspace), so they need no `--profile`. `dsh-panel update` without `--profile` updates every profile that has the plugin installed (`desktop` is owned by the desktop app and is skipped automatically).
 
-**Contents**: [Screenshots](#screenshots) · [Install](#install) · [Features](#features) · [CLI](#cli) · [How it works](#how-it-works) · [Development](#development) · [Uninstall](#uninstall) · [Links](#links) · [License](#license)
+**Contents**: [Screenshots](#screenshots) · [Install](#install) · [Features](#features) · [CLI](#cli) · [How it works](#how-it-works) · [Development](#development) · [Uninstall](#uninstall) · [Changelog](#changelog) · [Links](#links) · [License](#license)
 
 ## Screenshots
 
@@ -244,6 +241,16 @@ When publishing, `npm pack` rebuilds automatically through prepack — no manual
 ```bash
 dsh plugin --profile web remove dsh-skill-mcp-panel
 ```
+
+## Changelog
+
+Only version notes that **change how you use the plugin**; see [Releases](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases) for the full history.
+
+- **v2.1.3** — DSH `0.2.0` support (peer upper bound raised to `<0.3.0-0`, without which the host denies the whole row at profile startup); an illegal MCP server name no longer answers with a bare gateway error
+- **v2.1.2** — `mcp` sub-commands require an explicit `--profile`, a typo is rejected instead of creating a profile; `dsh-panel update` updates every profile; new `dsh-panel profiles`
+- **v2.1.1** — DSH `0.1.7` support for the host's renamed icon exports, so the Skills page renders again
+- **v2.1.0** — the panels moved from the Settings dialog to the home sidebar, each with a “← Back to session” arrow
+- **v2.0.0** — the MCP panel
 
 ## Links
 
