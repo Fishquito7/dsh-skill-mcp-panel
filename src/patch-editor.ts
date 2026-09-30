@@ -13,6 +13,52 @@ export const PANEL_MCP_BLOCK_END = "# <<< dsh-skill-mcp-panel:mcp:end";
 export const MCP_PLUGIN_NAME = "@deepseek-ai/dsh-mcp-client";
 export const MANAGED_ROW_ID_PREFIX = "panel-mcp-";
 
+/**
+ * cordis 配置层的 !!js 标签：值是 JS 表达式，由宿主装载时求值
+ * （@deepseek-ai/cordis-plugin-loader 的 interpolate → new Function + eval）。
+ * DSH 官方给的环境变量写法就是它，例如：
+ *   Authorization: !!js '`Bearer ${process.env.MCP_TOKEN}`'
+ *
+ * 面板必须原样往返这个标签：只把值当普通字符串读、再整块重写，表达式就会降级成
+ * 字面量字符串——用户的令牌从此变成一个永远发不出去的值，而且没有任何提示。
+ */
+const JS_EXPR_TAG = "tag:yaml.org,2002:js";
+
+/** 表达式里的换行无法用单引号标量安全往返，退回双引号（JSON 转义）。 */
+function quoteJsExpr(expression: string): string {
+  if (/[\n\r]/.test(expression)) return JSON.stringify(expression);
+  return "'" + expression.replace(/'/g, "''") + "'";
+}
+
+/**
+ * 自定义 !!js 标签：读时还原成 { __jsExpr } 标记对象（不再有 TAG_RESOLVE_FAILED），
+ * 写时按原标签回写。identify 只认「恰好一个 __jsExpr 字符串键」的对象，
+ * 不会误伤普通配置对象。
+ */
+const jsExprTag: any = {
+  tag: JS_EXPR_TAG,
+  resolve: (value: string) => ({ __jsExpr: value }),
+  identify: (value: unknown): boolean =>
+    value !== null &&
+    typeof value === "object" &&
+    Object.keys(value as Record<string, unknown>).length === 1 &&
+    typeof (value as { __jsExpr?: unknown }).__jsExpr === "string",
+  stringify: (node: any) => quoteJsExpr(String(node.value.__jsExpr))
+};
+
+/** 全部解析与序列化共用同一份标签定义，读到的 !!js 才能原样写回。 */
+const YAML_CUSTOM_TAGS = [jsExprTag];
+
+/** !!js 表达式节点的标记形状。 */
+export interface JsExprValue {
+  __jsExpr: string;
+}
+
+/** 判断一个 YAML 值是否是面板保留的 !!js 表达式节点。 */
+export function isJsExprValue(value: unknown): value is JsExprValue {
+  return jsExprTag.identify(value);
+}
+
 /** Loader patch 行（宽松形状；受管块只包含 insert 列表）。 */
 export interface PatchRow {
   id?: string;
@@ -35,7 +81,7 @@ export async function readPatchFile(path: string): Promise<string> {
 
 /** 校验整份 patch 文本：可解析且顶层是数组。不解出/写回任何值。 */
 export async function validatePatchText(raw: string): Promise<void> {
-  const doc = parseDocument(raw, { logLevel: "silent" });
+  const doc = parseDocument(raw, { logLevel: "silent", customTags: YAML_CUSTOM_TAGS });
   if (doc.errors.length > 0) {
     throw new Error("cordis.patch.yml 解析失败：" + String(doc.errors[0]?.message ?? doc.errors[0]));
   }
@@ -80,7 +126,7 @@ export function extractManagedRows(raw: string): PatchRow[] {
   const blockStart = raw.indexOf("\n", begin);
   if (blockStart < 0) throw new Error("cordis.patch.yml 受管块格式损坏");
   const blockText = raw.slice(blockStart + 1, end);
-  const doc = parseDocument(blockText, { logLevel: "silent" });
+  const doc = parseDocument(blockText, { logLevel: "silent", customTags: YAML_CUSTOM_TAGS });
   if (doc.errors.length > 0) throw new Error("受管块解析失败：" + String(doc.errors[0]?.message ?? doc.errors[0]));
   const parsed = doc.toJS();
   if (!Array.isArray(parsed)) throw new Error("受管块内容必须是 YAML 数组");
@@ -89,7 +135,7 @@ export function extractManagedRows(raw: string): PatchRow[] {
 
 /** 解析整份 patch 并返回其中所有 MCP 客户端行（不区分是否受管）。 */
 export function listMcpPatchRows(raw: string): PatchRow[] {
-  const doc = parseDocument(raw, { logLevel: "silent" });
+  const doc = parseDocument(raw, { logLevel: "silent", customTags: YAML_CUSTOM_TAGS });
   if (doc.errors.length > 0) return [];
   const parsed = doc.toJS();
   if (!Array.isArray(parsed)) return [];
@@ -99,7 +145,7 @@ export function listMcpPatchRows(raw: string): PatchRow[] {
 /** 生成受管块文本（无行时为空字符串）。 */
 export function generateManagedBlock(rows: PatchRow[]): string {
   if (rows.length === 0) return "";
-  const body = stringify([{ insert: rows }], { indent: 2, lineWidth: 0 });
+  const body = stringify([{ insert: rows }], { indent: 2, lineWidth: 0, customTags: YAML_CUSTOM_TAGS });
   return PANEL_MCP_BLOCK_BEGIN + "\n" + body + PANEL_MCP_BLOCK_END + "\n";
 }
 

@@ -137,5 +137,51 @@ try {
   await rm(dir, { recursive: true, force: true });
 }
 
+// 10. !!js 表达式原样往返（v2.1.5）
+//     面板必须把 !!js 当结构化节点读进来、再按标签写回去；一旦降级成普通字符串，
+//     用户手写的 ${process.env.X} 就变成永远发不出去的字面量。
+const BT = String.fromCharCode(96);
+const headerExpr = BT + "Bearer " + "${process.env.MCP_TOKEN}" + BT;
+const jsRow = {
+  id: "panel-mcp-web",
+  name: MCP_PLUGIN_NAME,
+  config: {
+    serverName: "web",
+    transport: "streamable-http",
+    url: "https://example.com/mcp",
+    headers: { Authorization: { __jsExpr: headerExpr } }
+  }
+};
+const withJs = replaceManagedBlock(externalRaw, [jsRow]);
+assert.equal(withJs.includes("Authorization: !!js '" + headerExpr + "'"), true, "!!js tag must be written back");
+assert.deepEqual(extractManagedRows(withJs), [jsRow]);
+assert.equal(replaceManagedBlock(withJs, extractManagedRows(withJs)), withJs, "second write must be byte-identical");
+pass("!!js expressions round-trip through the managed block");
+
+// 11. 手写的 !!js 经过一次面板写入也不会被抹掉
+const handwritten = externalRaw + [
+  "# >>> dsh-skill-mcp-panel:mcp:begin",
+  "- insert:",
+  "    - id: panel-mcp-web",
+  "      name: \"@deepseek-ai/dsh-mcp-client\"",
+  "      config:",
+  "        serverName: web",
+  "        transport: streamable-http",
+  "        url: http://localhost:3000/mcp",
+  "        headers:",
+  "          Authorization: !!js '" + headerExpr + "'",
+  "# <<< dsh-skill-mcp-panel:mcp:end",
+  ""
+].join("\n");
+const handwrittenRows = extractManagedRows(handwritten);
+assert.equal(handwrittenRows[0].config.headers.Authorization.__jsExpr, headerExpr, "!!js must parse as an expression node");
+const rewritten = replaceManagedBlock(handwritten, handwrittenRows);
+assert.equal(rewritten.includes("Authorization: !!js '" + headerExpr + "'"), true, "hand-written !!js must survive a panel rewrite");
+pass("hand-written !!js survives a panel rewrite");
+
+// 12. 别人的 !!js 不受影响：外部行的 disabled 表达式保持原样
+assert.equal(withJs.includes("disabled: !!js process.platform !== 'win32'"), true, "external !!js rows stay untouched");
+assert.equal(listMcpPatchRows(withJs).length, 1, "external non-MCP rows must not be listed");
+pass("external rows keep their own !!js expressions");
 console.log("\n" + passed + " passed, 0 failed");
 console.log("ALL PATCH EDITOR TESTS PASSED");

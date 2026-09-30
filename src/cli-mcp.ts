@@ -21,13 +21,15 @@ import {
 } from "./patch-editor.js";
 import {
   SERVER_NAME_RE,
+  parseWireScalar,
   inputFromPatchRow,
   mcpServerInputSchema,
   patchRowToView,
   rowIdForServerName,
   serverNameFromRowId,
   toOfficialConfig,
-  type McpServerInput
+  type McpServerInput,
+  type WireScalar
 } from "./mcp/model.js";
 import { probeMcpServer } from "./mcp/probe.js";
 import { runSkillCli } from "./cli-skill.js";
@@ -66,7 +68,13 @@ function usage() {
     "                                      名字打错会被拒绝，绝不会新建 profile",
     "",
     "说明: MCP 配置写入指定 profile 的 cordis.patch.yml 受管块；网关在线时自动热加载。",
-    "密钥参数可通过 --env/--header 重复传入；已配置密钥在编辑表单中留空保持不变。"
+    "密钥参数可通过 --env/--header 重复传入；已配置密钥在编辑表单中留空保持不变。",
+    "",
+                        "环境变量: 值里写 ${NAME} 即读取环境变量 NAME（保存时格式化为 cordis.patch.yml",
+                        "里的 !!js 表达式，由 DSH 装载时求值）。以 !!js 开头的值按进阶写法原样透传：",
+                        "  --env 'GITHUB_TOKEN=${GITHUB_TOKEN}'",
+                        "  --header 'Authorization=Bearer ${MCP_TOKEN}'",
+                        "  --header 'Authorization=!!js `Bearer ${process.env.MCP_TOKEN}`'"
   ].join("\n"));
 }
 
@@ -82,14 +90,15 @@ async function confirm(question: string): Promise<boolean> {
   return answer === "y" || answer === "yes";
 }
 
-function parsePairs(values: string[]): Record<string, string> {
-  const out: Record<string, string> = {};
+function parsePairs(values: string[]): Record<string, WireScalar> {
+  const out: Record<string, WireScalar> = {};
   for (const value of values) {
     const index = value.indexOf("=");
     if (index <= 0) throw new Error("KEY=VALUE 格式无效：" + value);
     const key = value.slice(0, index).trim();
     if (key === "") throw new Error("KEY=VALUE 的 key 不能为空：" + value);
-    out[key] = value.slice(index + 1);
+    // 值以 "!!js " 开头即写进 cordis.patch.yml 的 !!js 标签，由宿主装载时求值。
+    out[key] = parseWireScalar(value.slice(index + 1));
   }
   return out;
 }
@@ -157,10 +166,10 @@ async function buildInputFromArgs(args: string[]): Promise<{ input: McpServerInp
   let input: McpServerInput;
   if (flags.stdio === true) {
     if (flags.command === undefined) throw new Error("--stdio 需要 --command");
-    input = mcpServerInputSchema.parse({ ...common, transport: "stdio", command: flags.command, args: flags.args, env: parsePairs(flags.env), cwd: flags.cwd ?? "" });
+    input = mcpServerInputSchema.parse({ ...common, transport: "stdio", command: parseWireScalar(flags.command), args: flags.args.map((item: string) => parseWireScalar(item)), env: parsePairs(flags.env), cwd: flags.cwd === undefined ? "" : parseWireScalar(flags.cwd) });
   } else {
     if (flags.url === undefined) throw new Error("--http 需要 --url");
-    input = mcpServerInputSchema.parse({ ...common, transport: "streamable-http", url: flags.url, headers: parsePairs(flags.headers) });
+    input = mcpServerInputSchema.parse({ ...common, transport: "streamable-http", url: parseWireScalar(flags.url), headers: parsePairs(flags.headers) });
   }
   return { input };
 }

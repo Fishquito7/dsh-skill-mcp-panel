@@ -13,5 +13,17 @@ assert.ok(model.includes(LITERAL), "lib/mcp/model.js 必须用规范字面量声
 assert.ok(client.includes(LITERAL), "lib/client.js 必须携带同一份名称规则用于即时校验");
 
 console.log("PASS  client/server MCP name rule literals agree");
-console.log("\n1 passed, 0 failed");
+// !!js 前缀同样是两侧各一份字面量：宿主（model.ts）负责把标签写进 cordis.patch.yml，
+// 客户端（client.ts）负责解析表单输入。两边必须认同同一个前缀，否则用户在页面上
+// 写的东西和实际落盘的东西会对不上。
+assert.ok(model.includes('JS_EXPR_PREFIX = "!!js"'), "lib/mcp/model.js 必须声明 !!js 前缀常量");
+assert.ok(client.includes('MCP_JS_EXPR_PREFIX = "!!js"'), "lib/client.js 必须认同同一个 !!js 前缀");
+console.log("PASS  client/server !!js prefix literals agree");
+// ${NAME} 直觉写法的正则同样是两侧各一份字面量（宿主 model.ts / 客户端 client.ts）。
+// 漂移的后果：面板把值当成表达式落盘，而 CLI 或另一侧当成普通字符串。
+const ENV_REF_LITERAL = "/\\$\\{\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*\\}/g";
+assert.ok(model.includes(ENV_REF_LITERAL), "lib/mcp/model.js 必须声明 ENV_REF_RE 字面量");
+assert.ok(client.includes(ENV_REF_LITERAL), "lib/client.js 必须携带同一份 ${NAME} 规则");
+console.log("PASS  client/server ${NAME} reference literals agree");
+console.log("\n3 passed, 0 failed");
 console.log("ALL MCP NAMING TESTS PASSED");

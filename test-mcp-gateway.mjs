@@ -78,6 +78,27 @@ try {
   //    否则非法名称仍然会在边界上被拒，用户又只能看到天书。
   const saveParam = MCP_MANIFEST.invocations.find((item) => item.method === "save").parameters[0];
   assert.equal(saveParam.codec.create().safeParse({ input: { serverName: "Windows MCP" } }).success, true);
+  // 6. !!js 环境变量写法：写盘保留标签，读回仍是表达式（v2.1.5）
+  const BT = String.fromCharCode(96);
+  const EXPR = BT + "Bearer " + "${process.env.MCP_TOKEN}" + BT;
+  const savedExpr = await gateway.save({
+    input: {
+      serverName: "expr",
+      transport: "streamable-http",
+      url: "https://example.com/mcp",
+      headers: { Authorization: { __jsExpr: EXPR } }
+    },
+    enabled: false
+  });
+  assert.equal(savedExpr.server.headerKeys.includes("Authorization"), true);
+  const exprOnDisk = await readFile(join(dir, "cordis.patch.yml"), "utf8");
+  assert.equal(exprOnDisk.includes("Authorization: !!js '" + EXPR + "'"), true, "!!js tag must reach the file");
+assert.equal(exprOnDisk.includes("\"`Bearer"), false, "expression must not degrade into a quoted literal");
+  const exprList = await gateway.list();
+  const exprRow = exprList.servers.find((server) => server.serverName === "expr");
+  assert.equal(exprRow.url, "https://example.com/mcp");
+  assert.deepEqual([...exprRow.headerKeys], ["Authorization"]);
+  pass("gateway writes !!js expressions with their tag and reads them back");
   pass("gateway boundary codec defers payload validation to the handler");
 } finally {
   await rm(dir, { recursive: true, force: true });

@@ -72,9 +72,8 @@
 		const cssTheme = "body[data-ds-dark-theme] .SKV_switchThumb{background:#fff}body[data-ds-dark-theme] .SKV_switch[data-on=true] .SKV_switchThumb{background:#fff}";
 		// 主页主区面板（main 槽位）的整页外壳：宿主不给滚动容器与页边距，
 		// 这一层就是面板自己的「页面」。
-		const cssPage = ".SKV_page{box-sizing:border-box;height:100%;color:var(--dsw-alias-label-primary);flex-direction:column;align-items:center;gap:24px;padding:28px clamp(24px,4vw,48px) 48px;display:flex;overflow:auto}.SKV_page>*{width:100%;max-width:760px}.SKV_pageHead{flex-direction:column;gap:4px;display:flex}.SKV_pageTitle{margin:0;font-size:20px;font-weight:500;line-height:28px}.SKV_pageIntro{color:var(--dsw-alias-label-secondary);margin:0;font-size:13px;line-height:20px}.SKV_pageTop{min-height:20px;align-items:center;display:flex}.SKV_pageBack{font:inherit;font-size:12.5px;line-height:20px;color:var(--dsw-alias-label-tertiary);cursor:pointer;background:0 0;border:0;align-items:center;gap:6px;padding:0;display:inline-flex}.SKV_pageBack:hover{color:var(--dsw-alias-label-primary)}.SKV_pageBack:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.SKV_pageBack svg{flex:none}";
-		const cssPanelIcon = ".SKV_panelIcon{flex:none;display:inline-block;background-color:currentColor}.SKV_panelIconSkills{-webkit-mask:url(data:image/png;base64,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) center/contain no-repeat;mask:url(data:image/png;base64,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) center/contain no-repeat}";
-const cssPanelIconMcp = ".SKV_panelIconMcp{-webkit-mask:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAHx0lEQVR4nOVbCchUVRT+3puZNNO0XbMilGzXSjLCqECMkDJKiyzDVisos4UystRMMlKDzBZLSirIyLK0zAorW5S0zcxKMc1ya7FA9J/ff5m4cA58HM57zv/rOIsHHvcx79z7znfuvWe7b4DyUgQgWwRfVnhLIkC5KAbQLPdtAZwB4FQAR4pcmwCsBLAUwA7hywBoQg1QRtqOAB4CsAZAIeFaC2AcgINM36qlrLTnAVhNQHfKTNcByMt9PT3/FUC/aldCTtpBArggYBtSVkCj8Oh96FuVSshJO1iANJsZ/gTAXQAulJkeDmAOPa+XPkEZp5MdqTrwTXIp+D8ADEzpey7ZCO3zjYwZl9mQtwj85Q74YAO60ZLOOlegY8UrcN8h8qwYN1o2yqaA/wXAMUZJvKT1fj8aQ21G2AofOX0qinLSXiECM/ifABxtjJm27QB0MGPFcq2U/mG8/wAcIs+jSl72zQb8jwC6GtC6Ui4C8BuAjQAuIR59Po1cZmh7m3Eq3uCtANDFCK38lxl3+IMTLt9H26Ag3iKWMaJKm/lGAa/CLgfQOQE824gdwv8K8WouMM4o4CzzflVWWexCTtorCYwK+h2AIxLAe/yfSeirbk77zJXngXc7gJPEQ3SnUFkpszdXRY7ANBsw3wI4nIRi/qsJkPJ/SkYwIgMYkqRtMr4GUZukX7j/C8BiAGNFIUpROcF/DeDQBPDDnFA3uLYD5Hls+KcLTwO9R/s3mvA5KOphemfJlJCT9ioH/DJyU9ba3+CAXyAu0APPyvIA81UnsuiY7UUBUSnBFwz4rwAcnAD+Zgf8uwDaJIAfIoAajZdYIW5xpOQQzwNY78iyQGTYozYhlwJ+iZO7K/jbaRkr/zsU7cUp20pd6RpxsV4IfCCA0Y5RHW/k2SPghzoz+SWATgaMCjrSAT+bXFzSzDOQL8igIiFvYDfcIFcInI43cu0W+Gucmf9cZsADf48D/jVyc3ERK2sReQcdNzKuMqLVNJ5sQmifNn1bDd6z3uy6LPhRFL7WmyBHXZy3shj8x2LMeBknzaQqpb24SXWb66X2qDytAn+9A36h47oU/IMO+BeJNypCud74qoQQG7wlRncA8ejzGfT+oISeu1CeS2mu60PHdSn/GAf89BTw1zrjf+CMr+COkqxSvUJIoPanMcP4I8w2GNBSY5iT9qYEv902Afw4B/w0erkFf6Mz/nzHNargIfxdJXzbpV0l/BGNO9woYGBLFJBN8dvvGfCcsT3igH/SAZ9NUe48B7zyd6MSmfKH2kBf4reyKF/fYhWQNeAbjHDstzlZmeiAn5wC/lYH/Nu0hC347nJOwLP6N4A+RlkqzzIqoGyjhCzVCGakvSUhaLHCKf8kKlxqwWJiCvjbnPHfdOIC5e8BYJ0Bv5kqxMqXo+KKytMsnoqV5FKcAt4LWvSlUxzwY4nHgr/bGX+WExcof0h7fzfgQzX5ZMOnk9FV+LWMXpDMk3kTwfcuUriM8fP1FKvfnwJeqzoNtE1epoTFgj9N/DmDX0eRnQXfWapJvPcXF1MoyUg7wGRXrzrCKe/ZtOd15u80grGBHO3YiBk0AVZZfWSPM3gupVvwXRzwm4h/l/4/EgP3nBibJ+h3NhwawS2h2S9IVpYE3osLnkkBfw6Afw34lVRK95b9CsP/p6ygosBbUksPA15f2N9oOhxjsRFi8BMc8FNpPAu+n1htBvO9U1DVNijl5xTwLc4CY0c4GCFfoNJUcGO9jEvUMR6lVaLgJznj52gLKghtlzqVJT41Wm34txD4Vic/UcrvMe01rftxHwX/uOMdJqSAH0QlrzpKgZPqC8fJsbkF32t3wSeRCtxJipAFSm1BlRfOHeoIfPgYIsk7DHUKGQspy7TgT6AKEMcFPUt5ZhhJG5bjVlLALFr++uKpFIUVxF0mgddwuMnkAprcWNd4CoANxgZtlE9sSgYeJHgbOcIq0HG1PleL3kMM1xYphVnB9H6EEw7PccpkHBdsNuA3OEFRySiWdr7M7k4RvqcxgpB7WyVi7zAqIehS+xA7cYFuvTxFhCcavpJS1iRKuv/m0nOu9Fi3lUlJmWfKMw88xwUKfr3YAuYrOUVydZR9xxXb4PKUMmLdc04YOskB/2xKUHQ+xQUKfq14Aebba5Shyq3NA16nJWmpt5wB2PB5coprvICKHvmUcBjlUsIUZzbzUs6aKInRZKnqNtNzPdoakwL+YgKdp3DYflxRFopIgMfII+RTjq44A9wpaXcS+MEUFOVTwuGyUkR7+1JKRvjSWedrEZ3tZ4o8awzh8GFOn4qgDMUHgyS/Xy6p6D/iqpbK4UR/px/v5eucoMgLhyuOMs5vHeSQVOv6THGRBVgvHK5Yioyvt5R1nin4OxKqzzYcriqKdnE2r+DvdYzkGwnfD9YMZczxGYP3ynA1RZmUcDgUWuCE0zUHfpgTET4lz6riI+jWkC7rdlS3TwuHa3b2zzTV5Kml/nNUEsUoD9kEJrg+CPigkJqliGqKWyXa0y0QvEHFf/+/J7fBA5Q8aSod4oGaV0JESpjp1BPC12T7hBJiuZ/lrITw3QBqNQ6A8yH0bEcJQ6olAdod4s9r5gnw7WIY+Q8T2BeU0AbA+1Q0eWlvrIAIlUH6R+qcfDqTleKJ/mm6pmMDCJVlMv4HPapfxk03vxIAAAAASUVORK5CYII=) center/contain no-repeat;mask:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAHx0lEQVR4nOVbCchUVRT+3puZNNO0XbMilGzXSjLCqECMkDJKiyzDVisos4UystRMMlKDzBZLSirIyLK0zAorW5S0zcxKMc1ya7FA9J/ff5m4cA58HM57zv/rOIsHHvcx79z7znfuvWe7b4DyUgQgWwRfVnhLIkC5KAbQLPdtAZwB4FQAR4pcmwCsBLAUwA7hywBoQg1QRtqOAB4CsAZAIeFaC2AcgINM36qlrLTnAVhNQHfKTNcByMt9PT3/FUC/aldCTtpBArggYBtSVkCj8Oh96FuVSshJO1iANJsZ/gTAXQAulJkeDmAOPa+XPkEZp5MdqTrwTXIp+D8ADEzpey7ZCO3zjYwZl9mQtwj85Q74YAO60ZLOOlegY8UrcN8h8qwYN1o2yqaA/wXAMUZJvKT1fj8aQ21G2AofOX0qinLSXiECM/ifABxtjJm27QB0MGPFcq2U/mG8/wAcIs+jSl72zQb8jwC6GtC6Ui4C8BuAjQAuIR59Po1cZmh7m3Eq3uCtANDFCK38lxl3+IMTLt9H26Ag3iKWMaJKm/lGAa/CLgfQOQE824gdwv8K8WouMM4o4CzzflVWWexCTtorCYwK+h2AIxLAe/yfSeirbk77zJXngXc7gJPEQ3SnUFkpszdXRY7ANBsw3wI4nIRi/qsJkPJ/SkYwIgMYkqRtMr4GUZukX7j/C8BiAGNFIUpROcF/DeDQBPDDnFA3uLYD5Hls+KcLTwO9R/s3mvA5KOphemfJlJCT9ioH/DJyU9ba3+CAXyAu0APPyvIA81UnsuiY7UUBUSnBFwz4rwAcnAD+Zgf8uwDaJIAfIoAajZdYIW5xpOQQzwNY78iyQGTYozYhlwJ+iZO7K/jbaRkr/zsU7cUp20pd6RpxsV4IfCCA0Y5RHW/k2SPghzoz+SWATgaMCjrSAT+bXFzSzDOQL8igIiFvYDfcIFcInI43cu0W+Gucmf9cZsADf48D/jVyc3ERK2sReQcdNzKuMqLVNJ5sQmifNn1bDd6z3uy6LPhRFL7WmyBHXZy3shj8x2LMeBknzaQqpb24SXWb66X2qDytAn+9A36h47oU/IMO+BeJNypCud74qoQQG7wlRncA8ejzGfT+oISeu1CeS2mu60PHdSn/GAf89BTw1zrjf+CMr+COkqxSvUJIoPanMcP4I8w2GNBSY5iT9qYEv902Afw4B/w0erkFf6Mz/nzHNargIfxdJXzbpV0l/BGNO9woYGBLFJBN8dvvGfCcsT3igH/SAZ9NUe48B7zyd6MSmfKH2kBf4reyKF/fYhWQNeAbjHDstzlZmeiAn5wC/lYH/Nu0hC347nJOwLP6N4A+RlkqzzIqoGyjhCzVCGakvSUhaLHCKf8kKlxqwWJiCvjbnPHfdOIC5e8BYJ0Bv5kqxMqXo+KKytMsnoqV5FKcAt4LWvSlUxzwY4nHgr/bGX+WExcof0h7fzfgQzX5ZMOnk9FV+LWMXpDMk3kTwfcuUriM8fP1FKvfnwJeqzoNtE1epoTFgj9N/DmDX0eRnQXfWapJvPcXF1MoyUg7wGRXrzrCKe/ZtOd15u80grGBHO3YiBk0AVZZfWSPM3gupVvwXRzwm4h/l/4/EgP3nBibJ+h3NhwawS2h2S9IVpYE3osLnkkBfw6Afw34lVRK95b9CsP/p6ygosBbUksPA15f2N9oOhxjsRFi8BMc8FNpPAu+n1htBvO9U1DVNijl5xTwLc4CY0c4GCFfoNJUcGO9jEvUMR6lVaLgJznj52gLKghtlzqVJT41Wm34txD4Vic/UcrvMe01rftxHwX/uOMdJqSAH0QlrzpKgZPqC8fJsbkF32t3wSeRCtxJipAFSm1BlRfOHeoIfPgYIsk7DHUKGQspy7TgT6AKEMcFPUt5ZhhJG5bjVlLALFr++uKpFIUVxF0mgddwuMnkAprcWNd4CoANxgZtlE9sSgYeJHgbOcIq0HG1PleL3kMM1xYphVnB9H6EEw7PccpkHBdsNuA3OEFRySiWdr7M7k4RvqcxgpB7WyVi7zAqIehS+xA7cYFuvTxFhCcavpJS1iRKuv/m0nOu9Fi3lUlJmWfKMw88xwUKfr3YAuYrOUVydZR9xxXb4PKUMmLdc04YOskB/2xKUHQ+xQUKfq14Aebba5Shyq3NA16nJWmpt5wB2PB5coprvICKHvmUcBjlUsIUZzbzUs6aKInRZKnqNtNzPdoakwL+YgKdp3DYflxRFopIgMfII+RTjq44A9wpaXcS+MEUFOVTwuGyUkR7+1JKRvjSWedrEZ3tZ4o8awzh8GFOn4qgDMUHgyS/Xy6p6D/iqpbK4UR/px/v5eucoMgLhyuOMs5vHeSQVOv6THGRBVgvHK5Yioyvt5R1nin4OxKqzzYcriqKdnE2r+DvdYzkGwnfD9YMZczxGYP3ynA1RZmUcDgUWuCE0zUHfpgTET4lz6riI+jWkC7rdlS3TwuHa3b2zzTV5Kml/nNUEsUoD9kEJrg+CPigkJqliGqKWyXa0y0QvEHFf/+/J7fBA5Q8aSod4oGaV0JESpjp1BPC12T7hBJiuZ/lrITw3QBqNQ6A8yH0bEcJQ6olAdod4s9r5gnw7WIY+Q8T2BeU0AbA+1Q0eWlvrIAIlUH6R+qcfDqTleKJ/mm6pmMDCJVlMv4HPapfxk03vxIAAAAASUVORK5CYII=) center/contain no-repeat}";
+		const cssPage = ".SKV_page{box-sizing:border-box;height:100%;color:var(--dsw-alias-label-primary);flex-direction:column;align-items:center;gap:24px;padding:28px clamp(24px,4vw,48px) 48px;display:flex;overflow:auto}.SKV_page>*{width:100%;max-width:760px}.SKV_pageHead{flex-direction:column;gap:4px;display:flex}.SKV_pageTitle{margin:0;font-size:20px;font-weight:500;line-height:28px}.SKV_pageIntro{color:var(--dsw-alias-label-secondary);margin:0;font-size:13px;line-height:20px}.SKV_pageTop{min-height:20px;align-items:center;display:flex}.SKV_pageBack{font:inherit;font-size:12.5px;line-height:20px;color:var(--dsw-alias-label-tertiary);cursor:pointer;background:0 0;border:0;align-items:center;gap:6px;padding:0;display:inline-flex}.SKV_pageBack:hover{color:var(--dsw-alias-label-primary)}.SKV_pageBack:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.SKV_pageBack svg{flex:none}.SKV_tabs{align-items:center;gap:4px;border-bottom:1px solid var(--dsw-alias-border-l2);display:flex;flex-wrap:wrap}.SKV_tab{font:inherit;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:6px 12px;display:inline-flex;align-items:center}.SKV_tab:hover{color:var(--dsw-alias-label-primary)}.SKV_tab[data-active=true]{color:var(--dsw-alias-label-primary);border-bottom-color:var(--dsw-alias-state-business-primary);font-weight:500}.SKV_tab:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}";
+		const cssPanelIcon = ".SKV_panelIcon{flex:none;display:inline-block;background-color:currentColor}.SKV_panelIconMerged{-webkit-mask:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' width='96' height='96' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M12 5H28L38 15V41a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z'/><path d='M28 5V13a2 2 0 0 0 2 2H38'/><path d='M17 29L23 23A2.83 2.83 0 0 1 27 27L21 33A2.83 2.83 0 0 0 25 37L31 31'/></svg>\") center/contain no-repeat;mask:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' width='96' height='96' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M12 5H28L38 15V41a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z'/><path d='M28 5V13a2 2 0 0 0 2 2H38'/><path d='M17 29L23 23A2.83 2.83 0 0 1 27 27L21 33A2.83 2.83 0 0 0 25 37L31 31'/></svg>\") center/contain no-repeat}";
 		const cssMigrate = ".SKV_scopeBar{gap:6px;padding:2px;max-width:100%;overflow-x:auto;scrollbar-width:thin;display:flex;align-items:center}.SKV_migrateSection{flex-direction:column;gap:6px;display:flex}.SKV_migrateLabel{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;margin:0}.SKV_migrateFromValue{color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;margin:0;word-break:break-all}.SKV_migrateList{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;max-height:220px;overflow-y:auto;margin:0;padding:4px;list-style:none;display:flex;flex-direction:column;gap:2px}.SKV_migrateItem{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:none;border-radius:6px;padding:6px 10px;font-size:13px;line-height:20px;text-align:left;display:flex;align-items:center;gap:8px}.SKV_migrateItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_migrateItem input{margin:0;accent-color:var(--dsw-alias-state-business-primary)}.SKV_migrateItemName{flex:1;min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.SKV_migrateItemState{color:var(--dsw-alias-label-tertiary);font-size:11px;flex:none}.SKV_migrateSelectAll{font:inherit;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:0 0;border:none;padding:0;font-size:12px;line-height:18px}.SKV_migrateHint{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:0}.SKV_migrateResult{border-radius:8px;padding:8px 12px;font-size:12px;line-height:18px;margin:0}.SKV_migrateResult[data-ok=true]{background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);color:var(--dsw-alias-state-success-primary)}.SKV_migrateResult[data-ok=false]{background:color-mix(in srgb, var(--dsw-alias-state-warning-primary) 10%, transparent);color:var(--dsw-alias-state-warning-primary)}.SKV_migrateResultList{margin:4px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;max-height:120px;overflow-y:auto}.SKV_wsPath{min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;display:block}.SKV_migrateOptionLabel{min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.SKV_scopeOptions{max-height:132px;overflow-y:auto;scrollbar-width:thin}.SKV_migrateList{max-height:148px}.SKV_scopeBox{overflow-y:auto;scrollbar-width:thin}.SKV_select{width:100%;box-sizing:border-box;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 8px}.SKV_select:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);outline:none}.SKV_groupBody{display:flex;gap:16px;min-height:0}.SKV_groupSide{width:150px;flex:none;display:flex;flex-direction:column;gap:2px;min-width:0}.SKV_groupNewBtn{display:flex;align-items:center;gap:6px;justify-content:flex-start;font:inherit;font-size:13px;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:0 0;border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;padding:7px 10px;margin-bottom:6px;text-align:left}.SKV_groupNewBtn:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_groupSideLabel{font-size:12px;color:var(--dsw-alias-label-tertiary);padding:0 10px;margin-bottom:2px}.SKV_groupSideItem{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;font:inherit;font-size:13px;cursor:pointer;color:var(--dsw-alias-label-secondary);background:0 0;border:none;text-align:left;min-width:0}.SKV_groupSideItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_groupSideItem[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);color:var(--dsw-alias-state-business-primary);font-weight:500}.SKV_groupMain{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}.SKV_field{display:flex;flex-direction:column;gap:6px}.SKV_fieldLabel{font-size:12px;color:var(--dsw-alias-label-secondary);margin:0}.SKV_skillListBox{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 10px;max-height:220px;overflow-y:auto}.SKV_skillRow{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:0.5px solid var(--dsw-alias-border-l2);font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;min-width:0}.SKV_skillRow:last-child{border-bottom:none}.SKV_skillRow:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_skillRow input{margin:0;accent-color:var(--dsw-alias-state-business-primary);flex:none}.SKV_skillName{flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.SKV_skillBadge{font-size:12px;padding:2px 8px;border-radius:5px;white-space:nowrap;flex:none}.SKV_skillBadge[data-on=true]{background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 12%, transparent);color:var(--dsw-alias-state-success-primary)}.SKV_skillBadge[data-on=false]{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-tertiary)}.SKV_countRow{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}.SKV_countText{font-size:12px;color:var(--dsw-alias-label-secondary);margin:0}.SKV_dialogFooter{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--dsw-alias-border-l2)}.SKV_dangerBtn{font:inherit;font-size:13px;color:var(--dsw-alias-state-error-primary);cursor:pointer;background:0 0;border:1px solid transparent;border-radius:6px;padding:5px 10px}.SKV_dangerBtn:hover:not(:disabled){background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent)}.SKV_dangerBtn:disabled{cursor:default;opacity:.6}.SKV_textInput{width:100%;box-sizing:border-box;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;outline:none;padding:0 10px}.SKV_textInput::placeholder{color:var(--dsw-alias-label-tertiary)}.SKV_textInput:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}.SKV_scopeBox{width:640px}.SKV_groupSide{width:170px}.SKV_groupSideItem{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.SKV_select{appearance:none;-webkit-appearance:none;width:100%;box-sizing:border-box;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background-color:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 30px 0 10px;background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 16 16%27 fill=%27none%27%3E%3Cpath d=%27M4 6l4 4 4-4%27 stroke=%27%23888%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 10px center}.SKV_select:hover{border-color:var(--dsw-alias-border-l1)}.SKV_targetBox{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:4px;max-height:152px;overflow-y:auto;scrollbar-width:thin}.SKV_targetItem{display:flex;align-items:center;gap:8px;padding:7px 6px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:none;border-bottom:0.5px solid var(--dsw-alias-border-l2);width:100%;text-align:left;min-width:0}.SKV_targetItem:last-child{border-bottom:none}.SKV_targetItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_targetItem[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 8%, transparent)}.SKV_targetItem input{margin:0;accent-color:var(--dsw-alias-state-business-primary);flex:none}.SKV_skillListBox{max-height:180px};.SKV_groupBar{gap:6px;padding:2px;display:flex;flex-wrap:wrap;align-items:center}.SKV_groupItem{font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:3px 11px;font-size:12px;line-height:18px;white-space:nowrap;flex:none}.SKV_groupItem:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l1)}.SKV_groupItem[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-state-business-primary);font-weight:500}.SKV_groupSep{display:none}.SKV_scopeSelect{display:inline-flex;align-items:center;gap:12px;box-sizing:border-box;height:36px;max-width:100%;padding:0 14px;border:none;border-radius:18px;background:var(--dsw-alias-bg-module-platform);font:inherit;font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary);cursor:pointer}.SKV_scopeSelect:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_scopeSelectLabel{min-width:0;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.SKV_scopeSelectChevron{flex:none;color:var(--dsw-alias-label-tertiary)}";
 const cssCategory = ".SKV_categoryBar{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}.SKV_categoryLabel{font-size:12px;color:var(--dsw-alias-label-tertiary);flex:none;margin-right:2px}.SKV_categoryChip{font:inherit;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 10px;white-space:nowrap;flex:none}.SKV_categoryChip:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_categoryChip[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-state-business-primary)}";
 const cssTree = ".SKV_treeFolder{grid-column:1/-1;display:flex;flex-direction:column;gap:10px}.SKV_treeFolderHeader{display:flex;align-items:center;gap:6px;width:100%;font:inherit;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:7px 10px;text-align:left}.SKV_treeFolderHeader:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_treeFolderName{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.SKV_treeFolderCount{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;font-size:12px;line-height:18px;flex:none}.SKV_treeChevron{transition:transform .15s;transform:rotate(-90deg)}.SKV_treeChevronOpen{transition:transform .15s;transform:rotate(0deg)}";
@@ -85,8 +84,8 @@ const cssEffects = "@keyframes skvFadeIn{from{opacity:0;transform:translateY(-4p
 // 不影响宿主自己的其它菜单；:has() 不可用时该规则失效，退化为原来的整屏上限。
 const cssChipRefresh = ".SKV_scopeBar{gap:4px;padding:2px 2px 6px}.SKV_groupBar{gap:5px;padding:2px}.SKV_groupItem{background:transparent;border:1px solid transparent;border-radius:8px;padding:6px 12px;font-size:13px;line-height:18px}.SKV_groupItem:hover{background:var(--dsw-alias-interactive-bg-hover);border-color:transparent;color:var(--dsw-alias-label-primary)}.SKV_groupItem[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 14%, transparent);border-color:transparent;font-weight:500}.SKV_categoryBar{gap:6px 8px}.SKV_categoryChip{background:transparent;border:1px solid transparent;border-radius:7px;padding:5px 12px;font-size:12px}.SKV_categoryChip:hover{background:var(--dsw-alias-interactive-bg-hover);border-color:transparent}.SKV_categoryChip[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 14%, transparent);border-color:transparent;font-weight:500}body:has(.SKV_scopeSelect[aria-expanded=true])>div[role=menu]{max-height:min(448px,calc(100vh - 24px))}";
 // 分组：对话框侧栏、分组横栏 chip（含启用/总数）与卡片上方的整组启停胶囊按钮（补齐 2.0.2 的 cssGroupDelete）
-const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;align-items:center;gap:2px}.SKV_groupSideItemWrap{position:relative;display:flex;align-items:center;min-width:0}.SKV_groupSideItemWrap .SKV_groupSideItem{flex:1;min-width:0}.SKV_groupDelete{display:none;width:16px;height:16px;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:12px;line-height:14px;cursor:pointer;background:0 0;border:none;border-radius:999px;padding:0;margin-left:2px;flex:none}.SKV_groupSideItemWrap:hover .SKV_groupDelete{display:inline-flex}.SKV_groupDelete:hover{color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent)}.SKV_groupDelete[data-confirm=true]{display:inline-flex;width:auto;height:18px;padding:0 7px;color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent)}.SKV_groupToggle{font:inherit;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:1px 7px;margin-left:2px;flex:none}.SKV_groupToggle:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.SKV_groupToggle[data-on=true]{color:var(--dsw-alias-state-success-primary);border-color:color-mix(in srgb, var(--dsw-alias-state-success-primary) 40%, transparent)}.SKV_groupToggle:disabled{opacity:.6;cursor:not-allowed}.SKV_groupItem{display:inline-flex;align-items:center}.SKV_groupItemCount{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;font-size:11px;line-height:15px;margin-left:4px}.SKV_groupItem[data-active=true] .SKV_groupItemCount{color:inherit}.SKV_groupBulkRow{display:flex;align-items:center;gap:8px;margin:0 0 8px}.SKV_groupBulkBtn{font:inherit;font-size:12px;line-height:18px;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);border:1px solid color-mix(in srgb, var(--dsw-alias-state-business-primary) 35%, transparent);border-radius:999px;padding:4px 14px;white-space:nowrap;flex:none}.SKV_groupBulkBtn:hover:not(:disabled){background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 16%, transparent)}.SKV_groupBulkBtn:disabled{cursor:default;opacity:.55}";
-const css = cssPage + cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssCategory + cssTree + cssPanelIcon + cssPanelIconMcp + cssTheme + cssEffects + cssChipRefresh + cssGroups;
+const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;align-items:center;gap:2px}.SKV_groupSideItemWrap{position:relative;display:flex;align-items:center;min-width:0}.SKV_groupSideItemWrap .SKV_groupSideItem{flex:1;min-width:0}.SKV_groupDelete{display:none;width:16px;height:16px;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:12px;line-height:14px;cursor:pointer;background:0 0;border:none;border-radius:999px;padding:0;margin-left:2px;flex:none}.SKV_groupSideItemWrap:hover .SKV_groupDelete{display:inline-flex}.SKV_groupDelete:hover{color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent)}.SKV_groupDelete[data-confirm=true]{display:inline-flex;width:auto;height:18px;padding:0 7px;color:var(--dsw-alias-state-error-primary);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent)}.SKV_groupToggle{font:inherit;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;white-space:nowrap;cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:1px 7px;margin-left:2px;flex:none}.SKV_groupToggle:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.SKV_groupToggle[data-on=true]{color:var(--dsw-alias-state-success-primary);border-color:color-mix(in srgb, var(--dsw-alias-state-success-primary) 40%, transparent)}.SKV_groupToggle:disabled{opacity:.6;cursor:not-allowed}.SKV_groupItem{display:inline-flex;align-items:center}.SKV_groupItemCount{color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums;font-size:11px;line-height:15px;margin-left:4px}.SKV_groupItem[data-active=true] .SKV_groupItemCount{color:inherit}.SKV_groupBulkRow{display:flex;align-items:center;gap:8px;margin:0 0 8px}.SKV_pluginToggle{display:inline-flex;align-items:center;gap:6px;margin-left:auto;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;cursor:pointer;white-space:nowrap}.SKV_pluginToggle input{margin:0;accent-color:var(--dsw-alias-state-business-primary)}.SKV_pluginToggle:hover{color:var(--dsw-alias-label-primary)}.SKV_groupBulkBtn{font:inherit;font-size:12px;line-height:18px;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 10%, transparent);border:1px solid color-mix(in srgb, var(--dsw-alias-state-business-primary) 35%, transparent);border-radius:999px;padding:4px 14px;white-space:nowrap;flex:none}.SKV_groupBulkBtn:hover:not(:disabled){background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 16%, transparent)}.SKV_groupBulkBtn:disabled{cursor:default;opacity:.55}";
+const css = cssPage + cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cssCategory + cssTree + cssPanelIcon + cssTheme + cssEffects + cssChipRefresh + cssGroups;
 		const tagId = "dsh-skill-mcp-panel/SkillsSection.module.css";
 		if (typeof document !== "undefined") {
 			let tag = document.querySelector("style[data-plugin-css=" + JSON.stringify(tagId) + "]") as HTMLElement | null;
@@ -102,6 +101,9 @@ const css = cssPage + cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cs
 
 		// 类名映射（CSS 是内联手写字符串，无法走 CSS Modules）
 		const c = {
+		tab: "SKV_tab",
+		tabs: "SKV_tabs",
+		pluginToggle: "SKV_pluginToggle",
 			page: "SKV_page",
 			pageHead: "SKV_pageHead",
 			pageTitle: "SKV_pageTitle",
@@ -222,6 +224,7 @@ const css = cssPage + cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cs
 
 		const zh = {
 			nav: "技能",
+			navCombined: "Skill/MCP",
 			panelIntro: "管理全局与工作区里的技能：搜索、展开正文、启用/停用、删除、添加、迁移与分组。",
 			back: "返回会话",
 			loading: "正在读取技能…",
@@ -294,6 +297,9 @@ const css = cssPage + cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cs
 			groupDelete: "删除分组",
 			groupBulkOn: "全部启用",
 			groupBulkOff: "全部停用",
+			pluginSkillsToggle: "显示插件技能",
+			pluginSkillsToggleHint: "部分插件会随包自带技能（不在技能文件夹里，面板改不动）；取消勾选后只看自己管理的技能",
+			pluginSkillsHidden: "插件自带的 {count} 个技能已隐藏。",
 			groupBulkBlocked: "组内没有可开关的技能",
 			skillFilterPlaceholder: "筛选技能",
 			skillCountLabel: "已选",
@@ -307,6 +313,7 @@ const css = cssPage + cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cs
 
 		const en = {
 			nav: "Skills",
+			navCombined: "Skill/MCP",
 			panelIntro: "Manage global and workspace skills: search, read content, enable or disable, delete, add, migrate, and group.",
 			back: "Back to session",
 			loading: "Reading skills…",
@@ -379,6 +386,9 @@ const css = cssPage + cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cs
 			groupDelete: "Delete group",
 			groupBulkOn: "Enable all",
 			groupBulkOff: "Disable all",
+			pluginSkillsToggle: "Show plugin skills",
+			pluginSkillsToggleHint: "Some plugins ship their own skills; uncheck to see only the ones you manage",
+			pluginSkillsHidden: "{count} plugin-provided skill(s) hidden.",
 			groupBulkBlocked: "No toggleable skills in this group",
 			skillFilterPlaceholder: "Filter skills",
 			skillCountLabel: "Selected",
@@ -1143,6 +1153,8 @@ function SkillsSection(props) {
 			const singleFileInput = react.useRef(null);
 			const zipFileInput = react.useRef(null);
 			const [scopeMenuOpen, setScopeMenuOpen] = react.useState(false);
+			// 插件自带技能（随包提供、不在技能文件夹里）默认跟随列表显示，可一键隐藏。
+			const [showPluginSkills, setShowPluginSkills] = react.useState(true);
 
 			// 列表拉取：首次显示加载态；此后静默刷新，保留旧列表避免闪烁。
 			// 合并结果按名称排序——启停切换不会改变卡片位置。
@@ -1527,7 +1539,11 @@ function SkillsSection(props) {
 			const knownPaths = (Array.isArray(wsOptions) ? wsOptions : []).map((workspace) => workspace.path);
 			const scopeKeys = ["global", ...knownPaths.filter((path) => path !== "global")];
 			if (scopeFilter !== "global" && !scopeKeys.includes(scopeFilter)) scopeKeys.push(scopeFilter);
-			const scoped = skills.filter((skill) => scopeOf(skill) === scopeFilter);
+			// 插件自带技能由宿主打标（pluginProvided）：它们在技能文件夹之外，面板也改不动，
+			// 默认显示，但可以一键隐藏——只留下自己管理的文件技能。
+			const scopedAll = skills.filter((skill) => scopeOf(skill) === scopeFilter);
+			const hiddenPluginCount = showPluginSkills ? 0 : scopedAll.reduce((sum, skill) => sum + (skill.pluginProvided === true ? 1 : 0), 0);
+			const scoped = showPluginSkills ? scopedAll : scopedAll.filter((skill) => skill.pluginProvided !== true);
 			const grouped = groupFilter === "all" ? scoped : scoped.filter((skill) => (Array.isArray(skill.groups) ? skill.groups : []).includes(groupFilter));
 			const filtered = grouped.filter((skill) => skill.name.toLocaleLowerCase().includes(normalizedQuery));
 
@@ -2002,6 +2018,10 @@ function SkillsSection(props) {
 							className: c.status,
 							children: t("empty")
 						}) : null,
+						skills.length > 0 && scoped.length === 0 && hiddenPluginCount > 0 ? (0, react_jsx_runtime.jsx)("p", {
+							className: c.status,
+							children: t("pluginSkillsHidden").replace("{count}", String(hiddenPluginCount))
+						}) : null,
 						skills.length > 0 && scoped.length === 0 ? (0, react_jsx_runtime.jsx)("p", {
 							className: c.status,
 							children: t("emptyScope")
@@ -2014,15 +2034,23 @@ function SkillsSection(props) {
 							className: c.status,
 							children: t("emptySearch")
 						}) : null,
-										activeSkills.length > 0 && filtered.length > 0 ? (0, react_jsx_runtime.jsxs)("div", {
+										scopedAll.length > 0 ? (0, react_jsx_runtime.jsxs)("div", {
 											className: c.groupBulkRow,
-											children: [(0, react_jsx_runtime.jsx)("button", {
+											children: [activeSkills.length > 0 && filtered.length > 0 ? (0, react_jsx_runtime.jsx)("button", {
 												type: "button",
 												className: c.groupBulkBtn,
 												disabled: activeCounts.editable === 0 || bulkGroup === groupFilter,
 												title: activeCounts.editable === 0 ? t("groupBulkBlocked") : undefined,
 												onClick: applyActiveToggle,
 												children: (activeCounts.editable > 0 && activeCounts.on === activeCounts.total ? t("groupBulkOff") : t("groupBulkOn")) + " · " + activeCounts.on + "/" + activeCounts.total
+											}) : null, (0, react_jsx_runtime.jsxs)("label", {
+												className: c.pluginToggle,
+												title: t("pluginSkillsToggleHint"),
+												children: [(0, react_jsx_runtime.jsx)("input", {
+													type: "checkbox",
+													checked: showPluginSkills,
+													onChange: (event) => setShowPluginSkills(event.target.checked)
+												}), (0, react_jsx_runtime.jsx)("span", { children: t("pluginSkillsToggle") })]
 											})]
 										}) : null,
 						filtered.length > 0 ? (0, react_jsx_runtime.jsx)("ul", {
@@ -2149,6 +2177,16 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         back: "返回会话",
                         title: "MCP 服务器",
                         subtitle: "在 profile cordis.patch.yml 的受管块中维护 MCP 服务器，保存后由 DSH HMR 热加载。",
+                        docButton: "注册机制",
+                        docTitle: "DSH 的 MCP 注册机制",
+                        docLead: "DSH 的 MCP 能力来自官方插件 @deepseek-ai/dsh-mcp-client：它读的不是单独的 MCP 配置文件，而是所在 profile 的 cordis.patch.yml 里的一条 loader entry ——",
+                        docWhere: "本面板就是那条 entry 的可视化编辑器：受管 entry 写在 BEGIN / END 两条标记之间，块外内容逐字节保留；保存即写文件，DSH 的 loader 监听到变化后热加载，不需要重启。",
+                        docTools: "注册成功后，工具在模型侧叫 mcp__<serverName>__<原工具名>；serverName 只能 1-32 位字母、数字、下划线或连字符。",
+                        docEnv: "环境变量：DSH 的配置层没有 ${VAR} 字符串插值，唯一的机制是 YAML 的 !!js 表达式（宿主装载时求值）。所以这里直接写 ${NAME} 就行，保存时自动格式化成 !!js 模板：",
+                        docEnvCode: "Authorization=Bearer ${MCP_TOKEN}\n        ↓ 保存后写入 cordis.patch.yml\nAuthorization: !!js '`Bearer ${process.env.MCP_TOKEN}`'",
+                        docEnvNote: "变量来自 DSH 进程自己的环境：放 ~/.dsh/.env（桌面端读这一份）或启动环境里都行，改完要重启 DSH。stdio 子进程不会继承名字带 KEY / PASSWORD / SECRET / TOKEN 的环境变量，所以要显式写进 env。",
+                        docSecret: "env / headers 的值只写不读：页面与 RPC 都只回传键名，编辑时对应键留空即保持原值；也可以用 !!js 前缀直接写任意 JS 表达式。",
+                        docCode: "- id: panel-mcp-github\n  name: '@deepseek-ai/dsh-mcp-client'\n  config:\n    serverName: github\n    transport: stdio\n    command: npx\n    args: ['-y', '@modelcontextprotocol/server-github']\n    env:\n      GITHUB_TOKEN: !!js '`${process.env.GITHUB_TOKEN}`'",
                         add: "+ 添加服务器",
                         refresh: "刷新",
                         empty: "还没有 MCP 服务器。",
@@ -2186,6 +2224,13 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         fieldCwd: "工作目录（留空使用默认）",
                         fieldUrl: "服务器地址",
                         fieldHeaders: "请求头（每行 键=值；已配置的键留空保持不变）",
+                        phCommand: "npx",
+                        phArgs: "-y\n@modelcontextprotocol/server-github",
+                        phEnv: "GITHUB_TOKEN=${GITHUB_TOKEN}",
+                        phCwd: "C:/projects/my-mcp-server",
+                        phUrl: "https://example.com/mcp",
+                        phHeaders: "Authorization=Bearer ${MCP_TOKEN}",
+                        hintJs: "值里写 ${NAME} 即读取环境变量 NAME（DSH 只认 !!js 表达式，面板自动格式化成 !!js '`${process.env.NAME}`'）；也可以用 !!js 前缀直接写任意 JS 表达式",
                         fieldTimeout: "单次调用超时",
                         fieldFailOnStartup: "启动失败时报错",
                         fieldReconnect: "自动重连",
@@ -2212,6 +2257,16 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         back: "Back to session",
                         title: "MCP Servers",
                         subtitle: "MCP servers are maintained in the managed block of profile cordis.patch.yml and hot-applied by DSH HMR.",
+                        docButton: "How it works",
+                        docTitle: "How DSH registers MCP servers",
+                        docLead: "DSH's MCP support comes from the official @deepseek-ai/dsh-mcp-client plugin: it reads no separate MCP config file, only a loader entry inside the profile's cordis.patch.yml —",
+                        docWhere: "This panel is the visual editor for those entries. Managed entries live between the BEGIN / END markers and everything outside them is preserved byte for byte; saving writes the file, the DSH loader notices and hot-reloads — no restart.",
+                        docTools: "Once registered, the model sees tools as mcp__<serverName>__<original name>; serverName allows 1-32 letters, digits, underscore or hyphen.",
+                        docEnv: "Environment variables: the DSH config layer has no ${VAR} string interpolation — the only mechanism is a YAML !!js expression, evaluated by the host at load time. So just write ${NAME} here and the panel formats it for you:",
+                        docEnvCode: "Authorization=Bearer ${MCP_TOKEN}\n        ↓ written to cordis.patch.yml on save\nAuthorization: !!js '`Bearer ${process.env.MCP_TOKEN}`'",
+                        docEnvNote: "The value comes from the DSH process environment: ~/.dsh/.env (what the desktop app reads) or the launching environment; restart DSH after changing it. Stdio children never inherit names containing KEY / PASSWORD / SECRET / TOKEN, so pass those explicitly in env.",
+                        docSecret: "env / headers values are write-only: the UI and RPC only return key names, and leaving a configured key blank keeps its current value. A !!js prefix passes a raw JS expression.",
+                        docCode: "- id: panel-mcp-github\n  name: '@deepseek-ai/dsh-mcp-client'\n  config:\n    serverName: github\n    transport: stdio\n    command: npx\n    args: ['-y', '@modelcontextprotocol/server-github']\n    env:\n      GITHUB_TOKEN: !!js '`${process.env.GITHUB_TOKEN}`'",
                         add: "+ Add server",
                         refresh: "Refresh",
                         empty: "No MCP servers yet.",
@@ -2249,6 +2304,13 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         fieldCwd: "cwd (blank for default)",
                         fieldUrl: "url",
                         fieldHeaders: "headers (KEY=VALUE per line; leave configured keys blank to keep them)",
+                        phCommand: "npx",
+                        phArgs: "-y\n@modelcontextprotocol/server-github",
+                        phEnv: "GITHUB_TOKEN=${GITHUB_TOKEN}",
+                        phCwd: "C:/projects/my-mcp-server",
+                        phUrl: "https://example.com/mcp",
+                        phHeaders: "Authorization=Bearer ${MCP_TOKEN}",
+                        hintJs: "Write ${NAME} in a value to read the environment variable NAME (DSH only understands !!js expressions; the panel formats it as !!js '`${process.env.NAME}`'). A !!js prefix passes a raw JS expression.",
                         fieldTimeout: "toolCallTimeoutMs",
                         fieldFailOnStartup: "Fail on startup error",
                         fieldReconnect: "Auto reconnect",
@@ -2271,7 +2333,7 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         checkUpdateHint: "). Run dsh-panel update in a terminal to install it"
                 };
 
-                const cssMcpEffects = "@keyframes skvFadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}@keyframes skvFadeOnly{from{opacity:0}to{opacity:1}}.MCP_card{transition:border-color .18s cubic-bezier(.22,.61,.36,1),box-shadow .18s ease}.MCP_card:hover{border-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-shadow-lv1)}.MCP_dot{transition:background-color .2s ease}.MCP_input,.MCP_textarea{transition:border-color .15s ease,box-shadow .15s ease}.MCP_transportBtn{transition:background-color .15s ease,border-color .15s ease,color .15s ease}.MCP_actionBtn,.MCP_dangerBtn,.MCP_iconBtn,.MCP_add,.MCP_advancedToggle{transition:background-color .15s ease,border-color .15s ease,transform .1s ease}.MCP_actionBtn:active:not(:disabled),.MCP_dangerBtn:active:not(:disabled),.MCP_iconBtn:active,.MCP_add:active{transform:scale(.96)}.MCP_actionBtn:focus-visible,.MCP_dangerBtn:focus-visible,.MCP_iconBtn:focus-visible,.MCP_add:focus-visible,.MCP_transportBtn:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}.MCP_cards{animation:skvFadeOnly .2s ease}.MCP_result{animation:skvFadeIn .18s ease}@media (prefers-reduced-motion: reduce){.MCP_section *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}";
+                const cssMcpEffects = "@keyframes skvFadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}@keyframes skvFadeOnly{from{opacity:0}to{opacity:1}}.MCP_card{transition:border-color .18s cubic-bezier(.22,.61,.36,1),box-shadow .18s ease}.MCP_card:hover{border-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-shadow-lv1)}.MCP_dot{transition:background-color .2s ease}.MCP_input,.MCP_textarea{transition:border-color .15s ease,box-shadow .15s ease}.MCP_transportBtn{transition:background-color .15s ease,border-color .15s ease,color .15s ease}.MCP_actionBtn,.MCP_dangerBtn,.MCP_iconBtn,.MCP_add,.MCP_advancedToggle{transition:background-color .15s ease,border-color .15s ease,transform .1s ease}.MCP_actionBtn:active:not(:disabled),.MCP_dangerBtn:active:not(:disabled),.MCP_iconBtn:active,.MCP_add:active{transform:scale(.96)}.MCP_actionBtn:focus-visible,.MCP_dangerBtn:focus-visible,.MCP_iconBtn:focus-visible,.MCP_add:focus-visible,.MCP_transportBtn:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}.MCP_cards{animation:skvFadeOnly .2s ease}.MCP_result{animation:skvFadeIn .18s ease}@media (prefers-reduced-motion: reduce){.MCP_section *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}.MCP_doc{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;animation:skvFadeIn .18s ease}.MCP_doc h4{font-size:13px;font-weight:600;line-height:20px;margin:0}.MCP_doc p{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:19px}.MCP_docCode{margin:0;background:var(--dsw-alias-bg-layer-3);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;line-height:17px;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-all;overflow-x:auto}";
 const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:14px}.MCP_head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.MCP_head h3{font-size:14px;font-weight:600;line-height:20px;margin:0}.MCP_sub{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:0}.MCP_toolbar{display:flex;align-items:center;gap:8px}.MCP_add{font:inherit;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:0 0;border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;padding:7px 16px;font-size:13px;line-height:20px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}.MCP_add:hover{background:var(--dsw-alias-interactive-bg-hover)}.MCP_cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.MCP_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}.MCP_cardTop{display:flex;align-items:center;gap:8px;min-width:0}.MCP_name{font-size:13px;font-weight:600;line-height:20px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.MCP_badges{display:inline-flex;align-items:center;gap:6px;flex:none}.MCP_badge{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);border-radius:5px;padding:1px 6px;font-size:11px;line-height:16px}.MCP_meta{display:flex;align-items:center;gap:8px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}.MCP_dot{width:7px;height:7px;border-radius:999px;background:var(--dsw-alias-label-tertiary);flex:none}.MCP_dot[data-on=true]{background:var(--dsw-alias-state-success-primary)}.MCP_dot[data-err=true]{background:var(--dsw-alias-state-error-primary)}.MCP_actions{display:flex;align-items:center;gap:8px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:8px;flex-wrap:wrap}.MCP_spacer{flex:1}.MCP_form{display:grid;grid-template-columns:1fr 1fr;gap:10px}.MCP_field{display:flex;flex-direction:column;gap:5px}.MCP_field[data-wide=true]{grid-column:1 / -1}.MCP_label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);margin:0}.MCP_input{box-sizing:border-box;width:100%;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 8px}.MCP_input:focus-visible,.MCP_textarea:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);outline:none}.MCP_textarea{box-sizing:border-box;width:100%;min-height:64px;font:inherit;font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:6px 8px;resize:vertical}.MCP_transportRow{display:flex;gap:8px}.MCP_transportBtn{font:inherit;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:4px 14px}.MCP_transportBtn[data-active=true]{color:var(--dsw-alias-state-business-primary);border-color:var(--dsw-alias-state-business-primary);background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent)}.MCP_secretKeys{display:flex;flex-wrap:wrap;gap:6px}.MCP_key{display:inline-flex;align-items:center;gap:6px;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 8px;font-size:11px;line-height:16px}.MCP_key button{font:inherit;color:var(--dsw-alias-state-error-primary);cursor:pointer;background:0 0;border:none;padding:0}.MCP_checkRow{display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.MCP_result{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px;font-size:12px;line-height:18px;max-height:160px;overflow:auto}.MCP_actionBtn{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;padding:0 12px;font-size:12px;line-height:26px;height:28px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;box-sizing:border-box}.MCP_actionBtn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.MCP_actionBtn:disabled{cursor:default;opacity:.6}.MCP_dangerBtn{font:inherit;color:var(--dsw-alias-state-error-primary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;padding:0 12px;font-size:12px;line-height:26px;height:28px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;box-sizing:border-box}.MCP_dangerBtn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.MCP_iconBtn{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:0;flex:none}.MCP_iconBtn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.MCP_advancedToggle{font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;padding:6px 12px;font-size:13px;line-height:20px}.MCP_advancedToggle:hover{background:var(--dsw-alias-interactive-bg-hover)}.MCP_result[data-ok=true]{border-color:color-mix(in srgb, var(--dsw-alias-state-success-primary) 40%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 8%, transparent)}.MCP_result[data-ok=false]{border-color:color-mix(in srgb, var(--dsw-alias-state-error-primary) 40%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent)}.MCP_hint{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary);margin:0}.MCP_hint[data-error=true]{color:var(--dsw-alias-state-error-primary)}" + cssMcpEffects;
                 const mcpTagId = "dsh-skill-mcp-panel/McpSection.module.css";
                 if (typeof document !== "undefined") {
@@ -2315,7 +2377,9 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
                         dangerBtn: "MCP_dangerBtn",
                         iconBtn: "MCP_iconBtn",
                         advancedToggle: "MCP_advancedToggle",
-                        hint: "MCP_hint"
+                        hint: "MCP_hint",
+                        doc: "MCP_doc",
+                        docCode: "MCP_docCode"
                 };
 
                 /**
@@ -2333,15 +2397,43 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
                 function mcpParseLines(text) {
                         return String(text ?? "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
                 }
+/**
+ * 面板里的写法：值里写 ${NAME} 就是「读环境变量 NAME」。
+ *
+ * DSH 的 cordis 配置层没有 ${VAR} 字符串插值，唯一的机制是 YAML 的 !!js 表达式，
+ * 所以这里把直觉写法格式化成 `!!js` + 反引号模板再落盘；以 "!!js " 开头的值按
+ * 进阶写法原样透传。规则必须与 src/mcp/model.ts 的 parseWireScalar 一致：浏览器束
+ * 只能 require 外壳种子词，无法 import 宿主模块，所以两边各写一份字面量（测试交叉校验）。
+ */
+const MCP_JS_EXPR_PREFIX = "!!js";
+const MCP_ENV_REF_RE = /\$\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}/g;
+function mcpEnvRefs(value) {
+        return value.replace(MCP_ENV_REF_RE, (match, name) => "${process.env." + name + "}");
+}
+function mcpWireScalar(text) {
+        const raw = String(text ?? "");
+        const trimmed = raw.trim();
+        if (trimmed === MCP_JS_EXPR_PREFIX || trimmed.startsWith(MCP_JS_EXPR_PREFIX + " ")) {
+                const expression = trimmed.slice(MCP_JS_EXPR_PREFIX.length).trim();
+                return expression === "" ? raw : { __jsExpr: expression };
+        }
+        if (trimmed.indexOf("${") === -1) return raw;
+        if (trimmed.length > 1 && trimmed.startsWith("`") && trimmed.endsWith("`")) return { __jsExpr: mcpEnvRefs(trimmed) };
+        return { __jsExpr: "`" + mcpEnvRefs(raw) + "`" };
+}
                 function mcpParsePairs(text) {
                         const out = {};
                         for (const line of mcpParseLines(text)) {
                                 const index = line.indexOf("=");
                                 if (index <= 0) continue;
                                 const key = line.slice(0, index).trim();
-                                if (key !== "") out[key] = line.slice(index + 1).trim();
+                                if (key !== "") out[key] = mcpWireScalar(line.slice(index + 1).trim());
                         }
                         return out;
+                }
+                /** 参数：每行一个，逐个走 !!js 规则。 */
+                function mcpParseScalarLines(text) {
+                        return mcpParseLines(text).map((line) => mcpWireScalar(line));
                 }
                 function mcpNumber(value, fallback) {
                         const n = parseInt(String(value ?? ""), 10);
@@ -2397,11 +2489,11 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
                         if (form.transport === "streamable-http") {
                                 const headers = mcpParsePairs(form.headersText);
                                 for (const key of deletedHeaders) headers[key] = null;
-                                return { ...common, transport: "streamable-http", url: String(form.url ?? "").trim(), headers };
+                                return { ...common, transport: "streamable-http", url: mcpWireScalar(String(form.url ?? "").trim()), headers };
                         }
                         const env = mcpParsePairs(form.envText);
                         for (const key of deletedEnv) env[key] = null;
-                        return { ...common, transport: "stdio", command: String(form.command ?? "").trim(), args: mcpParseLines(form.argsText), env, cwd: String(form.cwd ?? "").trim() };
+                        return { ...common, transport: "stdio", command: mcpWireScalar(String(form.command ?? "").trim()), args: mcpParseScalarLines(form.argsText), env, cwd: mcpWireScalar(String(form.cwd ?? "").trim()) };
                 }
 
                 function McpFormDialog({ t, initial, onSave, onCancel, busy, error }) {
@@ -2490,13 +2582,13 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
                                 }), false)
                         ];
                         if (form.transport === "stdio") {
-                                fields.push(field(t("fieldCommand"), textInput(form.command, (value) => set({ command: value }), ""), true));
-                                fields.push(field(t("fieldArgs"), textArea(form.argsText, (value) => set({ argsText: value }), ""), true));
-                                fields.push(field(t("fieldEnv"), secretEditor(envKeys, deletedEnv, setDeletedEnv, form.envText, (value) => set({ envText: value }), ""), true));
-                                fields.push(field(t("fieldCwd"), textInput(form.cwd, (value) => set({ cwd: value }), ""), false));
+                                fields.push(field(t("fieldCommand"), textInput(form.command, (value) => set({ command: value }), t("phCommand")), true));
+                                fields.push(field(t("fieldArgs"), textArea(form.argsText, (value) => set({ argsText: value }), t("phArgs")), true));
+                                fields.push(field(t("fieldEnv"), secretEditor(envKeys, deletedEnv, setDeletedEnv, form.envText, (value) => set({ envText: value }), t("phEnv")), true, { text: t("hintJs") }));
+                                fields.push(field(t("fieldCwd"), textInput(form.cwd, (value) => set({ cwd: value }), t("phCwd")), false));
                         } else {
-                                fields.push(field(t("fieldUrl"), textInput(form.url, (value) => set({ url: value }), ""), true));
-                                fields.push(field(t("fieldHeaders"), secretEditor(headerKeys, deletedHeaders, setDeletedHeaders, form.headersText, (value) => set({ headersText: value }), ""), true));
+                                fields.push(field(t("fieldUrl"), textInput(form.url, (value) => set({ url: value }), t("phUrl")), true));
+                                fields.push(field(t("fieldHeaders"), secretEditor(headerKeys, deletedHeaders, setDeletedHeaders, form.headersText, (value) => set({ headersText: value }), t("phHeaders")), true, { text: t("hintJs") }));
                         }
                         fields.push((0, react_jsx_runtime.jsx)("div", {
                                 className: m.field,
@@ -2587,6 +2679,7 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
                         const [confirming, setConfirming] = react.useState(null);
                         const [testing, setTesting] = react.useState(null);
                         const [testResult, setTestResult] = react.useState(null);
+                        const [docOpen, setDocOpen] = react.useState(false);
                         react.useEffect(() => {
                                 let cancelled = false;
                                 listMcp().then((value) => {
@@ -2771,12 +2864,22 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
                                 children: [(0, react_jsx_runtime.jsxs)("div", {
                                         className: m.head,
                                         children: [(0, react_jsx_runtime.jsx)("h3", { children: t !== null ? t("title") : "" }), (0, react_jsx_runtime.jsx)("button", {
+                                        type: "button",
+                                        className: m.actionBtn,
+                                        "aria-expanded": docOpen,
+                                        onClick: () => { setDocOpen((value) => !value); },
+                                        children: t !== null ? t("docButton") : ""
+                                }), (0, react_jsx_runtime.jsx)("button", {
                                                 type: "button",
                                                 className: m.actionBtn,
                                                 onClick: () => { reloadMcp().then((value) => { setData(value); }).catch(() => refresh(true)); },
                                                 children: t !== null ? t("refresh") : ""
                                         })]
-                                }), (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("subtitle") : "" }), updateBanner !== null ? (0, react_jsx_runtime.jsxs)("div", {
+                                }), (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("subtitle") : "" }),
+                        docOpen ? (0, react_jsx_runtime.jsxs)("div", {
+                                                        className: m.doc,
+                                                        children: [(0, react_jsx_runtime.jsx)("h4", { children: t !== null ? t("docTitle") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("docLead") : "" }), (0, react_jsx_runtime.jsx)("pre", { className: m.docCode, children: t !== null ? t("docCode") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("docWhere") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("docTools") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("docEnv") : "" }), (0, react_jsx_runtime.jsx)("pre", { className: m.docCode, children: t !== null ? t("docEnvCode") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("docEnvNote") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("docSecret") : "" })]
+                                                }) : null, updateBanner !== null ? (0, react_jsx_runtime.jsxs)("div", {
                                         className: c.notice,
                                         "data-kind": "info",
                                         role: "status",
@@ -2830,25 +2933,41 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
 		// 宿主侧栏的「插件」那一行就是这两个槽位的产物：一个 list 槽位放图标/标题，
 		// 一个 keyed 槽位放中央主区的整页内容。这里以同款方式把「技能」「MCP」挂进
 		// 侧栏，点击即把中央主区切到对应页面（不是设置页那种模态框）。
-		const SKILLS_PANEL_ID = "skills";
-		const MCP_PANEL_ID = "mcp";
+		// 侧栏只占一行：技能与 MCP 合成一个入口（Skill/MCP），页签在面板内部切换。
+		const PANEL_ID = "skill-mcp";
+		/** 上次停留的页签；localStorage 不可用时静默退化为「技能」。 */
+		const PANEL_TAB_KEY = "dsh-skill-mcp-panel:last-tab";
+		function readLastTab() {
+			try {
+				return typeof localStorage !== "undefined" && localStorage.getItem(PANEL_TAB_KEY) === "mcp" ? "mcp" : "skills";
+			} catch {
+				return "skills";
+			}
+		}
+		function writeLastTab(tab) {
+			try {
+				if (typeof localStorage !== "undefined") localStorage.setItem(PANEL_TAB_KEY, tab);
+			} catch {
+				// 隐私模式等场景：记不住就算了，不影响面板本身。
+			}
+		}
 
-		/** 侧栏面板字形：沿用旧设置页那张蒙版图，颜色与尺寸都跟宿主行一致。 */
-		function PanelGlyph({ variant, size }) {
+		/**
+		 * 侧栏面板字形：技能 / MCP 合并成一个入口后共用同一枚图标。
+		 * 图形是内联 SVG 蒙版（见 cssPanelIcon），背景取 currentColor，
+		 * 尺寸与颜色都跟随宿主侧栏行（选中 / 折叠态自动变换）。
+		 */
+		function PanelGlyph({ size }) {
 			const edge = typeof size === "number" && size > 0 ? size : 16;
 			return (0, react_jsx_runtime.jsx)("span", {
-				className: "SKV_panelIcon SKV_panelIcon" + variant,
+				className: "SKV_panelIcon SKV_panelIconMerged",
 				"aria-hidden": "true",
 				style: { width: edge, height: edge }
 			});
 		}
 
-		function SkillsPanelIcon(props) {
-			return (0, react_jsx_runtime.jsx)(PanelGlyph, { variant: "Skills", size: props.size });
-		}
-
-		function McpPanelIcon(props) {
-			return (0, react_jsx_runtime.jsx)(PanelGlyph, { variant: "Mcp", size: props.size });
+		function PanelIcon(props) {
+			return (0, react_jsx_runtime.jsx)(PanelGlyph, { size: props.size });
 		}
 
 		/**
@@ -2878,17 +2997,38 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
 		}
 
 		/** 技能页：返回箭头 + 页头 + 既有的技能面板。 */
-		function SkillsPanelPage(props) {
+		/**
+		 * 合并面板：返回箭头 + 「技能 / MCP」页签 + 当前页签的正文。
+		 *
+		 * 侧栏空间宝贵，两个面板本来就常一起用，所以只占一行；页签选择记在 localStorage，
+		 * 下次点开侧栏这一行时停在上次离开的那一页。
+		 */
+		function CombinedPanelPage(props) {
 			const t = props.t;
+			const mt = props.mt;
+			const [tab, setTab] = react.useState(readLastTab);
+			const select = (next) => {
+				setTab(next);
+				writeLastTab(next);
+			};
+			const tabButton = (id, label) => (0, react_jsx_runtime.jsx)("button", {
+				type: "button",
+				className: c.tab,
+				"data-active": tab === id ? "true" : "false",
+				"aria-pressed": tab === id,
+				onClick: () => select(id),
+				children: label
+			}, id);
 			return (0, react_jsx_runtime.jsxs)("div", {
 				className: c.page,
 				children: [(0, react_jsx_runtime.jsx)("div", {
 					className: c.pageTop,
-					children: (0, react_jsx_runtime.jsx)(PageBack, { label: t !== null ? t("back") : "", onBack: props.backToConversation })
+					children: (0, react_jsx_runtime.jsx)(PageBack, { label: t !== null && t !== undefined ? t("back") : "", onBack: props.backToConversation })
 				}), (0, react_jsx_runtime.jsxs)("div", {
-					className: c.pageHead,
-					children: [(0, react_jsx_runtime.jsx)("h2", { className: c.pageTitle, children: t !== null ? t("nav") : "" }), (0, react_jsx_runtime.jsx)("p", { className: c.pageIntro, children: t !== null ? t("panelIntro") : "" })]
-				}), (0, react_jsx_runtime.jsx)(SkillsSection, { ...props })]
+					className: c.tabs,
+					role: "tablist",
+					children: [tabButton("skills", t("nav")), tabButton("mcp", mt("nav"))]
+				}), tab === "mcp" ? (0, react_jsx_runtime.jsx)(McpSection, { ...props, t: mt }) : (0, react_jsx_runtime.jsx)(SkillsSection, { ...props })]
 			});
 		}
 
@@ -2991,43 +3131,30 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
 				testMcp: (payload) => callMcp("test", payload),
 				reloadMcp: () => callMcp("reload")
 			});
-			// MCP 页要吃到本地的 mt 绑定（与迁移前设置页注册的写法一致）。
-			const McpPanelPage = (props) => (0, react_jsx_runtime.jsxs)("div", {
-				className: c.page,
-				children: [(0, react_jsx_runtime.jsx)("div", {
-					className: c.pageTop,
-					children: (0, react_jsx_runtime.jsx)(PageBack, { label: mt("back"), onBack: props.backToConversation })
-				}), (0, react_jsx_runtime.jsx)(McpSection, { ...props, t: mt })]
+			// 技能与 MCP 合成一个侧栏入口：注入面同时带两边的动作与字典绑定，
+			// 页面内部的页签决定渲染哪一个 section。
+			const combinedFace = () => ({
+				...sectionFace(),
+				...mcpSectionFace(),
+				t,
+				mt
 			});
-			// 侧栏面板行：order 1 / 2 紧跟在宿主「插件」行（order 0）下方；
+			// 侧栏面板行：order 1 紧跟在宿主「插件」行（order 0）下方；
 			// 行标题由侧栏从 label 投影，locale 变化时会重新投影。
 			ctx.slots.inject("sidebar.panellist", () => ctx.slots.register({
 				name: "sidebar.panellist",
-				id: SKILLS_PANEL_ID,
+				id: PANEL_ID,
 				order: 1,
-				label: () => t("nav"),
+				label: () => t("navCombined"),
 				locale: NS
-			}, SkillsPanelIcon));
-			ctx.slots.inject("sidebar.panellist", () => ctx.slots.register({
-				name: "sidebar.panellist",
-				id: MCP_PANEL_ID,
-				order: 2,
-				label: () => mt("nav"),
-				locale: MCP_NS
-			}, McpPanelIcon));
-			// 中央主区页面：key 与上面的行 id 必须一致，选中缺失 key 宿主会直接抛错。
+			}, PanelIcon));
+			// 中央主区页面：key 必须与上面的行 id 一致，选中缺失 key 宿主会直接抛错。
 			ctx.slots.inject("main", () => ctx.slots.register({
 				name: "main",
-				key: SKILLS_PANEL_ID,
+				key: PANEL_ID,
 				locale: NS,
-				inject: sectionFace
-			}, SkillsPanelPage));
-			ctx.slots.inject("main", () => ctx.slots.register({
-				name: "main",
-				key: MCP_PANEL_ID,
-				locale: MCP_NS,
-				inject: mcpSectionFace
-			}, McpPanelPage));
+				inject: combinedFace
+			}, CombinedPanelPage));
 		}
 
 		bundleModule.exports.NS = NS;

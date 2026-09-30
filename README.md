@@ -33,13 +33,13 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 > 面板入口在主页左侧栏「插件」下方（v2.1.0 起由设置页迁移到侧边栏），点「技能」/「MCP」即在中央主区打开；两个页面左上角都有「← 返回会话」，可直接回到进面板前那个会话。
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/sidebar-entry.png" width="260" alt="DSH 主页侧边栏：插件 / 技能 / MCP">
-  <br><sub>入口 · 主页侧边栏中的「技能」与「MCP」</sub>
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/sidebar-entry.png" width="260" alt="DSH 主页侧边栏：插件 / Skill/MCP">
+  <br><sub>入口 · 主页侧边栏中的「Skill/MCP」（v2.1.5 起两个面板合并为一行，标签固定用英文写法）</sub>
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skills-panel.png" width="1000" alt="技能面板：搜索、工作区选择器与技能卡片展开">
-  <br><sub>技能面板 · 搜索 / 工作区选择器（折叠下拉）/ 卡片展开查看全文</sub>
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skills-panel.png" width="1000" alt="技能面板：搜索、全部启停、显示插件技能开关与技能卡片">
+  <br><sub>技能面板 · 搜索 / 全部启停 / 显示插件技能开关 / 卡片展开查看全文</sub>
 </p>
 
 <p align="center">
@@ -53,8 +53,8 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/mcp-panel.png" width="1000" alt="MCP 面板：服务器卡片、工具数量、启停、测试连接与删除">
-  <br><sub>MCP 面板 · 服务器卡片 / 工具数 / 启停 / 测试连接</sub>
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/mcp-panel.png" width="1000" alt="MCP 面板：注册机制说明、服务器卡片、工具数量、启停、测试连接与删除">
+  <br><sub>MCP 面板 · 注册机制说明 / 服务器卡片 / 工具数 / 启停 / 测试连接</sub>
 </p>
 
 <p align="center">
@@ -94,15 +94,16 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 
 
 
-   重启后刷新页面：左侧栏从「插件」往下依次是「技能」「MCP」，点击哪一个，中央主区就切换成哪一个面板。
+   重启后刷新页面：左侧栏「插件」下面就是合并后的「Skill/MCP」一行——点它把中央主区切成面板，面板内部再用页签切换「技能」与「MCP」。
 
 ## 功能
 
-> 两个面板与宿主自带的「插件」页一样，是**侧边栏全局面板**：点击左栏的「技能」/「MCP」直接把中央主区切过去（不是设置页那种弹窗）。两个页面左上角各有一个「← 返回会话」箭头，点它立刻回到进面板之前那个会话；点会话列表里的任意会话或「插件」也能切走。
+> 面板与宿主自带的「插件」页一样，是**侧边栏全局面板**：左栏只有一行「Skill/MCP」（v2.1.5 起两个面板合并，侧栏那一格还给会话），点它直接把中央主区切过去（不是设置页那种弹窗），页签在面板内部切换，并记住你上次离开时停在哪一页。左上角有「← 返回会话」箭头，点它立刻回到进面板之前那个会话；点会话列表里的任意会话或「插件」也能切走。
 
 ### 技能面板
 
 - **技能卡片列表**：预览已注册安装的 skill，点击卡片可展开查看完整内容
+- **插件技能开关**（v2.1.5）：插件随包自带的 skill（内置 office、badge 等）默认照常显示，「全部启停」右侧可一键隐藏——只看自己管理的文件技能，隐藏数量会在空列表里说明
 - **skill 状态**：启用、停用状态标签，与内置插件列表同款样式
 - **skill 管理**：开关热启用/停用、删除；按名称搜索；进入页面自动刷新
 - **skill 添加**（0.7.0 统一入口）：点「+」直接选文件（`.md` / `.zip`），或把文件、压缩包、技能文件夹直接拖进页面——自动识别目录束 / 单文件 / 压缩包结构，不合规内容会被拒绝并提示原因
@@ -117,12 +118,16 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 - 支持 **Stdio**（本地命令）与 **HTTP**（streamable-http）两种调用方式；
 - 支持新增、编辑、启停、删除、测试连接；保存后由 DSH HMR 热加载，无需重启网关；
 - `env` / `headers` 密钥在 RPC 与页面中脱敏，编辑时缺省 key 保留旧值；
+- **环境变量取值**（v2.1.5）：值里直接写 `${NAME}` 就是读环境变量，面板 / CLI 保存时自动格式化成 `cordis.patch.yml` 里的 `!!js` 表达式（DSH 配置层唯一的插值机制，宿主装载时求值）。例如请求头填 `Bearer ${MCP_TOKEN}`，落盘就是 ``Authorization: !!js '`Bearer ${process.env.MCP_TOKEN}`'``，读回来仍显示 `Bearer ${MCP_TOKEN}`；`!!js` 前缀保留为进阶写法（原样透传任意 JS 表达式），手写的 `!!js` 也不会再被写坏成字面量
+- **MCP 注册机制说明**（v2.1.5）：MCP 页标题右侧的「注册机制」按钮可展开一小段说明——entry 长什么样、受管块在哪、工具如何命名、环境变量与 `!!js` 的关系
+- 命令 / 参数 / 环境变量 / 工作目录 / 地址 / 请求头为空时用灰字给出示例，照抄改路径即可
 - `cordis.patch.yml` 面板块外的用户内容逐字节保留。
 
-### 主页面板与返回会话（v2.1.0）
+### 主页面板与返回会话（v2.1.0，v2.1.5 合并为单入口）
 
 - **管理面板从设置页迁移到主页侧边栏**：与宿主自带的「插件」页同一套槽位机制（`sidebar.panellist` 列表槽位 + `main` 键控槽位），点击左栏「技能」/「MCP」直接在中央主区切页，设置页不再有这两个 tab；面板自带整页外壳（滚动与页边距）。需要宿主提供上述两个槽位，本机 DSH 0.1.6-alpha.2 已实测。
 - **「← 返回会话」箭头**：两个页面左上角各一个，点它立刻回到进面板之前那个会话（调宿主 `ctx.layout.selectPanel(null)`，不改变当前会话）。
+- **技能 / MCP 合并成一行 + 页签**（v2.1.5）：侧栏只占一行「Skill/MCP」，面板内部用页签切换两个页面；页签选择记在浏览器 localStorage（键 `dsh-skill-mcp-panel:last-tab`），下次点开侧栏这一行就停在上次离开的那一页。
 
 ### DSH 版本兼容
 
@@ -146,7 +151,7 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
   - 在区间外的宿主上确需使用时，用宿主自己的精确版本豁免：
 
     ```bash
-    dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.1.3 --dsh-version <宿主版本> --accept-risk
+    dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.1.5 --dsh-version <宿主版本> --accept-risk
     ```
   - 守卫：`test-cli-profiles.mjs`（直接调用宿主真实的 `evaluatePluginCompatibility` 验证区间两端）。
 
@@ -158,6 +163,8 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 ## 命令行
 
 统一父命令为 `dsh-panel`。
+
+> **全局 shim**：宿主启动时会在 npm 全局 bin 目录写入 `dsh-panel`。Windows 下写三份——`dsh-panel.cmd`（CMD）、`dsh-panel.ps1`（PowerShell）、以及**无扩展名**的 `dsh-panel` sh 脚本（Git Bash / MSYS2 / Cygwin 靠它，v2.1.5 之前缺这一份，bash 里会报 `command not found`）；macOS / Linux 写一份可执行的 `dsh-panel`。三份都指向「最后启动的那个 profile」装的插件副本。
 
 `mcp` 子命令**必须**用 `--profile <name>` 指定目标 profile，名字必须已存在（判据是
 `$DSH_HOME/profiles/<name>/package.json`）。打错名字会以退出码 2 被拒绝，**不会**像 `dsh plugin`
@@ -202,6 +209,28 @@ dsh-panel mcp add --name <serverName> --http --url <url> [--header KEY=VALUE ...
 dsh-panel mcp enable|disable <serverName> --profile web
 dsh-panel mcp remove <serverName> [--yes] --profile web
 dsh-panel mcp test <serverName> --profile web
+```
+
+环境变量取值直接写 `${NAME}`（保存时格式化成 `cordis.patch.yml` 的 `!!js` 表达式，由 DSH 装载时求值）；以 `!!js` 开头的值按进阶写法原样透传：
+
+```bash
+dsh-panel mcp add --name github --stdio --command npx --args -y --args @modelcontextprotocol/server-github \
+  --env 'GITHUB_TOKEN=${GITHUB_TOKEN}' --profile web
+
+dsh-panel mcp add --name web --http --url https://example.com/mcp \
+  --header 'Authorization=Bearer ${MCP_TOKEN}' --profile web
+
+# 进阶：整段 JS 表达式原样写进 !!js 标签
+dsh-panel mcp add --name web2 --http --url https://example.com/mcp \
+  --header 'Authorization=!!js `Bearer ${process.env.MCP_TOKEN}`' --profile web
+```
+
+```bash
+dsh-panel mcp add --name github --stdio --command npx --args -y --args @modelcontextprotocol/server-github \
+  --env 'GITHUB_TOKEN=!!js process.env.GITHUB_TOKEN' --profile web
+
+dsh-panel mcp add --name web --http --url https://example.com/mcp \
+  --header 'Authorization=!!js `Bearer ${process.env.MCP_TOKEN}`' --profile web
 ```
 
 MCP 配置写入目标 profile 的 `cordis.patch.yml` 受管块；网关在线时自动热加载。面板块由
@@ -258,7 +287,7 @@ dsh plugin --profile web remove dsh-skill-mcp-panel
 
 只列**会改变使用方式**的版本要点；完整改动见 [Releases](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)。
 
-- **待发布（下一版）** —— `dsh-panel update` 改为**保持各 profile 原本的安装渠道**（tarball / npm / Git），不再一律换成 Git tag；README 安装指引改用无版本号的稳定 tarball 链接。代码已在 `main`，随下一个版本一起发布。
+- **v2.1.5** —— 侧栏「技能」「MCP」合并成一行「Skill/MCP」（换用新的合并入口图标）+ 面板内页签（记住上次停留）；新增「显示插件技能」开关；MCP 环境变量支持 `${NAME}` 直觉写法（面板/CLI 自动格式化成 `!!js`，读回来仍是 `${NAME}`，不再被写坏成字面量）、MCP 页新增「注册机制」说明按钮，并为空字段补灰字示例；Windows 补上无扩展名的 bash shim；`dsh-panel update` 保持各 profile 原本的安装渠道（tarball / npm / Git），README 安装指引改用无版本号的稳定 tarball 链接
 - **v2.1.3** —— 适配 DSH `0.2.0`（peer 上界抬到 `<0.3.0-0`，否则宿主会在 profile 启动时禁用整行）；MCP 表单里非法的服务器名不再只报一句网关「天书」
 - **v2.1.2** —— `mcp` 子命令必须显式 `--profile`，错名一律拒绝且不会新建 profile；`dsh-panel update` 不带 `--profile` 时升级全部 profile；新增 `dsh-panel profiles`
 - **v2.1.1** —— 适配 DSH `0.1.7` 重命名的图标导出，技能页不再一片空白
