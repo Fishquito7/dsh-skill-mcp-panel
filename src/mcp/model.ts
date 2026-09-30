@@ -5,8 +5,8 @@
  * string = 覆盖该 key，null = 删除该 key，不出现 = 保留旧值。
  */
 import { z } from "zod";
-import { MANAGED_ROW_ID_PREFIX, MCP_PLUGIN_NAME } from "../patch-editor.js";
-import type { PatchRow } from "../patch-editor.js";
+import { MANAGED_ROW_ID_PREFIX, MCP_PLUGIN_NAME, isJsExprValue } from "../patch-editor.js";
+import type { JsExprValue, PatchRow } from "../patch-editor.js";
 
 export const SERVER_NAME_RE = /^[A-Za-z0-9_-]{1,32}$/;
 export const DEFAULT_TOOL_CALL_TIMEOUT_MS = 60000;
@@ -17,8 +17,91 @@ export const DEFAULT_RECONNECT = {
   maxAttempts: 10
 } as const;
 
+/**
+ * 单个配置值：普通字符串，或 !!js 表达式节点。
+ *
+ * DSH 的 cordis 配置层会在装载时对 !!js 求值（宿主 @deepseek-ai/cordis-plugin-loader），
+ * 这是官方文档给的环境变量写法。面板把这层标签完整保留：读出来是标记对象，
+ * 写回时仍是 !!js，中间不会降级成字面量字符串。
+ */
+export type WireScalar = string | JsExprValue;
+
+/** 进阶写法前缀：值以 "!!js " 开头即原样透传成 JS 表达式（不解析、不重写）。 */
+export const JS_EXPR_PREFIX = "!!js";
+
+const jsExprSchema = z.object({ __jsExpr: z.string() });
+const wireScalarSchema = z.union([z.string(), jsExprSchema]);
+
+/**
+ * 面板 / CLI 的统一写法：值里写 `${NAME}` 就是「读环境变量 NAME」。
+ *
+ * DSH 的 cordis 配置层没有 ${VAR} 字符串插值，唯一的机制是 YAML 的 !!js 表达式，
+ * 所以这里把直觉写法格式化成 `!!js` + 反引号模板（`${process.env.NAME}`）再落盘。
+ * 正则字面量与 src/client.ts 的 MCP_ENV_REF_RE 必须一致：浏览器束只能 require
+ * 外壳种子词，无法 import 宿主模块（由 test-mcp-naming.mjs 交叉校验）。
+ */
+export const ENV_REF_RE = /\$\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}/g;
+
+/** 反向：`!!js` 模板里的 ${process.env.NAME} 收回成 ${NAME}，页面看到的还是直觉写法。 */
+const ENV_REF_FROM_EXPRESSION_RE = /\$\{process\.env\.([A-Za-z_][A-Za-z0-9_]*)\}/g;
+
+/** 把 ${NAME} 改写成 ${process.env.NAME}；其它 ${...} 原样保留（用户可写任意 JS）。 */
+export function envRefsToExpression(text: string): string {
+  return text.replace(ENV_REF_RE, (_match, name: string) => "${process.env." + name + "}");
+}
+
+/**
+ * `!!js` 表达式收回展示写法：只有「单层反引号模板且带 ${...}」才收，
+ * 复杂表达式（含嵌套反引号、不含引用的模板）仍旧显示 `!!js 原文`。
+ */
+export function expressionToDisplay(expression: string): string {
+  const template = /^`([^`]*)`$/.exec(expression);
+  if (template === null || !template[1].includes("${")) return expression;
+  return template[1].replace(ENV_REF_FROM_EXPRESSION_RE, (_match, name: string) => "${" + name + "}");
+}
+
+/**
+ * 文本形式 → wire 值，三种写法都认：
+ *   1. `${NAME}` / `Bearer ${NAME}` —— 直觉写法，自动包成 !!js 模板字面量；
+ *   2. 已经写好的反引号模板 —— 同样补 process.env，不动其余内容；
+ *   3. `!!js <表达式>` —— 进阶逃生口，原样透传（不解析、不重写）。
+ */
+export function parseWireScalar(text: string): WireScalar {
+  const raw = String(text);
+  const trimmed = raw.trim();
+  if (trimmed === JS_EXPR_PREFIX || trimmed.startsWith(JS_EXPR_PREFIX + " ")) {
+    const expression = trimmed.slice(JS_EXPR_PREFIX.length).trim();
+    return expression === "" ? raw : { __jsExpr: expression };
+  }
+  if (!trimmed.includes("${")) return raw;
+  if (trimmed.length > 1 && trimmed.startsWith("`") && trimmed.endsWith("`")) return { __jsExpr: envRefsToExpression(trimmed) };
+  return { __jsExpr: "`" + envRefsToExpression(raw) + "`" };
+}
+
+/** wire 值 → 文本形式（页面回填、CLI 输出都用它）。 */
+export function formatWireScalar(value: unknown): string {
+  if (isJsExprValue(value)) {
+    const display = expressionToDisplay(value.__jsExpr);
+    return display === value.__jsExpr ? JS_EXPR_PREFIX + " " + value.__jsExpr : display;
+  }
+  return typeof value === "string" ? value : "";
+}
+
+/** 配置里的值 → wire 值（非法形状回退，坏行不炸整页）。 */
+function asWireScalar(value: unknown, fallback: WireScalar = ""): WireScalar {
+  if (typeof value === "string" || isJsExprValue(value)) return value;
+  return fallback;
+}
+
+/** 地址：普通字符串必须是合法 URL；!!js 表达式由宿主求值后自行负责。 */
+const urlSchema = z.union([z.string().url("服务器地址必须是合法 URL"), jsExprSchema]);
+
+/** 命令：普通字符串不能为空；!!js 表达式里写什么由用户决定。 */
+const commandSchema = z.union([z.string().min(1, "命令不能为空"), jsExprSchema]);
+
+/** 密钥表：值可以是字符串或 !!js 表达式，null 是编辑语义（删除该键）。 */
+const secretMapSchema = z.record(z.string(), wireScalarSchema.nullable()).optional();
 const serverNameSchema = z.string().regex(SERVER_NAME_RE, "serverName 只能包含 1-32 位字母、数字、下划线或连字符");
-const secretMapSchema = z.record(z.string(), z.string().nullable()).optional();
 const reconnectSchema = z.object({
   enabled: z.boolean().default(DEFAULT_RECONNECT.enabled),
   initialDelayMs: z.number().int().min(1).default(DEFAULT_RECONNECT.initialDelayMs),
@@ -29,10 +112,10 @@ const reconnectSchema = z.object({
 export const stdioServerSchema = z.object({
   serverName: serverNameSchema,
   transport: z.literal("stdio"),
-  command: z.string().min(1, "命令不能为空"),
-  args: z.array(z.string()).default([]),
+  command: commandSchema,
+  args: z.array(wireScalarSchema).default([]),
   env: secretMapSchema,
-  cwd: z.string().default(""),
+  cwd: wireScalarSchema.default(""),
   toolCallTimeoutMs: z.number().int().min(1).default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
   failOnStartupError: z.boolean().default(false),
   reconnect: reconnectSchema
@@ -41,7 +124,7 @@ export const stdioServerSchema = z.object({
 export const httpServerSchema = z.object({
   serverName: serverNameSchema,
   transport: z.literal("streamable-http"),
-  url: z.string().url("服务器地址必须是合法 URL"),
+  url: urlSchema,
   headers: secretMapSchema,
   toolCallTimeoutMs: z.number().int().min(1).default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
   failOnStartupError: z.boolean().default(false),
@@ -77,7 +160,7 @@ export interface ReconnectConfig {
   maxDelayMs: number;
   maxAttempts: number;
 }
-export type SecretPatch = Record<string, string | null> | undefined;
+export type SecretPatch = Record<string, WireScalar | null> | undefined;
 
 /** 面板行 id ↔ serverName。 */
 export function rowIdForServerName(serverName: string): string {
@@ -91,8 +174,8 @@ export function serverNameFromRowId(id: string | undefined): string | undefined 
 }
 
 /** null = 删除，string = 覆盖；缺省 key 保留旧值。 */
-export function mergeSecretPatch(previous: Record<string, string> | undefined, patch: SecretPatch): Record<string, string> {
-  const merged: Record<string, string> = { ...(previous ?? {}) };
+export function mergeSecretPatch(previous: Record<string, WireScalar> | undefined, patch: SecretPatch): Record<string, WireScalar> {
+  const merged: Record<string, WireScalar> = { ...(previous ?? {}) };
   for (const [key, value] of Object.entries(patch ?? {})) {
     if (value === null) delete merged[key];
     else merged[key] = value;
@@ -174,8 +257,8 @@ function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
 
-function asStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+function asStringArray(value: unknown): WireScalar[] {
+  return Array.isArray(value) ? value.filter((item): item is WireScalar => typeof item === "string" || isJsExprValue(item)) : [];
 }
 
 function asNumber(value: unknown, fallback: number): number {
@@ -188,7 +271,7 @@ function asBoolean(value: unknown, fallback: boolean): boolean {
 
 function secretKeys(value: unknown): string[] {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return [];
-  return Object.keys(value as Record<string, unknown>).filter((key) => typeof (value as Record<string, unknown>)[key] === "string");
+  return Object.keys(value as Record<string, unknown>).filter((key) => typeof (value as Record<string, unknown>)[key] === "string" || isJsExprValue((value as Record<string, unknown>)[key]));
 }
 
 /** patch 行 → 脱敏 view。密钥值不返回。 */
@@ -204,11 +287,11 @@ export function patchRowToView(row: PatchRow): McpServerView | undefined {
     transport,
     enabled: row.disabled !== true,
     entryId: row.id,
-    command: transport === "stdio" ? asString(config.command) : undefined,
-    args: transport === "stdio" ? asStringArray(config.args) : undefined,
+    command: transport === "stdio" ? formatWireScalar(config.command) : undefined,
+    args: transport === "stdio" ? asStringArray(config.args).map((item) => formatWireScalar(item)) : undefined,
     envKeys: transport === "stdio" ? secretKeys(config.env) : [],
-    cwd: transport === "stdio" ? asString(config.cwd) : undefined,
-    url: transport === "streamable-http" ? asString(config.url) : undefined,
+    cwd: transport === "stdio" ? formatWireScalar(config.cwd) : undefined,
+    url: transport === "streamable-http" ? formatWireScalar(config.url) : undefined,
     headerKeys: transport === "streamable-http" ? secretKeys(config.headers) : [],
     toolCallTimeoutMs: asNumber(config.toolCallTimeoutMs, DEFAULT_TOOL_CALL_TIMEOUT_MS),
     failOnStartupError: asBoolean(config.failOnStartupError, false),
@@ -258,17 +341,17 @@ export function inputFromPatchRow(row: PatchRow): McpServerInput {
     return mcpServerInputSchema.parse({
       ...common,
       transport: "streamable-http",
-      url: asString(config.url),
-      headers: config.headers as Record<string, string> | undefined
+      url: asWireScalar(config.url),
+      headers: config.headers as Record<string, WireScalar> | undefined
     });
   }
   return mcpServerInputSchema.parse({
     ...common,
     transport: "stdio",
-    command: asString(config.command),
-    args: asStringArray(config.args),
-    env: config.env as Record<string, string> | undefined,
-    cwd: asString(config.cwd)
+    command: asWireScalar(config.command),
+    args: asStringArray(config.args).map((item) => asWireScalar(item)),
+    env: config.env as Record<string, WireScalar> | undefined,
+    cwd: asWireScalar(config.cwd)
   });
 }
 
@@ -276,9 +359,9 @@ export function inputFromPatchRow(row: PatchRow): McpServerInput {
 export function applyServerEdit(previous: PatchRow | undefined, input: McpServerInput, enabled = true): PatchRow {
   if (previous === undefined) return toPatchRow(input, enabled);
   const oldConfig = configFromPatchRow(previous) ?? {};
-  const oldEnv = oldConfig.env !== null && typeof oldConfig.env === "object" && !Array.isArray(oldConfig.env) ? oldConfig.env as Record<string, string> : undefined;
-  const oldHeaders = oldConfig.headers !== null && typeof oldConfig.headers === "object" && !Array.isArray(oldConfig.headers) ? oldConfig.headers as Record<string, string> : undefined;
-  const next = { ...input } as McpServerInput & { env?: Record<string, string | null>; headers?: Record<string, string | null> };
+  const oldEnv = oldConfig.env !== null && typeof oldConfig.env === "object" && !Array.isArray(oldConfig.env) ? oldConfig.env as Record<string, WireScalar> : undefined;
+  const oldHeaders = oldConfig.headers !== null && typeof oldConfig.headers === "object" && !Array.isArray(oldConfig.headers) ? oldConfig.headers as Record<string, WireScalar> : undefined;
+  const next = { ...input } as McpServerInput & { env?: Record<string, WireScalar | null>; headers?: Record<string, WireScalar | null> };
   if (next.transport === "stdio") next.env = mergeSecretPatch(oldEnv, next.env);
   if (next.transport === "streamable-http") next.headers = mergeSecretPatch(oldHeaders, next.headers);
   const normalized = mcpServerInputSchema.parse(next);

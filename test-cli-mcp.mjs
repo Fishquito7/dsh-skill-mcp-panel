@@ -60,6 +60,27 @@ try {
   assert.match(list2.stdout, /没有 MCP 服务器/);
   pass("dsh-panel mcp list empty state");
 
+  // !!js 环境变量写法：CLI 也把值原样写成 !!js 标签，交给 DSH 装载时求值
+  const BT = String.fromCharCode(96);
+  const tokenExpr = BT + "Bearer " + "${process.env.MCP_TOKEN}" + BT;
+  const exprAdd = run(["mcp", "add", "--name", "expr", "--http", "--url", "https://example.com/mcp", "--header", "Authorization=!!js " + tokenExpr, "--profile", "test"]);
+  assert.equal(exprAdd.status, 0, exprAdd.stderr);
+  const patchExpr = await readFile(join(dir, "profiles", "test", "cordis.patch.yml"), "utf8");
+  assert.equal(patchExpr.includes("Authorization: !!js '" + tokenExpr + "'"), true, "!!js tag must be written by the CLI");
+  const envAdd = run(["mcp", "add", "--name", "expr-env", "--stdio", "--command", "node", "--env", "TOKEN=!!js process.env.MCP_TOKEN", "--profile", "test"]);
+  assert.equal(envAdd.status, 0, envAdd.stderr);
+  const patchEnv = await readFile(join(dir, "profiles", "test", "cordis.patch.yml"), "utf8");
+  assert.equal(patchEnv.includes("TOKEN: !!js 'process.env.MCP_TOKEN'"), true, "!!js env value must keep its tag");
+  assert.equal(run(["mcp", "remove", "expr", "--yes", "--profile", "test"]).status, 0);
+  assert.equal(run(["mcp", "remove", "expr-env", "--yes", "--profile", "test"]).status, 0);
+  pass("dsh-panel mcp add keeps !!js values tagged in cordis.patch.yml");
+  // ${NAME} 直觉写法：CLI 与面板同一套格式化规则
+  const refAdd = run(["mcp", "add", "--name", "expr-ref", "--http", "--url", "https://example.com/mcp", "--header", "Authorization=Bearer ${MCP_TOKEN}", "--profile", "test"]);
+  assert.equal(refAdd.status, 0, refAdd.stderr);
+  const patchRef = await readFile(join(dir, "profiles", "test", "cordis.patch.yml"), "utf8");
+  assert.equal(patchRef.includes("Authorization: !!js '" + String.fromCharCode(96) + "Bearer ${process.env.MCP_TOKEN}" + String.fromCharCode(96) + "'"), true, "${NAME} must be formatted into a !!js template");
+  assert.equal(run(["mcp", "remove", "expr-ref", "--yes", "--profile", "test"]).status, 0);
+  pass("dsh-panel mcp add formats ${NAME} into a !!js template");
   const version = run(["--version"]);
   assert.equal(version.status, 0, version.stderr);
   // 版本号从 package.json 读，避免每次发版都要改测试（旧写法硬编码 2.0.x）。

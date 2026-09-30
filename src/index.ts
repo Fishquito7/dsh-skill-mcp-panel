@@ -31,7 +31,7 @@ import { compareVersions, currentVersion, fetchLatestVersion } from "./version.j
 import { McpManagerGateway } from "./mcp/gateway.js";
 import { ensureGlobalShim } from "./global-shim.js";
 import { MCP_MANIFEST } from "./mcp/wire.js";
-import { NestedSkillProvider, NESTED_SKILL_RANK } from "./provider.js";
+import { NestedSkillProvider, NESTED_SKILL_RANK, NESTED_PROVIDER_NAME } from "./provider.js";
 
 /**
  * dsh-skill-mcp-panel —— 宿主半区。
@@ -70,7 +70,8 @@ const skillSummarySchema = z.object({
   userInvocable: z.boolean(),
   scope: scopeSchema.optional(),
   groups: z.array(z.string()).optional(),
-  rel: z.string().optional()
+  rel: z.string().optional(),
+  pluginProvided: z.boolean()
 });
 
 const groupRowSchema = z.object({
@@ -324,7 +325,7 @@ const MAX_ADD_TOTAL_BYTES = 8 * 1024 * 1024;
  * 远程服务实例。构造它即注册 "skillsViewer" cordis 服务；上面的 manifest
  * 让 API 网关可以分发端点。
  */
-class SkillsViewerGateway extends TypertRemoteService {
+export class SkillsViewerGateway extends TypertRemoteService {
   constructor(ctx) {
     super(ctx, "skillsViewer");
   }
@@ -415,6 +416,19 @@ class SkillsViewerGateway extends TypertRemoteService {
       push(join(workspace.path, ".agents", "skills"), "project-agents", workspace.path);
     }
     return roots;
+  }
+
+  /**
+   * 技能是否由插件随包提供（而不是用户根 / 工作区里的技能文件）。
+   *
+   * 判据是「有没有落在这台机器管理的技能文件夹里」：面板能管、能启停的只有文件技能，
+   * 插件自带技能（bundled / 运行时注册）既不在根目录里，也改不动，因此单独打标，
+   * 交给前端决定显示还是隐藏。
+   */
+  isPluginProvided(skill: any, roots: any[]) {
+    if (skill.provider === NESTED_PROVIDER_NAME) return false;
+    if (typeof skill.path === "string" && roots.some((root) => this.isWithin(root.path, skill.path))) return false;
+    return true;
   }
 
   /** 用户根与所有已知工作区里的全部文件级条目。 */
@@ -510,6 +524,7 @@ class SkillsViewerGateway extends TypertRemoteService {
         userInvocable: skill.invocation.userInvocable,
         scope: { kind: "global" },
         groups: groupsForSkill(groupMap, "global", skill.name),
+        pluginProvided: this.isPluginProvided(skill, roots),
         ...(relByKey.get(skill.name + "\u0000global") ? { rel: relByKey.get(skill.name + "\u0000global") } : {})
       });
       seen.add(seenKey(skill.name, "global"));
@@ -530,6 +545,7 @@ class SkillsViewerGateway extends TypertRemoteService {
         userInvocable: false,
         scope: await this.scopeForEntry(entry, titles),
         groups: groupsForSkill(groupMap, scopePath, entry.name),
+        pluginProvided: false,
         ...(entry.rel ? { rel: entry.rel } : {})
       });
     }
