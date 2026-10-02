@@ -253,7 +253,8 @@ const css = cssPage + cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cs
 			addDismiss: "知道了",
 			addBusy: "正在添加技能…",
 			addTooMany: "所选内容文件数量过多。",
-			addNoSkillFile: "所选内容不是有效的技能目录：缺少顶层的 SKILL.md 文件。",
+			addDone: "已添加 {count} 个技能。",
+			addSkipped: "跳过 {count} 个：",
 			scopeGlobal: "全局",
 			emptyScope: "该工作区下暂无技能。",
 			migrateButton: "批量迁移",
@@ -340,9 +341,10 @@ const css = cssPage + cssChrome + cssCards + cssAdd + cssScope + cssMigrate + cs
 			addFolderZip: "Add folder/ZIP",
 			addDragHint: "Drop to add skills (.md, .zip or skill folders)",
 			addDismiss: "Dismiss",
-			addBusy: "Adding skill…",
+			addBusy: "Adding skills…",
 			addTooMany: "Too many files in the selection.",
-			addNoSkillFile: "Not a valid skill source: missing a top-level SKILL.md file.",
+			addDone: "Added {count} skill(s).",
+			addSkipped: "Skipped {count}:",
 			scopeGlobal: "Global",
 			emptyScope: "No skills in this workspace yet.",
 			migrateButton: "Batch migrate",
@@ -1267,39 +1269,41 @@ function SkillsSection(props) {
 			// 同名技能可能存在于多个作用域：操作状态与目标都按（名称, 作用域）区分。
 			const opKeyOf = (skill) => skill.name + "\u0000" + (skill.scope !== undefined && skill.scope !== null && skill.scope.kind === "workspace" ? skill.scope.path : "global");
 
-			const runAdd = (kind, items) => {
+			// 三个入口（单文件 / 文件夹·zip / 拖放）共用同一条路径：只负责把
+			// 原始选择上传，结构完全由宿主的统一分类器判定（kind 恒为 "auto"）。
+			const summarizeAdd = (result) => {
+				const added = result !== null && typeof result === "object" && Array.isArray(result.added) ? result.added : [];
+				const skipped = result !== null && typeof result === "object" && Array.isArray(result.skipped) ? result.skipped : [];
+				let message = t("addDone").replace("{count}", String(added.length));
+				if (skipped.length > 0) {
+					const detail = skipped.slice(0, 3).map((item) => item.name + "（" + item.reason + "）").join("；");
+					message += t("addSkipped").replace("{count}", String(skipped.length)) + detail + (skipped.length > 3 ? "；…" : "");
+				}
+				return message;
+			};
+
+			const runAdd = (items) => {
 				if (items.length === 0) return;
 				if (items.length > 200) {
 					setAdding({ status: "error", message: t("addTooMany") });
-					return;
-				}
-				if (kind === "bundle" && !items.some((item) => {
-					const parts = item.path.replaceAll("\\", "/").split("/");
-					return parts.length === 2 && parts[1] === "SKILL.md";
-				})) {
-					setAdding({ status: "error", message: t("addNoSkillFile") });
 					return;
 				}
 				setAdding({ status: "busy" });
 				const workspace = scopeFilter === "global" ? null : scopeFilter;
 				Promise.all(items.map((item) => readFileAsBase64(item.file))).then((blobs) => {
 					const payloadFiles = items.map((item, index) => ({ path: item.path.replaceAll("\\", "/"), base64: blobs[index] }));
-					return addSkill({ kind, files: payloadFiles, workspace });
-				}).then(() => {
-					setAdding({ status: "ok" });
+					return addSkill({ kind: "auto", files: payloadFiles, workspace });
+				}).then((result) => {
+					setAdding({ status: "ok", message: summarizeAdd(result) });
 					setTimeout(() => setRequest((value) => value + 1), 700);
-					setTimeout(() => setAdding({ status: "idle" }), 2500);
+					setTimeout(() => setAdding((prev) => (prev.status === "ok" ? { status: "idle" } : prev)), 8000);
 				}, (error) => {
 					setAdding({ status: "error", message: cleanHostError(error) });
 				});
 			};
-			// 统一入口：无论来源（选择器/拖放）、无论类型（.md/.zip/文件夹），
-			// 都自动判定结构后交给宿主。
+			// 无论来源（选择器/拖放）、无论类型（.md/.zip/文件夹），统一交给宿主。
 			const ingestItems = (items) => {
-				const paths = items.map((item) => item.path.replaceAll("\\", "/"));
-				const hasDir = paths.some((path) => path.includes("/"));
-				const hasZip = paths.some((path) => path.toLowerCase().endsWith(".zip"));
-				runAdd(hasDir ? "bundle" : hasZip ? "zip" : "flat", items);
+				runAdd(items);
 			};
 
 			// 批量迁移：打开对话框，源/目标/技能均由用户手动选择。
@@ -1460,7 +1464,9 @@ function SkillsSection(props) {
 					try {
 						const dir = await picker.call(window, { mode: "read" });
 						const items: any[] = [];
-						await readHandleDir(dir, "", items);
+						// 相对路径必须带被选中文件夹自己的名字：这样「文件夹选择器」
+						// 与「拖放」得到的选择范围完全一致（否则技能包会被误判）。
+						await readHandleDir(dir, dir.name ?? "", items);
 						if (items.length > 0) ingestItems(items);
 						return;
 					} catch (error) {
@@ -1996,6 +2002,22 @@ function SkillsSection(props) {
 						adding.status === "busy" ? (0, react_jsx_runtime.jsx)("p", {
 							className: c.addStatus,
 							children: t("addBusy")
+						}) : null,
+						adding.status === "ok" ? (0, react_jsx_runtime.jsxs)("div", {
+							className: c.notice,
+							"data-kind": "info",
+							role: "status",
+							children: [(0, react_jsx_runtime.jsx)("span", {
+								className: c.noticeText,
+								children: adding.message
+							}), (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								className: c.noticeButton,
+								onClick: () => {
+									setAdding({ status: "idle" });
+								},
+								children: t("addDismiss")
+							})]
 						}) : null,
 						adding.status === "error" ? (0, react_jsx_runtime.jsxs)("div", {
 							className: c.notice,
