@@ -145,6 +145,29 @@ assert.equal(exprOnDisk.includes("\"`Bearer"), false, "expression must not degra
   assert.equal(afterDisconnect.includes("Authorization"), false, "disconnect must drop the header");
   assert.equal(afterDisconnect.includes("panel-mcp-expr"), true, "the row itself must survive");
   pass("gateway clears the OAuth header only");
+
+  // 9. 面板自己的行（id 前缀 panel-mcp-）落在受管块外时：只读，但必须标 orphan，
+  //    让界面能说清"这行是面板的，只是不在块内"，而不是笼统的"外部管理"。
+  await writeFile(join(dir, "cordis.patch.yml"), "# profile\n[]\n");
+  await gateway.save({ input: { serverName: "alpha", transport: "stdio", command: "node" }, enabled: false });
+  await gateway.save({ input: { serverName: "beta", transport: "stdio", command: "node" }, enabled: false });
+  const blocked = await readFile(join(dir, "cordis.patch.yml"), "utf8");
+  const withoutMarkers = blocked
+    .split("\n")
+    .filter((line) => !line.includes("dsh-skill-mcp-panel:mcp:begin") && !line.includes("dsh-skill-mcp-panel:mcp:end"))
+    .join("\n")
+    .replace("id: panel-mcp-beta", "id: custom-beta");
+  await writeFile(join(dir, "cordis.patch.yml"), withoutMarkers);
+
+  const orphaned = await gateway.list();
+  assert.equal(orphaned.patch.ok, true);
+  assert.equal(orphaned.servers.length, 0, "no managed block means nothing is managed");
+  const panelOwned = orphaned.externalServers.find((server) => server.serverName === "alpha");
+  const foreignOwned = orphaned.externalServers.find((server) => server.serverName === "beta");
+  assert.equal(panelOwned?.orphan, true, "panel-prefixed row outside the block must be flagged orphan");
+  assert.equal(Boolean(foreignOwned?.orphan), false, "a row with a foreign id is not orphan");
+  mcpListResultSchema.parse(orphaned);
+  pass("gateway flags panel-owned rows that sit outside the managed block");
 } finally {
   await rm(dir, { recursive: true, force: true });
 }
