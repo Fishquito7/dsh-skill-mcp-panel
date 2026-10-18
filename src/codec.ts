@@ -1,34 +1,18 @@
 /**
- * Typert strict codec 构造器 —— 一份构建同时兼容两代 harness 契约。
+ * Typert strict codec 构造器。
  *
- * 上游 commit e459e32637（perf(typert): materialize generated schemas on first use）
- * 把 strict codec 从"直接持有 schema"改成"持有 schema 工厂"：
+ * 只实现 **0.2.x 起的契约**：registry / loader / gateway 一律读 `create()`
+ * 工厂，并在边界上执行 `create().parse(value)`（上游 commit e459e32637 起）。
+ * 早先为了同时兼容 0.1.5/0.1.6 的头两代契约，这里额外挂过一个 `schema` 字段；
+ * 2026-10-18 起本插件的最低支持宿主是 **0.2.0**，历史包袱已删除。
  *
- *   - 0.1.5-rc.2 / 0.1.6-alpha.1 及更早（含当前 latest）
- *       registry / loader / gateway 读 `codec.schema`，要求 `schema.parse` 可调用。
- *   - 0.1.6-alpha.2 及以后（alpha 通道）
- *       registry / loader / gateway 读 `codec.create`，要求 `typeof create === "function"`，
- *       并在边界上执行 `codec.create().parse(value)`。
- *
- * 两代实现都只做 `typeof` 检查，且都不拒绝多余属性，因此同一个对象同时携带
- * `schema` 与 `create` 就能在两代运行时上通过 —— 不需要任何版本探测，也就不会
- * 因为版本判断失误而选错分支（注意 alpha.1 → alpha.2 之间契约就翻转过一次）。
- *
- * 兼容矩阵：
- *   | 运行时          | 校验                                   | 本构造器 |
- *   | 0.1.5-rc.2      | typeof codec.schema.parse === "function" | 通过     |
- *   | 0.1.6-alpha.1   | typeof codec.schema.parse === "function" | 通过     |
- *   | 0.1.6-alpha.2+  | typeof codec.create === "function"       | 通过     |
- *
- * 待最低支持的 harness 版本升到含该 commit 之后，可在下一个大版本移除 `schema`。
+ * 约定：`create()` 必须幂等（宿主用 `record.value ??= create()` 缓存）。
  */
 export function strictCodec(typeSymbol: string, schema: any) {
   return {
     mode: "strict" as const,
     typeSymbol,
-    /** 旧契约（≤ 0.1.6-alpha.1）：直接持有的 zod v4 schema。 */
-    schema,
-    /** 新契约（≥ 0.1.6-alpha.2）：按需物化 schema 的工厂（幂等）。 */
+    /** 按需物化 schema 的工厂（幂等）。0.2.x 起宿主的唯一契约。 */
     create: () => schema
   };
 }

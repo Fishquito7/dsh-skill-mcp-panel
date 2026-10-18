@@ -19,7 +19,7 @@
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { resolveDshHome } from "@deepseek-ai/dsh-home-paths";
+import { resolveDshHome } from "./host-paths.js";
 import { PACKAGE_NAME } from "./version.js";
 
 /** Electron 桌面应用独占的 profile 名（比较时忽略大小写）。 */

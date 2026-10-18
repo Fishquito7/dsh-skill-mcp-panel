@@ -176,6 +176,15 @@ function runAdd(target) {
 	});
 }
 
+/** 同一条命令但目标是**全局**根：用于跨作用域同名（工作区已有 / 目标为全局）。 */
+function runAddGlobal(target) {
+	return spawnSync(process.execPath, [CLI_PATH, "skill", "add", target, "--cwd", project], {
+		cwd: project,
+		encoding: "utf8",
+		env: { ...process.env, DSH_HOME: home, DSH_AGENTS_HOME: join(workdir, "agents") }
+	});
+}
+
 const listStray = () => (existsSync(skillRoot) ? readdirSync(skillRoot).filter((name) => name.startsWith(".dsh-skill-staging-")) : []);
 
 try {
@@ -225,16 +234,37 @@ try {
 		assert.ok(!existsSync(join(skillRoot, "bundle")), "容器本身不该落盘");
 	});
 
-	check("CLI：重复添加全部跳过时报错（一个都没成功），已有技能不受影响", () => {
+	check("CLI：同一作用域内重复添加全部跳过时报错（一个都没成功），已有技能不受影响", () => {
 		const before = readdirSync(skillRoot).filter((name) => !name.startsWith(".dsh-skill-staging-")).sort();
 		const run = runAdd(join(source, "bundle"));
 		assert.equal(run.status, 1, "一个都没添加成功时必须报错");
-		assert.ok((run.stdout + run.stderr).includes("已存在"), run.stdout + run.stderr);
+		assert.ok((run.stdout + run.stderr).includes("已存在于目标作用域"), run.stdout + run.stderr);
 		assert.deepEqual(readdirSync(skillRoot).filter((name) => !name.startsWith(".dsh-skill-staging-")).sort(), before);
+	});
+
+	// 跨作用域同名是合法状态：DSH 按根优先级裁决，别的作用域不在本会话的发现链上。
+	check("CLI：跨作用域同名不再拒绝——工作区已有 alpha/beta/gamma，仍可添加到全局并回报提示", () => {
+		const run = runAddGlobal(join(source, "bundle"));
+		assert.equal(run.status, 0, run.stdout + run.stderr);
+		assert.ok(run.stdout.includes('已添加技能 "alpha"'), run.stdout);
+		assert.ok(run.stdout.includes("同名技能已存在于其他作用域"), run.stdout);
+		assert.ok(existsSync(join(home, "skills", "alpha", "SKILL.md")), "全局根应落盘");
+		assert.ok(existsSync(join(skillRoot, "alpha", "SKILL.md")), "工作区里那一份必须原样保留");
+	});
+
+	check("CLI：同一作用域内同名仍然是硬冲突（全局再加一遍会全部跳过）", () => {
+		const globalRoot = join(home, "skills");
+		const before = readdirSync(globalRoot).filter((name) => !name.startsWith(".dsh-skill-staging-")).sort();
+		const run = runAddGlobal(join(source, "bundle"));
+		assert.equal(run.status, 1, "同一作用域重名必须一个都添加不了");
+		assert.ok((run.stdout + run.stderr).includes("已存在于目标作用域"), run.stdout + run.stderr);
+		assert.deepEqual(readdirSync(globalRoot).filter((name) => !name.startsWith(".dsh-skill-staging-")).sort(), before);
 	});
 
 	check("CLI：全程不残留暂存目录", () => {
 		assert.deepEqual(listStray(), []);
+		const globalRoot = join(home, "skills");
+		assert.deepEqual(existsSync(globalRoot) ? readdirSync(globalRoot).filter((name) => name.startsWith(".dsh-skill-staging-")) : [], []);
 	});
 } finally {
 	await rm(workdir, { recursive: true, force: true });

@@ -27,3 +27,23 @@ _Avoid_: 上传根、来源目录、拖入内容
 **添加入口（add entry point）**：
 把技能交给插件的三种方式——单文件选择器、文件夹 / zip 选择器、拖放。同一份输入，任何入口都必须得出同一个结论。
 _Avoid_: 上传方式、导入通道
+
+**作用域（scope）**：
+一个技能实体的归属位置——全局（用户根 `<dshHome>/skills`），或某个工作区（该项目根的 `.dsh/skills`）；同一工作区的 `.agents/skills` 与 `.dsh/skills` 属同一作用域。
+_Avoid_: 位置、来源、profile
+
+**受管块（managed block）**：
+profile 的 `cordis.patch.yml` 里被 `dsh-skill-mcp-panel:mcp:begin` / `:end` 两条标记夹住的那一段，是面板唯一读写的区域。
+_Avoid_: 面板块、MCP 区块、标记区
+
+**受管行（managed row）**：
+面板自己写进受管块的 MCP 行，`id` 以 `panel-mcp-` 开头——这是「面板拥有它」的唯一判据。
+_Avoid_: 面板行、内部行、我们的行
+
+**外来行（foreign row）**：
+受管块内不属于面板的条目（用户手写、或其他工具/旧版本写进去的）。面板必须**按读到的形状原样保留**：顶层条目仍是顶层条目（按 id 定向覆盖），`insert` 成员仍留在 insert 列表里（追加）。
+_Avoid_: 外部行、别人家的行、杂项条目
+
+**预设（agent preset）**：
+一份普通 cordis 插件列表（`@deepseek-ai/dsh-agent-preset` 的 `config.plugins`），决定一个会话能用哪些工具、技能来源与 MCP 服务器；会话按 id 选预设。
+_Avoid_: 配置档、profile、模式、模板

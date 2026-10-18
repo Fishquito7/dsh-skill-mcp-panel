@@ -11,9 +11,23 @@
 import { readFile } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { join, resolve } from "node:path";
-import { resolveDshHome } from "@deepseek-ai/dsh-home-paths";
+import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { resolveDshHome } from "./host-paths.js";
 import {
-  extractManagedRows,
+  authorizationHeader,
+  buildAuthorizationUrl,
+  createPkce,
+  discoverMetadata,
+  exchangeCode,
+  loadOAuthStore,
+  registerClient,
+  removeOAuthRecord,
+  saveOAuthRecord,
+  startLoopbackServer
+} from "./oauth.js";
+import {
+  readManagedBlock,
   listMcpPatchRows,
   readPatchFile,
   writeManagedRows,
@@ -46,9 +60,20 @@ function rowServerName(row: PatchRow): string | undefined {
 async function readRows(profile: string) {
   const path = profilePatchPath(profile);
   const raw = await readPatchFile(path);
-  const managed = extractManagedRows(raw);
+  // managed 只含面板自己的行（id 以 panel-mcp- 开头）；块内外来行原样保留、永不改写。
+  const { managed, foreign } = readManagedBlock(raw);
   const external = listMcpPatchRows(raw).filter((row) => typeof row.id === "string" && !managed.some((item) => item.id === row.id));
-  return { path, managed, external };
+  return { path, managed, external, foreign };
+}
+
+/** 受管块里的外来行提示（面板不碰它们，但必须让用户看见）。 */
+function describeForeign(foreign: { entries: { id?: string; name?: string; managed: boolean }[] }): string | undefined {
+  const mine = foreign.entries.filter((entry) => entry.managed);
+  const others = foreign.entries.filter((entry) => !entry.managed);
+  const parts: string[] = [];
+  if (others.length > 0) parts.push("受管块内还有 " + others.length + " 条不属于面板的行（" + others.map((entry) => entry.id ?? entry.name ?? "?").join("、") + "），面板不会改动它们的语义");
+  if (mine.length > 0) parts.push("有 " + mine.length + " 条面板行被放在外来 insert 列表里（" + mine.map((entry) => entry.id ?? "?").join("、") + "），面板暂不管理它们");
+  return parts.length === 0 ? undefined : parts.join("；");
 }
 
 function usage() {
@@ -61,6 +86,9 @@ function usage() {
     "  dsh-panel mcp enable <serverName> --profile <name>",
     "  dsh-panel mcp disable <serverName> --profile <name>",
     "  dsh-panel mcp test <serverName> --profile <name>",
+    "  dsh-panel mcp oauth <serverName> --profile <name> [--scope \"a b\"] [--client-id ID] [--timeout <秒>] [--no-open]",
+    "        给 streamable-http 的服务器做一次 OAuth 登录（授权码 + PKCE，回调落在本机 127.0.0.1）",
+    "  dsh-panel mcp oauth <serverName> --profile <name> --disconnect   断开登录并清掉本地令牌",
     "  dsh-panel mcp update [--yes] [--profile <name>]      等价于 dsh-panel update",
     "",
     "公共参数:",
@@ -214,22 +242,94 @@ export async function runMcpCli(args: string[]): Promise<number> {
     throw error;
   }
 
+  if (command === "oauth") {
+    const name = positional[0];
+    if (name === undefined) {
+      console.error("oauth 需要一个 serverName 参数");
+      return 2;
+    }
+    const { managed } = await readRows(profile.name);
+    const row = managed.find((candidate) => rowServerName(candidate) === name);
+    if (row === undefined) throw new Error('MCP 服务器 "' + name + '" 不存在或不是面板受管行（外部行请在 cordis.patch.yml 里手动处理）');
+    const config: any = row.config ?? {};
+    const dshHome = resolveDshHome();
+    const flagValue = (flag: string) => {
+      const index = args.indexOf(flag);
+      return index >= 0 && index + 1 < args.length ? args[index + 1] : undefined;
+    };
+    const disconnect = args.includes("--disconnect");
+
+    if (disconnect) {
+      const headers = config.headers !== null && typeof config.headers === "object" && !Array.isArray(config.headers) ? { ...config.headers } : {};
+      delete headers.Authorization;
+      await writeManagedRows(profilePatchPath(profile.name), managed.map((candidate) => (candidate === row ? { ...row, config: { ...config, headers } } : candidate)));
+      await removeOAuthRecord(dshHome, name);
+      console.log('已断开 "' + name + '" 的 OAuth 登录（Authorization 头与本地令牌都清掉了）');
+      return 0;
+    }
+
+    if (config.transport !== "streamable-http" || typeof config.url !== "string" || config.url === "") {
+      throw new Error("只有 streamable-http 的服务器能用 OAuth 登录（stdio 由本地进程自己管凭据）");
+    }
+    const timeoutMs = Number(flagValue("--timeout") ?? 300) * 1000;
+    const metadata = await discoverMetadata(config.url);
+    if (metadata === undefined) throw new Error("这个地址没有暴露 OAuth 发现文档（/.well-known/oauth-authorization-server），无法自动登录");
+    const state = randomBytes(16).toString("base64url");
+    const { verifier, challenge } = createPkce();
+    const loopback = await startLoopbackServer(state, timeoutMs);
+    try {
+      const previous = (await loadOAuthStore(dshHome))[name];
+      const clientId = flagValue("--client-id") ?? previous?.clientId ?? (await registerClient(metadata, loopback.redirectUri))?.client_id;
+      if (typeof clientId !== "string" || clientId === "") throw new Error("拿不到 client_id：服务器既不支持动态注册，也没有用 --client-id 指定");
+      const authUrl = buildAuthorizationUrl(metadata, clientId, loopback.redirectUri, challenge, state, flagValue("--scope"));
+      console.log("在浏览器里完成授权：" + authUrl);
+      console.log("（回调地址 " + loopback.redirectUri + " 由本次命令监听，授权完成后自动继续；" + Math.round(timeoutMs / 1000) + " 秒内没完成就超时）");
+      if (!args.includes("--no-open")) {
+        try {
+          const opener: [string, string[]] =
+            process.platform === "win32" ? ["cmd", ["/c", "start", "", authUrl]] : process.platform === "darwin" ? ["open", [authUrl]] : ["xdg-open", [authUrl]];
+          const child: any = spawn(opener[0], opener[1], { detached: true, stdio: "ignore" });
+          child.unref?.();
+        } catch {
+          // 打不开浏览器就把 URL 留给用户手动打开，不是错误。
+        }
+      }
+      const { code } = await loopback.waitForCode();
+      const tokens = await exchangeCode(metadata, clientId, code, verifier, loopback.redirectUri);
+      await saveOAuthRecord(dshHome, name, { ...tokens, clientId, serverUrl: config.url, tokenEndpoint: metadata.token_endpoint });
+      const headers = config.headers !== null && typeof config.headers === "object" && !Array.isArray(config.headers) ? { ...config.headers } : {};
+      headers.Authorization = authorizationHeader(tokens);
+      await writeManagedRows(profilePatchPath(profile.name), managed.map((candidate) => (candidate === row ? { ...row, config: { ...config, headers } } : candidate)));
+      console.log('已登录 "' + name + '"：Authorization 头已写入 profile，网关会热加载这一行');
+      if (typeof tokens.expiresAt === "number") {
+        console.log("令牌有效期到 " + new Date(tokens.expiresAt).toLocaleString() + "；过期后用 dsh-panel mcp oauth " + name + " --profile " + profile.name + " 重新登录（会自动复用已注册的客户端）");
+      }
+      return 0;
+    } finally {
+      await loopback.close();
+    }
+  }
+
   if (command === "add") {
     const { input } = await buildInputFromArgs(args.slice(1));
-    const { managed, external } = await readRows(profile.name);
+    const { managed, external, foreign } = await readRows(profile.name);
     for (const row of [...managed, ...external]) {
       if (rowServerName(row) === input.serverName) throw new Error('serverName "' + input.serverName + '" 已存在');
     }
     const row = { id: rowIdForServerName(input.serverName), name: "@deepseek-ai/dsh-mcp-client", config: toOfficialConfig(input) };
     await writeManagedRows(profilePatchPath(profile.name), [...managed, row].sort((a, b) => String(a.config?.serverName ?? "").localeCompare(String(b.config?.serverName ?? ""))));
     console.log('已添加 MCP 服务器 "' + input.serverName + '"（' + input.transport + "，网关在线时自动热加载）");
+    const addHint = describeForeign(foreign);
+    if (addHint !== undefined) console.log("提示：" + addHint);
     return 0;
   }
 
   if (command === "list") {
-    const { managed, external } = await readRows(flags.profile);
+    const { managed, external, foreign } = await readRows(flags.profile);
+    const hint = describeForeign(foreign);
     if (managed.length === 0 && external.length === 0) {
       console.log("没有 MCP 服务器。");
+      if (hint !== undefined) console.log("提示：" + hint);
       return 0;
     }
     for (const row of managed) {
@@ -240,6 +340,7 @@ export async function runMcpCli(args: string[]): Promise<number> {
       const view = patchRowToView(row);
       if (view !== undefined) console.log(["外部", view.enabled ? "启用" : "停用", view.serverName, view.transport, "（cordis.patch.yml 手动管理）"].filter(Boolean).join("       "));
     }
+    if (hint !== undefined) console.log("提示：" + hint);
     return 0;
   }
 
@@ -249,7 +350,8 @@ export async function runMcpCli(args: string[]): Promise<number> {
       console.error(command + " 需要一个 serverName 参数");
       return 2;
     }
-    const { managed, external } = await readRows(flags.profile);
+    const { managed, external, foreign } = await readRows(flags.profile);
+    const writeHint = describeForeign(foreign);
     if (external.some((row) => rowServerName(row) === name)) throw new Error('"' + name + '" 是外部 cordis.patch.yml 行，请手动删除/修改');
     const row = managed.find((candidate) => rowServerName(candidate) === name);
     if (row === undefined) throw new Error('MCP 服务器 "' + name + '" 不存在');
@@ -263,11 +365,13 @@ export async function runMcpCli(args: string[]): Promise<number> {
       }
       await writeManagedRows(profilePatchPath(flags.profile), managed.filter((candidate) => candidate !== row));
       console.log('已删除 MCP 服务器 "' + name + '"');
+      if (writeHint !== undefined) console.log("提示：" + writeHint);
       return 0;
     }
     row.disabled = command === "disable";
     await writeManagedRows(profilePatchPath(flags.profile), managed);
     console.log('已' + (command === "enable" ? "启用" : "停用") + ' MCP 服务器 "' + name + '"');
+    if (writeHint !== undefined) console.log("提示：" + writeHint);
     return 0;
   }
 

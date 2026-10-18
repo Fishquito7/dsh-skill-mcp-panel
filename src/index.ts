@@ -1,9 +1,10 @@
 import { z } from "zod";
 import { TypertRemoteService } from "@deepseek-ai/dsh-typert-protocol";
+import { ToolFilterController, attachToolFilter, loadToolFilter } from "./tool-filter.js";
 import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve as resolvePath } from "node:path";
 import { homedir } from "node:os";
-import { resolveDshHome } from "@deepseek-ai/dsh-home-paths";
+import { resolveDshHome } from "./host-paths.js";
 import { strictCodec } from "./codec.js";
 import {
   DISABLED_SUFFIX,
@@ -155,6 +156,8 @@ const addPayloadSchema = z.object({
 const addResultSchema = z.object({
   added: z.array(z.object({ name: z.string(), kind: z.enum(["bundle", "flat"]) })),
   skipped: z.array(z.object({ name: z.string(), reason: z.string() })),
+  /** 非阻断提示：跨作用域同名等合法但值得说明的情况。 */
+  warnings: z.array(z.object({ name: z.string(), reason: z.string() })),
   scope: scopeSchema
 });
 
@@ -888,11 +891,29 @@ export class SkillsViewerGateway extends TypertRemoteService {
     const bytesByPath = new Map<string, Buffer>(decoded.map((file) => [file.path, file.data] as [string, Buffer]));
     const plan = classifySkillImport(decoded);
     const skipped: { name: string; reason: string }[] = [...plan.skipped];
+    const warnings: { name: string; reason: string }[] = [];
     const allExisting = await this.fileEntriesAll();
     const { registry, cwd, scope } = this.viewFor(sessionId);
     const liveSkills = await registry.list({ cwd, scope });
 
-    // 逐条过滤：重名与目标冲突只跳过该条，不影响其余（部分成功）。
+    /*
+     * 冲突只在**目标作用域内**判定，跨作用域同名降级为提示。
+     *
+     * 理由：DSH 的发现根按会话 cwd 解析，别的工作区根本不在这条链上，那里的同名
+     * 技能既不会被看到也不会被遮蔽；同一台机器上全局与工作区同名也只是注册表按
+     * 根优先级裁决（project 100 < user 400，近层遮蔽远层，被遮蔽项没有 API 可枚举）。
+     * 面板自己的行级操作（查看/启停/删除/迁移）也早已按（名称 + 作用域）精确定位，
+     * 所以只有"同一作用域里再落一份同名"才是真的不可调和——那会让同作用域出现两个
+     * 互相遮蔽的实体，并让按名字定位的条目产生歧义。
+     */
+    const scopeKeyOf = (path) => {
+      const resolved = resolvePath(path);
+      return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+    };
+    const entryScopeKey = (entry) => entry.projectRoot === undefined ? "" : scopeKeyOf(entry.projectRoot);
+    const targetScopeKey = targetProject === undefined ? "" : scopeKeyOf(targetProject);
+
+    // 逐条过滤：同作用域重名与目标冲突只跳过该条，不影响其余（部分成功）。
     const accepted: any[] = [];
     const batchNames = new Set();
     const plannedTargets = new Set();
@@ -912,14 +933,18 @@ export class SkillsViewerGateway extends TypertRemoteService {
         skipped.push({ name, reason: "本次选择中有重名" });
         continue;
       }
-      const existing = winnerEntry(allExisting, name);
-      if (existing !== undefined) {
-        skipped.push({ name, reason: '同名技能已存在（' + (existing.enabled ? "已启用" : "已停用") + "，位于 " + (existing.projectRoot !== undefined ? existing.projectRoot : "全局用户根") + "）" });
+      const sameName = allExisting.filter((entry) => entry.name === name);
+      const sameScope = sameName.filter((entry) => entryScopeKey(entry) === targetScopeKey);
+      if (sameScope.length > 0) {
+        skipped.push({ name, reason: '同名技能已存在于目标作用域（' + (sameScope[0].enabled ? "已启用" : "已停用") + "：" + sameScope[0].file + "）" });
         continue;
       }
-      if (liveSkills.some((live) => live.name === name)) {
-        skipped.push({ name, reason: "同名技能已存在" });
-        continue;
+      if (sameName.length > 0) {
+        const where = [...new Set(sameName.map((entry) => entry.projectRoot ?? "全局用户根"))].join("、");
+        warnings.push({ name, reason: "同名技能已存在于其他作用域，二者互不影响：" + where });
+      }
+      if (sameName.length === 0 && liveSkills.some((live) => live.name === name)) {
+        warnings.push({ name, reason: "同名技能由注册表提供方提供（非文件技能），注册表会按根优先级裁决" });
       }
       const target = candidate.kind === "bundle" ? join(targetRoot, name) : join(targetRoot, candidate.files[0].relative);
       const targetKey = process.platform === "win32" ? target.toLowerCase() : target;
@@ -982,7 +1007,7 @@ export class SkillsViewerGateway extends TypertRemoteService {
       added.push({ name: item.name, kind: item.kind });
     }
     if (added.length === 0) throw new Error("没有技能被 DSH 接受，已全部回滚：" + describeSkips(skipped));
-    return { added, skipped, scope: targetProject === undefined ? { kind: "global" } : await this.scopeForTarget(targetRoot, targetProject) };
+    return { added, skipped, warnings, scope: targetProject === undefined ? { kind: "global" } : await this.scopeForTarget(targetRoot, targetProject) };
   }
 
   /**
@@ -1011,7 +1036,33 @@ export class SkillsViewerGateway extends TypertRemoteService {
 export function apply(ctx: any) {
   ensureGlobalShim(ctx.logger);
   new SkillsViewerGateway(ctx);
-  new McpManagerGateway(ctx);
+  // 单工具禁用（Issue #44）：控制器按 agent 作用域施加限制，网关只负责读写配置。
+  // 配置要异步读盘，所以先给网关一个转接器，控制器就位后它自动开始回话。
+  const filterRef: { current: ToolFilterController | undefined } = { current: undefined };
+  const toolFilterAdapter = {
+    denyOf: () => filterRef.current?.deny,
+    setDeny: (deny: string[]) => filterRef.current?.setDeny(deny),
+    activeCount: () => filterRef.current?.activeCount() ?? 0
+  };
+  new McpManagerGateway(ctx, toolFilterAdapter);
+  ctx.effect(() => {
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => loadToolFilter(resolveDshHome()))
+      .then((deny) => {
+        if (cancelled) return;
+        filterRef.current = attachToolFilter(ctx, deny);
+        ctx.logger?.debug?.("dsh-skill-mcp-panel: 单工具禁用生效 " + deny.length + " 条");
+      })
+      .catch(() => {
+        // 读不到配置就不启用过滤：宁可什么都不禁用，也不要报错挡住插件加载。
+      });
+    return () => {
+      cancelled = true;
+      filterRef.current?.dispose();
+      filterRef.current = undefined;
+    };
+  }, "dsh-skill-mcp-panel: 单工具禁用");
   ctx.effect(() => ctx.typert.register(PANEL_MANIFEST), "dsh-skill-mcp-panel: typert manifest");
   ctx.skills.registerProvider((control) => new NestedSkillProvider(NESTED_SKILL_RANK, control.signal, control.invalidate));
 }

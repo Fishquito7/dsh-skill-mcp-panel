@@ -100,6 +100,51 @@ assert.equal(exprOnDisk.includes("\"`Bearer"), false, "expression must not degra
   assert.deepEqual([...exprRow.headerKeys], ["Authorization"]);
   pass("gateway writes !!js expressions with their tag and reads them back");
   pass("gateway boundary codec defers payload validation to the handler");
+
+  // 7.【#46】受管块里混进外来行：list 必须报给界面，save 不得把它折叠进 insert
+  const mixedPath = join(dir, "cordis.patch.yml");
+  const before = await readFile(mixedPath, "utf8");
+  const beginMark = "# >>> dsh-skill-mcp-panel:mcp:begin";
+  const endMark = "# <<< dsh-skill-mcp-panel:mcp:end";
+  const blockBody = before.slice(before.indexOf(beginMark) + beginMark.length + 1, before.indexOf(endMark));
+  const mixedText =
+    before.slice(0, before.indexOf(beginMark) + beginMark.length) +
+    "\n- id: ui-theme\n" +
+    '  name: "@deepseek-ai/dsh-client-ui-theme"\n' +
+    "  config:\n" +
+    "    fontSize: 14\n" +
+    blockBody +
+    before.slice(before.indexOf(endMark));
+  await writeFile(mixedPath, mixedText);
+
+  const mixedList = await gateway.list();
+  assert.equal(mixedList.patch.ok, true);
+  assert.equal(
+    mixedList.patch.foreign.some((entry) => entry.id === "ui-theme" && entry.managed === false),
+    true,
+    "块内外来行必须报给界面"
+  );
+  const mixedSave = await gateway.save({
+    input: { serverName: "demo", transport: "stdio", command: "node" },
+    enabled: false
+  });
+  assert.equal(mixedSave.server.serverName, "demo");
+  const mixedOnDisk = await readFile(mixedPath, "utf8");
+  assert.match(mixedOnDisk, /^- id: ui-theme$/m, "外来顶层行必须仍是顶层行");
+  assert.equal(/- insert:[\s\S]*- id: ui-theme/.test(mixedOnDisk), false, "外来行不得被折叠进 insert");
+  assert.equal(mcpListResultSchema.parse(await gateway.list()).patch.foreign.length >= 1, true);
+  pass("gateway never folds foreign rows inside the managed block");
+
+  // 8.【#45】OAuth 状态与断开：无记录时 connected=false；断开只删 Authorization 头
+  const oauthBefore = await gateway.oauthStatus({ serverName: "expr" });
+  assert.equal(oauthBefore.connected, false, "no OAuth record means not connected");
+  assert.equal(oauthBefore.headerReady, false);
+  const disconnected = await gateway.oauthDisconnect({ serverName: "expr" });
+  assert.equal(disconnected.disconnected, true);
+  const afterDisconnect = await readFile(join(dir, "cordis.patch.yml"), "utf8");
+  assert.equal(afterDisconnect.includes("Authorization"), false, "disconnect must drop the header");
+  assert.equal(afterDisconnect.includes("panel-mcp-expr"), true, "the row itself must survive");
+  pass("gateway clears the OAuth header only");
 } finally {
   await rm(dir, { recursive: true, force: true });
 }
