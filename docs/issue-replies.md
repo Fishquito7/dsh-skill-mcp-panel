@@ -53,3 +53,8 @@
 ## #41 Run ECC Tools analysis
 
 > 这个 issue 里没有可执行的内容（只有一条 `/ecc-tools analyze` 命令文本），仓库这边也没有对应的工具链，先关闭。若你是在找某个具体分析，重新开一个带复现步骤的 issue 就很乐意处理。
+
+## #51 最新版新加的 MCP 单工具禁用 功能无法正常使用
+
+> 修好了，v2.3.1。`remote[method] is not a function` 跟服务器连不连得上没关系，是**客户端清单漏了方法**：浏览器束里另有一份 Remote 方法表，客户端 `remote.mcpManager` 上只有表里挂过的方法——宿主只安装贡献项里列出的方法，没列的压根不存在。2.2.0 加单工具禁用（`listTools` / `getToolFilter` / `setToolFilter`）时只补了宿主侧清单，漏了浏览器束那份，所以「工具」按钮必抛错；卡片上的 **OAuth 登录 / 断开** 按钮是同一个病根，这次一并修好。
+> 升级：`dsh-panel update` 或重装 tarball，然后**重启 DSH Desktop**。另外加了 `test-client-contribution.mjs` 做两份清单的双向全量比对，这类「加功能漏补客户端」以后测试里就能拦住。
