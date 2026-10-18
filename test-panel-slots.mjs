@@ -158,7 +158,9 @@ check("settings.section is no longer used", () => {
   assert.equal(/settings\.section/.test(source), false, "bundle still mentions settings.section");
 });
 
-check("slot injections only target the sidebar/panel slots", () => {
+check("slot injections only target the sidebar / panel slots", () => {
+  // 2026-10-15 定案：不做设置页那个入口（面板元素太多、设置页塞不下，两处渲染等于两套前端），
+  // 所以这里保持「只有侧栏行 + 主区页面」两个槽位，谁再加第三个槽位这条会立刻红。
   assert.deepEqual([...new Set(injections)].sort(), ["main", "sidebar.panellist"]);
 });
 

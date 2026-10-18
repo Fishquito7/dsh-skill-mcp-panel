@@ -13,7 +13,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
-import { resolveDshHome } from "@deepseek-ai/dsh-home-paths";
+import { resolveDshHome } from "./host-paths.js";
 import chokidar from "chokidar";
 import { buildRoots, collectSkillEntries, parseFrontmatter } from "./skill-files.js";
 

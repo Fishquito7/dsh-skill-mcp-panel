@@ -1,6 +1,6 @@
 {
   "name": "dsh-skill-mcp-panel",
-  "version": "2.1.5",
+  "version": "2.3.0",
   "description": "dsh-skill-mcp-panel: manage skills and MCP servers from the DSH web sidebar plus the unified dsh-panel CLI.",
   "homepage": "https://github.com/Fishquito7/dsh-skill-mcp-panel#readme",
   "repository": {
@@ -43,17 +43,16 @@
     "access": "public"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-home-paths": "^0.1.0-rc.6",
-    "@deepseek-ai/dsh-typert-protocol": "^0.1.0-rc.6",
+    "@deepseek-ai/dsh-typert-protocol": "^0.2.0-rc.1 || ^0.2.1-rc.1",
+    "@deepseek-ai/cordis": "^4.0.1",
     "fflate": "^0.8.3",
     "yaml": "^2.9.0",
     "zod": "^4.4.3",
-    "@deepseek-ai/dsh-subprocess": "^0.1.0-rc.6",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "chokidar": "^5.0.0"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh": ">=0.1.5-rc.0 <0.3.0-0"
+    "@deepseek-ai/dsh": ">=0.2.0-rc.1 <0.3.0-0"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh": {

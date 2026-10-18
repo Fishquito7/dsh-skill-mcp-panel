@@ -24,11 +24,9 @@
  *   --copy                             复制而非移动
  */
 import { copyFile, mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
-import { readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { homedir, tmpdir } from "node:os";
-import { unzipSync } from "fflate";
+import { homedir } from "node:os";
 import { createInterface } from "node:readline";
 import { spawn } from "node:child_process";
 import {
@@ -39,6 +37,7 @@ import {
   validateFrontmatter,
   winnerEntry
 } from "./skill-files.js";
+import { classifySkillImport, describeSkips, expandTopLevelZips } from "./skill-import.js";
 import {
   batchMigrateEntries,
   migrateEntry,
@@ -64,7 +63,7 @@ function usage() {
     "  dsh-panel skill disable <name> [--cwd <path>]               停用技能（改名 *.disabled，热生效）",
     "  dsh-panel skill delete <name> [--yes] [--cwd <path>]        删除技能（目录型删整个目录）",
     "  dsh-panel skill add <path> [--cwd <path>] [--project | --workspace <path>]",
-    "                                                        添加技能：.md 文件、目录束或 .zip 压缩包（自动识别结构）",
+    "                                                        添加技能：.md / .zip 文件、技能文件夹，或含多个技能的文件夹（自动识别、可批量）",
     "  dsh-panel skill scope <name> [--global | --workspace <path>] [--copy]",
     "                                                        迁移单个技能到全局或指定工作区（默认移动，--copy 复制）",
     "  dsh-panel skill migrate <name...|--all> --from <global|路径> --to <global|路径> [--copy] [--yes]",
@@ -131,144 +130,157 @@ async function walkFiles(dir: any, rel = "", out: any[] = []) {
 }
 
 /**
- * 从本地路径添加技能，与 Web 端添加流程一致：
- *   目录束 = 顶层含 SKILL.md 的目录
- *   单文件 = 单个 markdown 文件
- *
- * 所有校验都发生在任何写入之前（frontmatter、跨根重名、目标冲突、
- * 不安全布局）。复制本身先在目标根内暂存、最后改名就位，因此中途任何
- * 失败都会干净回滚。目标即对应位置的技能文件夹：--workspace → 该工作区的
- * .dsh/skills，--project → cwd 项目的 .dsh/skills，默认 → 全局。
+ * 从本地路径添加技能，与面板「添加」共用同一条模型（skill-import 分类器）：
+ *   - 选择范围内**直接**有 SKILL.md ⇒ 整个选择就是一个技能包；
+ *   - 否则按列表扫描 / 嵌套提供方同样的规则遍历（含 SKILL.md 的目录即技能包
+ *     且不下钻，不含则继续下钻），找到的技能一律**拍平到目标根第一层**；
+ *   - 目标技能文件夹：--workspace → 该工作区的 .dsh/skills，
+ *     --project → cwd 项目的 .dsh/skills，默认 → 全局 ~/.dsh/skills；
+ *   - 合法项逐个落盘（先暂存再改名就位），不合法 / 重名 / 冲突的逐条跳过并回报。
  */
+async function collectSourceEntries(source, info) {
+  if (info.isDirectory()) {
+    const prefix = basename(source);
+    const walked = await walkFiles(source);
+    return walked.map((file) => ({ path: prefix + "/" + file.relative, full: file.full }));
+  }
+  const name = basename(source);
+  if (!name.toLowerCase().endsWith(".zip")) return [{ path: name, full: source }];
+  const data = await readFile(source);
+  return expandTopLevelZips([{ path: name, data }]).map((entry) => ({ path: entry.path, data: entry.data }));
+}
+
+/** 读一个源文件的文本（zip 内容已在内存里，其余从磁盘读）。 */
+async function readSourceText(entry) {
+  return entry.data !== undefined ? entry.data.toString("utf8") : await readFile(entry.full, "utf8");
+}
+
+/** 归一 md 文本：去 BOM、CRLF 归一为 LF。 */
+function normalizeMdText(data) {
+  return Buffer.from(data.toString("utf8").replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n"), "utf8");
+}
+
 async function addSkill(sourceArg, flags, roots, entries) {
   const source = resolve(sourceArg);
   const info = await stat(source).catch(() => undefined);
   if (info === undefined) throw new Error("路径不存在：" + sourceArg);
-  if (!info.isDirectory() && !info.isFile()) throw new Error("只支持 .md 文件或包含顶层 SKILL.md 的目录束：" + sourceArg);
+  if (!info.isDirectory() && !info.isFile()) throw new Error("只支持 .md / .zip 文件或技能文件夹：" + sourceArg);
 
-  // 1) Kind + frontmatter validation + canonical name (nothing written yet).
-  let kind;
-  let name;
-  if (info.isDirectory()) {
-    const skillMd = join(source, "SKILL.md");
-    if (!(await pathExists(skillMd))) throw new Error("目录束缺少顶层的 SKILL.md 文件：" + sourceArg);
-    const validation = validateFrontmatter(await readFile(skillMd, "utf8"));
-    if (!validation.ok) throw new Error("技能格式不符合要求：" + validation.error);
-    kind = "bundle";
-    name = validation.skill.name;
-  } else {
-    if (!sourceArg.toLowerCase().endsWith(".md")) throw new Error("单个技能文件必须是 .md 文件：" + sourceArg);
-    if (basename(source).toLowerCase() === "skill.md") throw new Error("单文件不能直接叫 SKILL.md，请把它放进一个文件夹里作为目录束添加");
-    const validation = validateFrontmatter(await readFile(source, "utf8"));
-    if (!validation.ok) throw new Error("技能格式不符合要求：" + validation.error);
-    kind = "flat";
-    name = validation.skill.name;
-  }
+  const sourceEntries = await collectSourceEntries(source, info);
+  if (sourceEntries.length === 0) throw new Error("选择范围内没有可用的文件：" + sourceArg);
+  const byPath = new Map<string, any>(sourceEntries.map((entry) => [entry.path, entry] as [string, any]));
+  const plan = classifySkillImport(sourceEntries);
 
-  // 2) 目标位置的技能文件夹。
+  // 目标位置的技能文件夹。
   const homes = userHomes();
-  const titles = await workspaceTitleMap(homes.dshHome);
   let destRoot;
+  let targetProject;
   if (flags.workspace !== undefined) {
-    destRoot = workspaceSkillRoot(await normalizeWorkspace(flags.workspace));
+    targetProject = await normalizeWorkspace(flags.workspace);
+    destRoot = workspaceSkillRoot(targetProject);
   } else if (flags.project) {
-    destRoot = roots.find((root) => root.source === "project-dsh")?.path;
+    const projectRoot = roots.find((root) => root.source === "project-dsh");
+    destRoot = projectRoot?.path;
     if (destRoot === undefined) throw new Error("找不到目标技能根（--project 需要当前目录锚定一个项目根）");
+    targetProject = projectRoot.projectRoot;
   } else {
     destRoot = join(homes.dshHome, "skills");
   }
-  const target = kind === "bundle" ? join(destRoot, name) : join(destRoot, basename(source));
 
-  // 3) 重名与布局防护。
-  const existing = winnerEntry(entries, name);
-  if (existing !== undefined) throw new Error('同名技能 "' + name + '" 已存在（' + existing.source + "，" + (existing.enabled ? "已启用" : "已停用") + "）");
-  if (await pathExists(target)) throw new Error("目标路径已存在：" + target);
-  if (resolve(source) === resolve(target)) throw new Error("源路径与目标相同，无需添加：" + sourceArg);
+  // 作用域键：全局为 ""，工作区为其项目根。只有"同一作用域内同名"才算冲突；
+  // 跨作用域同名由 DSH 按根优先级裁决，且不在这条发现链上（见 index.ts 同名注释）。
+  const scopeKeyOf = (path) => {
+    const resolved = resolve(path);
+    return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+  };
+  const entryScopeKey = (entry) => entry.projectRoot === undefined || entry.projectRoot === null ? "" : scopeKeyOf(entry.projectRoot);
+  const targetScopeKey = targetProject === undefined || targetProject === null ? "" : scopeKeyOf(targetProject);
+
+  // 源路径不能是目标技能根本身或其上级（否则会把自己搬进自己里面）。
   const normForCompare = (p) => (process.platform === "win32" ? resolve(p).toLowerCase() : resolve(p));
   const sourceNorm = normForCompare(source);
   const destNorm = normForCompare(destRoot);
   const sep = process.platform === "win32" ? "\\" : "/";
   if (destNorm === sourceNorm || destNorm.startsWith(sourceNorm.endsWith(sep) ? sourceNorm : sourceNorm + sep)) throw new Error("源路径不能是目标技能根本身或其上级目录：" + sourceArg);
 
-  // 4) 暂存复制 + 原子改名；任何失败都回滚。
+  // 逐条校验与冲突过滤：不合法的跳过，不影响其余。
+  const skipped = [...plan.skipped];
+  const warnings: { name: string; reason: string }[] = [];
+  const accepted: any[] = [];
+  const batchNames = new Set();
+  const plannedTargets = new Set();
+  for (const candidate of plan.candidates) {
+    const skillFile = byPath.get(candidate.skillFile);
+    if (skillFile === undefined) {
+      skipped.push({ name: candidate.source, reason: "技能文件缺失" });
+      continue;
+    }
+    const validation = validateFrontmatter(await readSourceText(skillFile));
+    if (!validation.ok) {
+      skipped.push({ name: candidate.source, reason: "技能格式不符合要求：" + validation.error });
+      continue;
+    }
+    const name = validation.skill.name;
+    if (batchNames.has(name)) {
+      skipped.push({ name, reason: "本次选择中有重名" });
+      continue;
+    }
+    const sameName = entries.filter((entry) => entry.name === name);
+    const sameScope = sameName.filter((entry) => entryScopeKey(entry) === targetScopeKey);
+    if (sameScope.length > 0) {
+      skipped.push({ name, reason: '同名技能 "' + name + '" 已存在于目标作用域（' + sameScope[0].source + "，" + (sameScope[0].enabled ? "已启用" : "已停用") + "：" + sameScope[0].file + "）" });
+      continue;
+    }
+    if (sameName.length > 0) {
+      const where = [...new Set(sameName.map((entry) => entry.projectRoot ?? "全局用户根"))].join("、");
+      warnings.push({ name, reason: "同名技能已存在于其他作用域，二者互不影响：" + where });
+    }
+    const target = candidate.kind === "bundle" ? join(destRoot, name) : join(destRoot, candidate.files[0].relative);
+    const targetKey = process.platform === "win32" ? target.toLowerCase() : target;
+    if (plannedTargets.has(targetKey)) {
+      skipped.push({ name, reason: '本次选择的落盘路径相同："' + target + '"' });
+      continue;
+    }
+    if (await pathExists(target)) {
+      skipped.push({ name, reason: "目标路径已存在：" + target });
+      continue;
+    }
+    plannedTargets.add(targetKey);
+    batchNames.add(name);
+    accepted.push({ name, kind: candidate.kind, target, files: candidate.files.map((file) => ({ relative: file.relative, entry: byPath.get(file.path) })) });
+  }
+  if (accepted.length === 0) throw new Error(skipped.length === 0 ? "没有可添加的技能" : "没有可添加的技能：" + describeSkips(skipped));
+
+  // 逐个暂存 + 原子改名；单个失败只影响该条。
   await mkdir(destRoot, { recursive: true });
-  const staging = join(destRoot, ".dsh-skill-staging-" + process.pid + "-" + Math.random().toString(36).slice(2, 8));
-  try {
-    if (kind === "bundle") {
-      for (const file of await walkFiles(source)) {
+  const stagingBase = join(destRoot, ".dsh-skill-staging-" + process.pid + "-" + Math.random().toString(36).slice(2, 8));
+  const added: any[] = [];
+  for (let index = 0; index < accepted.length; index++) {
+    const skill = accepted[index];
+    const staging = join(stagingBase, String(index));
+    try {
+      for (const file of skill.files) {
         const dest = join(staging, file.relative);
         await mkdir(dirname(dest), { recursive: true });
-        if (file.relative.toLowerCase().endsWith(".md")) await writeFile(dest, await readNormalizedMd(file.full));
-        else await copyFile(file.full, dest);
+        if (file.entry.data !== undefined) await writeFile(dest, file.relative.toLowerCase().endsWith(".md") ? normalizeMdText(file.entry.data) : file.entry.data);
+        else if (file.relative.toLowerCase().endsWith(".md")) await writeFile(dest, await readNormalizedMd(file.entry.full));
+        else await copyFile(file.entry.full, dest);
       }
-      await rename(staging, target);
-    } else {
-      await mkdir(staging, { recursive: true });
-      const stagedFile = join(staging, basename(source));
-      await writeFile(stagedFile, await readNormalizedMd(source));
-      await rename(stagedFile, target);
-      await rm(staging, { recursive: true, force: true }).catch(() => {});
-    }
-  } catch (error) {
-    await rm(staging, { recursive: true, force: true }).catch(() => {});
-    throw new Error("写入技能文件失败（已回滚）：" + (error instanceof Error ? error.message : String(error)));
-  }
-  return { name, kind, target };
-}
-
-/**
- * 从本地 .zip 添加技能：解压到临时目录后自动识别结构——唯一的顶层文件夹
- * （内含 SKILL.md）按目录束处理，平铺的 .md 逐个按单文件处理。
- * 用完即清理临时目录。
- */
-async function addZip(sourceArg, flags, roots, entries) {
-  const source = resolve(sourceArg);
-  const info = await stat(source).catch(() => undefined);
-  if (info === undefined || !info.isFile()) throw new Error("压缩包不存在或不是文件：" + sourceArg);
-  const tmpBase = join(tmpdir(), "dsh-skill-zip-" + process.pid + "-" + Math.random().toString(36).slice(2, 8));
-  await mkdir(tmpBase, { recursive: true });
-  try {
-    let zipEntries;
-    try {
-      zipEntries = unzipSync(new Uint8Array(await readFile(source)));
+      if (skill.kind === "bundle") {
+        await rename(staging, skill.target);
+      } else {
+        await rename(join(staging, skill.files[0].relative), skill.target);
+        await rm(staging, { recursive: true, force: true }).catch(() => {});
+      }
+      added.push({ name: skill.name, kind: skill.kind, target: skill.target });
     } catch (error) {
-      throw new Error("无法解析压缩包 " + sourceArg + "：" + (error instanceof Error ? error.message : String(error)));
+      await rm(staging, { recursive: true, force: true }).catch(() => {});
+      skipped.push({ name: skill.name, reason: "写入失败（已回滚该技能）：" + (error instanceof Error ? error.message : String(error)) });
     }
-    const rels: string[] = [];
-    for (const name of Object.keys(zipEntries)) {
-      if (name === "" || name.endsWith("/")) continue;
-      if (name.startsWith("__MACOSX/") || name.split("/").includes("__MACOSX")) continue;
-      const rel = name.replaceAll("\\", "/");
-      if (rel.startsWith("/") || rel.split("/").some((segment) => segment === ".." || segment === ".")) throw new Error("压缩包内包含非法路径：" + name);
-      const dest = join(tmpBase, ...rel.split("/"));
-      await mkdir(dirname(dest), { recursive: true });
-      await writeFile(dest, zipEntries[name]);
-      rels.push(rel);
-    }
-    if (rels.length === 0) throw new Error("压缩包中没有可用的文件");
-    const where = flags.workspace !== undefined ? "工作区 " + (await normalizeWorkspace(flags.workspace)) : flags.project ? "项目根" : "全局";
-    const tops = new Set(rels.map((rel) => rel.split("/")[0]));
-    const hasNested = rels.some((rel) => rel.includes("/"));
-    if (tops.size === 1 && hasNested) {
-      const top = [...tops][0];
-      if (!rels.includes(top + "/SKILL.md")) throw new Error("压缩包结构无法识别：唯一的顶层文件夹缺少 SKILL.md 文件");
-      const added = await addSkill(join(tmpBase, top), flags, roots, entries);
-      console.log('已添加技能 "' + added.name + '"（压缩包目录束 → ' + added.target + "，工作区：" + where + "，网关监听器将热感知）");
-    } else if (!hasNested) {
-      let count = 0;
-      for (const rel of rels) {
-        if (!rel.toLowerCase().endsWith(".md")) throw new Error("压缩包内包含非 .md 文件：" + rel);
-        const added = await addSkill(join(tmpBase, rel), flags, roots, entries);
-        count += 1;
-        console.log('已添加技能 "' + added.name + '"（压缩包单文件 → ' + added.target + "，工作区：" + where + "，网关监听器将热感知）");
-      }
-      if (count === 0) console.log("压缩包中没有可添加的技能。");
-    } else {
-      throw new Error("压缩包结构无法识别：应为「一个技能文件夹（内含 SKILL.md）」或「若干 .md 文件」");
-    }
-  } finally {
-    await rm(tmpBase, { recursive: true, force: true }).catch(() => {});
   }
+  await rm(stagingBase, { recursive: true, force: true }).catch(() => {});
+  if (added.length === 0) throw new Error("没有可添加的技能：" + describeSkips(skipped));
+  return { added, skipped, warnings };
 }
 
 /** 列表输出用的人类可读位置标签（全局 / 工作区）。 */
@@ -534,20 +546,20 @@ export async function runSkillCli(args: string[]): Promise<number> {
 
   if (command === "add") {
     if (name === undefined) {
-      console.error("add 需要一个路径参数（单个 .md 文件或包含顶层 SKILL.md 的目录束）");
+      console.error("add 需要一个路径参数（.md / .zip 文件、技能文件夹，或含多个技能的文件夹）");
       return 2;
     }
     if (flags.workspace !== undefined && flags.project) {
       console.error("--workspace 与 --project 不能同时使用");
       return 2;
     }
-    if (name.toLowerCase().endsWith(".zip")) {
-      await addZip(name, flags, roots, entries);
-      return 0;
-    }
-    const added = await addSkill(name, flags, roots, entries);
+    const result = await addSkill(name, flags, roots, entries);
     const where = flags.workspace !== undefined ? "工作区 " + (await normalizeWorkspace(flags.workspace)) : flags.project ? "项目根" : "全局";
-    console.log('已添加技能 "' + added.name + '"（' + (added.kind === "bundle" ? "目录束" : "单文件") + " → " + added.target + "，工作区：" + where + "，网关监听器将热感知）");
+    for (const item of result.added) {
+      console.log('已添加技能 "' + item.name + '"（' + (item.kind === "bundle" ? "目录束" : "单文件") + " → " + item.target + "，工作区：" + where + "，网关监听器将热感知）");
+    }
+    for (const item of result.warnings ?? []) console.log('提示 "' + item.name + '"：' + item.reason);
+    for (const item of result.skipped) console.log('已跳过 "' + item.name + '"：' + item.reason);
     return 0;
   }
 
