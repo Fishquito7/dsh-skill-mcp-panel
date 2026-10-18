@@ -86,6 +86,8 @@
 			group: ["M3 7h6l2 2h10v10H3z", "M12 12v5", "M9.5 14.5h5"],
 			migrate: ["M4 8h14", "M14 4l4 4-4 4", "M20 16H6", "M10 12l-4 4 4 4"],
 			plus: ["M12 5v14", "M5 12h14"],
+			// 布局切换：三栏 / 简洁（一根竖线把方框一分为二）
+			layout: ["M4 5h16v14H4z", "M13 5v14"],
 			trash: ["M5 7h14", "M10 7V4h4v3", "M7 7l1 13h8l1-13"],
 			gear: ["M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z", "M12 3.5v2", "M12 18.5v2", "M20.5 12h-2", "M5.5 12h-2", "M18 6.6l-1.4 1.4", "M7.4 16 6 17.4", "M18 17.4 16.6 16", "M7.4 8 6 6.6"]
 		};
@@ -194,6 +196,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			+ ".SKV_toolButton:disabled{cursor:default;opacity:.5}"
 			+ ".SKV_toolButton:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}"
 			+ ".SKV_toolButton:hover:not(:disabled)::after{content:attr(aria-label);position:absolute;top:calc(100% + 6px);right:0;z-index:40;white-space:nowrap;background:var(--dsw-alias-tooltip-bg);color:var(--dsw-alias-toast-label);font-size:12px;line-height:18px;padding:3px 8px;border-radius:6px;box-shadow:var(--dsw-shadow-lv1);pointer-events:none}"
+			+ ".SKV_filterBar{display:flex;flex-direction:column;gap:2px;margin:2px 0 10px}"
 			+ "@media (max-width:820px){.SKV_rail{width:140px}.SKV_pane{width:150px}.SKV_mainScroll{padding:20px 20px 96px}}";
 		// 卡片行（v2.1.6 重构）：[勾选框][图标][名称 + 描述][红绿灯 + 删除]。
 		// 勾选框用原生 input（accent-color 跟随宿主主题），批量模式之外宽度收缩到 0。
@@ -403,6 +406,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			toolRow: "SKV_toolRow",
 			toolButtons: "SKV_toolButtons",
 			toolButton: "SKV_toolButton",
+			filterBar: "SKV_filterBar",
 			// v2.1.6 卡片行
 			cardRow: "SKV_cardRow",
 			check: "SKV_check",
@@ -527,6 +531,9 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			panePluginProvided: "插件自带",
 			paneProviderUnknown: "未知来源",
 			emptyProvider: "该来源下暂无技能。",
+			// 布局开关：简洁模式 = 收起左右两栏，把工作区与分组做成列表上方的筛选条（Issue #50）
+			layoutToCompact: "切换到简洁模式",
+			layoutToThree: "切回三栏模式",
 			emptyList: "这里还没有技能，点右上角的“添加”开始",
 			toolbarOpenFolder: "打开目录",
 			toolbarNewGroup: "新建分组",
@@ -641,6 +648,8 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			panePluginProvided: "Plugin-provided",
 			paneProviderUnknown: "Unknown source",
 			emptyProvider: "No skills from this source yet.",
+			layoutToCompact: "Switch to the compact layout",
+			layoutToThree: "Switch back to the three-column layout",
 			emptyList: "No skills yet — start with “Add” in the top-right corner.",
 			toolbarOpenFolder: "Open folder",
 			toolbarNewGroup: "New group",
@@ -1514,6 +1523,31 @@ function SkillsSection(props) {
 			const RAIL_LIST_PAD_TOP = 4;
 			const RAIL_ITEM_PITCH = 38;
 			const [railBarY, setRailBarY] = react.useState(RAIL_LIST_PAD_TOP + 8);
+
+			// ── 布局开关（Issue #50）：三栏 / 简洁 ────────────────────────────
+			// 简洁模式 = 收起左轨（工作区）与中栏（分组），把两者做成列表上方的两条筛选条，
+			// 卡片、批量、撤销、迁移、添加全部沿用同一套组件——只有外壳不同，不写第二套前端。
+			// 选择记在 localStorage，键与页签同一个前缀；读不到就当三栏（默认）。
+			const LAYOUT_KEY = "dsh-skill-mcp-panel:layout";
+			const [layoutCompact, setLayoutCompact] = react.useState(() => {
+				try {
+					return typeof localStorage !== "undefined" && localStorage.getItem(LAYOUT_KEY) === "compact";
+				} catch {
+					return false;
+				}
+			});
+			const toggleLayout = () => {
+				const next = !layoutCompact;
+				// 简洁模式下没有「分组 / 来源」切换入口，口径统一到分组维度，
+				// 否则会出现「筛选条显示的是分组、列表却按来源过滤」的错位。
+				if (next && paneMode !== "groups") setPaneMode("groups");
+				setLayoutCompact(next);
+				try {
+					if (typeof localStorage !== "undefined") localStorage.setItem(LAYOUT_KEY, next ? "compact" : "three");
+				} catch {
+					// 存不了就只在本次会话生效，不影响功能。
+				}
+			};
 
 			// 列表拉取：首次显示加载态；此后静默刷新，保留旧列表避免闪烁。
 			// 合并结果按名称排序——启停切换不会改变卡片位置。
@@ -2542,9 +2576,60 @@ function SkillsSection(props) {
 											children: t("addFolderZip")
 										})]
 									}) : null]
+								}), (0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									className: c.toolButton,
+									"data-layout-toggle": "true",
+									"data-active": layoutCompact ? "true" : void 0,
+									"aria-pressed": layoutCompact,
+									"aria-label": layoutCompact ? t("layoutToThree") : t("layoutToCompact"),
+									onClick: toggleLayout,
+									children: hostIcon(primitiveIcon("IconSettingsOutlineRegular"), 15, ICON_PATHS.layout)
 								})]
 							})]
 						}),
+						// ── 简洁模式（Issue #50）：把左轨（工作区）与中栏（分组）压成列表上方的两条筛选条。
+						// 与三栏共用同一份筛选状态（scopeFilter / activePaneKey），切回三栏不会丢选择。
+						layoutCompact ? (0, react_jsx_runtime.jsxs)("div", {
+							className: c.filterBar,
+							children: [(0, react_jsx_runtime.jsx)("div", {
+								className: c.groupBar,
+								role: "group",
+								"aria-label": t("railWorkspaces"),
+								children: railEntries.map((entry) => (0, react_jsx_runtime.jsxs)("button", {
+									type: "button",
+									className: c.groupItem,
+									"data-active": scopeFilter === entry.key ? "true" : void 0,
+									"aria-pressed": scopeFilter === entry.key,
+									title: entry.label,
+									onClick: () => {
+										setScopeFilter(entry.key);
+									},
+									children: [entry.label, (0, react_jsx_runtime.jsx)("span", {
+										className: c.groupItemCount,
+										children: String(entry.count)
+									})]
+								}, "ws:" + entry.key))
+							}), paneRows.length > 1 ? (0, react_jsx_runtime.jsx)("div", {
+								className: c.groupBar,
+								role: "group",
+								"aria-label": t("paneGroups"),
+								children: paneRows.map((row) => (0, react_jsx_runtime.jsxs)("button", {
+									type: "button",
+									className: c.groupItem,
+									"data-active": activePaneKey === row.key ? "true" : void 0,
+									"aria-pressed": activePaneKey === row.key,
+									title: row.label,
+									onClick: () => {
+										selectPaneRow(row.key);
+									},
+									children: [row.label, (0, react_jsx_runtime.jsx)("span", {
+										className: c.groupItemCount,
+										children: String(row.count)
+									})]
+								}, "grp:" + row.key))
+							}) : null]
+						}) : null,
 						adding.status === "busy" ? (0, react_jsx_runtime.jsx)("p", {
 							className: c.addStatus,
 							children: t("addBusy")
@@ -2927,10 +3012,11 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
 				"aria-busy": listState.status === "loading",
 				"data-batch": batchMode ? "true" : void 0,
 				"data-dragging": dragActive ? "true" : void 0,
+				"data-layout": layoutCompact ? "compact" : "three",
 				onDragOver: onDragOver,
 				onDragLeave: onDragLeave,
 				onDrop: onDrop,
-				children: [railNode, paneNode, (0, react_jsx_runtime.jsxs)("div", {
+				children: [layoutCompact ? null : railNode, layoutCompact ? null : paneNode, (0, react_jsx_runtime.jsxs)("div", {
 					className: c.mainCol,
 					children: [mainColumnBody, batchBar, toastNode]
 				})]
