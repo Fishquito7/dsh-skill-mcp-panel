@@ -7,7 +7,7 @@
 [![npm version](https://img.shields.io/npm/v/dsh-skill-mcp-panel?color=cb3837&logo=npm&label=npm)](https://www.npmjs.com/package/dsh-skill-mcp-panel)
 [![npm downloads](https://img.shields.io/npm/dm/dsh-skill-mcp-panel?color=cb3837&label=downloads)](https://www.npmjs.com/package/dsh-skill-mcp-panel)
 [![GitHub release](https://img.shields.io/github/v/release/Fishquito7/dsh-skill-mcp-panel?color=2ea043&label=release)](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)
-[![DSH](https://img.shields.io/badge/DSH-0.1.6--alpha.2%20~%200.2.0--rc.2-4c6ef5)](https://github.com/Fishquito7/dsh-skill-mcp-panel)
+[![DSH](https://img.shields.io/badge/DSH-0.2.x-4c6ef5)](https://github.com/Fishquito7/dsh-skill-mcp-panel)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [English](README.en.md) · [简体中文](README.md)
@@ -16,7 +16,7 @@
 
 ---
 
-A DSH plugin that brings **skill** and **MCP server** management into the DSH web home sidebar — click Skills or MCP in the left column and the center main area switches to a full panel (not a modal, not a tab in the Settings dialog), and changes take effect immediately. The package also ships the unified `dsh-panel` command: everything the panels can do, plus cross-profile upgrades.
+A DSH plugin that brings **skill** and **MCP server** management into the DSH web home sidebar — click Skill/MCP in the left column and the center main area switches to a full panel (not a modal, not a tab in the Settings dialog), and changes take effect immediately. The package also ships the unified `dsh-panel` command: everything the panels can do, plus cross-profile upgrades.
 
 - 🗂️ **Skill management** — list and preview installed skills, search, workspace split and group filters, expand a card to read the full content, hot enable/disable and delete, plus `.md` / `.zip` / skill-folder adding and batch migration
 - 🔌 **MCP server management** — visually maintain the MCP managed block in the profile's `cordis.patch.yml`, with Stdio / HTTP transports, connection tests, and hot reload through DSH HMR after saving
@@ -102,71 +102,32 @@ A DSH plugin that brings **skill** and **MCP server** management into the DSH we
 
 ## Features
 
-> The panel is a **sidebar global panel**, exactly like the host's built-in Plugins page: the left column carries a single “Skill/MCP” row (since v2.1.5 the two panels are merged, giving the slot back to sessions), clicking it swaps the center main area (no Settings-dialog modal), tabs inside the panel switch between the two pages, and the tab you left is the one you come back to. A “← Back to session” arrow at the top-left returns you to the session you were reading; picking any session or Plugins from the sidebar also navigates away.
+The panel works exactly like the host's built-in Plugins page: a single **Skill/MCP** row in the left column swaps the center main area to the panel — no Settings tab, no dialog. Tabs inside the panel switch between Skills and MCP and remember the page you left; **← Back to session** takes you back to where you were.
 
 ### Skills panel
 
-- **Skill card list**: preview installed skills; click a card to expand the full content
-- **Plugin-skill switch** (v2.1.5): skills shipped by plugins (bundled office, badge, …) show up by default; the checkbox next to “Enable all” hides them so you only see the skills you manage, and the hidden count is reported when the list goes empty
-- **Status tags**: Enabled / Disabled, styled like the built-in plugin list
-- **Management**: hot enable/disable switch, delete, search by name; the page refreshes on entry
-- **Adding skills** (one model since v2.1.6): click “+” to pick files (`.md` / `.zip`) or a folder, or drag files, archives or skill folders straight onto the page — all three entry points classify through one rule: a selection that directly contains `SKILL.md` is a single skill bundle (top-level dependency `.md` files, `references/`, `scripts/` ride along as payload), otherwise every skill found inside is discovered recursively and **flattened to the first level** of the skill root, so a folder holding several skills imports in one go; invalid items, duplicates **within the target scope** and path conflicts are skipped with a reason, and only a total failure is an error — a same name in a *different* scope is not a conflict (v2.1.7: DSH resolves it by root rank, and other workspaces are not even on this discovery chain), so it is added and reported as a notice
-- **Disable individual MCP tools** (v2.2.0, issue #44): a server with dozens of tools costs context on every session — the panel can disable tools **by name**, and a disabled tool disappears from the model-facing tool list (it is not merely refused at call time), so the saving is real. The list is read from the live tool registry (no server is started), and the rule applies to every session (see ADR-0005)
-- **MCP OAuth sign-in** (v2.2.0, issue #45): for remote `streamable-http` servers, one command does the whole flow — authorization-server discovery (RFC 8414), dynamic client registration (RFC 7591), authorization code + PKCE with the callback landing on a temporary `127.0.0.1` port — then writes the `Authorization` token into that row and lets it hot-reload: `dsh-panel mcp oauth <server> --profile <profile>`; `--disconnect` clears it. The host's own mcp-client has no OAuth field (static headers only), so the token is obtained by the panel and stored in the profile config in plain text — the install section calls this out
-- **Group by origin** (v2.2.0, issue #42): the group pane can switch to an origin axis (grouped by `provider`, with plugin-shipped skills in their own group); the workspace rail and the group pane each scroll on their own, so a long list never pushes the entry points out of reach
-- **The managed block no longer rewrites foreign rows** (v2.2.0, issue #46): if the `cordis.patch.yml` managed block holds entries the panel does not own, their shape and meaning are preserved byte-for-byte (a top-level `- id:` stays an id-targeted override instead of being folded into `insert`), and the MCP page lists “N rows in the block that are not ours”. A single save used to fold them, producing two rows with the same loader id and rolling back every dsh-market plugin update
-- **Workspace split** (0.3.0): a skill's files live directly where they belong — global skills in `~/.dsh/skills`, workspace skills in that workspace's `.dsh/skills`. A workspace selector below “Skill list” (a collapsed dropdown listing Global + each workspace, 11 rows max then scrolls) filters the list to one scope.
-- **Batch migration**: the button left of “+” opens a dialog where you pick the source workspace, one or more target workspaces, and the skills yourself, then batch-**copy** or batch-**move** them (nothing pre-selected; items migrate independently — one failure never aborts the rest; move mode allows a single target). When the source scope has groups, you can filter skills by group above the list (0.7.0).
-- **Skill groups** (0.5.0): a group bar below the workspace selector (All + group names, wrapping onto multiple lines) filters the list to one group. The “Groups” button (left of the migrate button) opens the group editor: create / rename / delete groups, pick a workspace, name the group and batch-check members. Groups live only in the plugin's own display config (`~/.dsh/skills/.system/skill-viewer/groups.json`) — skill directories are never touched.
-- **Scope-exact operations** (0.6.4): when the same skill name exists in both the global scope and a workspace, delete, enable/disable and content views act on exactly the (name + scope) row you clicked — each row expands and operates independently, other copies are never touched; a missing entry in the given scope fails loudly instead of silently falling back. The CLI likewise requires `--global` / `--project` / `--workspace` to disambiguate same-name skills.
+- **List and cards** — search by name and expand a card for the full content; split by workspace (global / each workspace) and filter by group or by origin
+- **Enable, disable, delete** — the switch is hot (it renames `SKILL.md` on disk) and delete is undoable; skills shipped by plugins can be hidden with one checkbox
+- **Add** — use "+" or drop files, archives or skill folders straight onto the page: `.md`, `.zip` and whole folders all work, and a folder holding several skills imports in one go; invalid items and same-name items **within the target scope** are skipped with a reason
+- **Migrate** — copy or move skills in bulk to several workspaces; one failure never aborts the rest
+- **Groups** — create, rename and delete groups and batch-check members; groups live only in the plugin's own display config, skill directories are never touched
 
-### MCP panel (v2.0.0)
+### MCP panel
 
-- A new MCP panel sits below Skills in the home sidebar and manages the MCP server managed block in the profile's `cordis.patch.yml`;
-- Supports **Stdio** (local command) and **HTTP** (streamable-http) transports;
-- Add, edit, enable/disable, delete and test connections; saving is hot-reloaded by DSH HMR — no gateway restart;
-- `env` / `headers` secrets are redacted in RPC and in the UI, and editing keeps the old value when a key is omitted;
-- **Environment variables** (v2.1.5): write `${NAME}` in a value to read that environment variable — the panel and the CLI format it into a `!!js` expression in `cordis.patch.yml` (the only interpolation the DSH config layer has; the host evaluates it at load time). A header of `Bearer ${MCP_TOKEN}` is stored as ``Authorization: !!js '`Bearer ${process.env.MCP_TOKEN}`'`` and reads back as `Bearer ${MCP_TOKEN}`. The `!!js` prefix remains as the advanced escape hatch (raw JS expression, passed through verbatim), and a hand-written `!!js` is no longer flattened into a literal
-- **How-it-works note** (v2.1.5): the “How it works” button next to the MCP title expands a short note — what an entry looks like, where the managed block lives, how tools are named, and how environment variables relate to `!!js`
-- Empty command / args / env / cwd / url / headers fields carry a grey example, so the expected format is visible
-- User content outside the managed block in `cordis.patch.yml` is preserved byte for byte.
-
-### Home-sidebar panels and back-to-session (v2.1.0, merged into one entry in v2.1.5)
-
-- **The management panels moved from the Settings dialog to the home sidebar**, using the same slot mechanism as the host's built-in Plugins page (the `sidebar.panellist` list slot plus the `main` keyed slot): clicking Skills/MCP in the left column swaps the center main area, the Settings dialog no longer carries those two tabs, and each panel owns its own page shell (scroll container and padding). The host must provide those two slots — verified on DSH 0.1.6-alpha.2.
-- **“← Back to session” arrow**: one at the top-left of each panel; it returns to the session you were reading (host `ctx.layout.selectPanel(null)`, which never changes the selected session).
-- **Skills + MCP merged into one row with tabs** (v2.1.5): the sidebar spends a single row on “Skill/MCP”, and tabs inside the panel switch between the two pages; the chosen tab is kept in browser localStorage (key `dsh-skill-mcp-panel:last-tab`), so reopening the row lands on the page you left.
+- **Server management** — **Stdio** and **HTTP** transports: add, edit, enable/disable, delete and test connections; saving is hot-reloaded by DSH HMR, no gateway restart. Only the panel's own managed block is edited — everything else in `cordis.patch.yml` (including rows inside the block that are not ours) is preserved byte for byte
+- **Secrets** — `env` / `headers` are redacted in the UI and in RPC, an omitted key keeps its old value, and `${NAME}` in a value reads that environment variable
+- **Disable individual tools** — turn tools off by name; a disabled tool disappears from the model-facing tool list instead of being merely refused at call time, so the context saving is real
+- **OAuth sign-in** — one click for a remote `streamable-http` server that supports it (authorization-server discovery, dynamic client registration, authorization code + PKCE); the token is written back into that row and hot-reloaded, and it can be disconnected at any time
 
 ### DSH version compatibility
 
-Three independent host-facing dependencies are version-sensitive; one build satisfies all three at once:
+Only **DSH `0.2.x`** is supported (peer declaration `>=0.2.0-rc.1 <0.3.0-0`). DSH checks that declaration at install time and again at profile startup, refusing to load and printing the exact-version exemption when it does not match — no silent breakage. The upper bound is `<0.3.0-0` because the check runs with `includePrerelease`, so `<0.3.0` would let `0.3.0-rc.1` through.
 
-| Host version | ① Plugin tree load (TypertCodec) | ② Skills-page icons (primitives exports) | ③ Sidebar panel slots |
-| --- | :---: | :---: | :---: |
-| `0.1.5-rc.x` | ✅ reads `schema` | ✅ legacy names | ⚠️ unverified |
-| `0.1.6-alpha.1` | ✅ reads `schema` | ✅ legacy names | ⚠️ unverified |
-| `0.1.6-alpha.2` – `0.1.7-alpha.0` | ✅ reads `create` | ✅ legacy names | ✅ |
-| `0.1.7-alpha.1` – `0.1.8` | ✅ reads `create` | ✅ new names | ✅ |
-| `0.2.0-rc.x` | ✅ reads `create` | ✅ new names | ✅ |
+If you really need it on an older host, grant the exemption the host prints:
 
-- **① TypertCodec `create()` contract** — since `0.1.6-alpha.2` a strict codec holds a `schema` factory (`create()`); a plugin still declaring `schema:` throws during registration and **fails the whole plugin tree, so the gateway will not boot** (Issue #20). Every codec here carries both `schema` and `create`; both generations only run `typeof` checks and neither rejects extra properties, so one build works everywhere with no version probing. Guard: `test-codec.mjs`.
-- **② Skills-page icon export names** — `0.1.7-alpha.1` replaced the pixel suffix with a stroke tier (`IconSkillOutline16` → `IconSkillOutlineRegular`, with size moved to the `size` prop) and the **two generations share no names**. The six Skills-half references now go through `primitiveIcon(cur, legacy)` (prefer the new name, fall back to the legacy one); switching straight to the new names would break everyone on `0.1.6` and earlier. Guard: `test-host-icons.mjs`.
-- **③ Sidebar panel slots** — since v2.1.0 the panels mount on the host's `sidebar.panellist` (list slot) plus `main` (keyed slot), so the host must provide both. Verified on `0.1.6-alpha.2`, and the slot names are unchanged across the `0.1.7` line. `0.1.5-rc.x` / `0.1.6-alpha.1` are **unverified**; even without the slots the plugin tree and CLI still work — the left column just won't show the Skills/MCP rows.
-- **④ peerDependencies gate** (v2.1.2) — this package declares `"@deepseek-ai/dsh": ">=0.1.5-rc.0 <0.3.0-0"`. DSH's `evaluatePluginCompatibility` checks it **at install time** and **at profile startup**, refusing to load (and printing the exact-version exemption command) when it does not match — turning a silent breakage into a loud refusal. Without that field the check returns early and passes everything, which is exactly why the 0.1.7-rc.1 breakage could happen unnoticed.
-  - The upper bound is `<0.3.0-0` rather than `<0.3.0` because the check runs with `includePrerelease`: `<0.3.0` would let `0.3.0-rc.1` through.
-  - v2.1.3 raised the upper bound from `<0.2.0-0` to `<0.3.0-0`: once the desktop app auto-updated to `0.2.0-rc.2`, the old range was judged incompatible and the host **denied the whole row at profile startup** (`dsh: disabling profile plugin row "skill-mcp-panel": ...`), making the panels vanish from the sidebar. None of the three host-facing contracts changed in 0.2.0 (icon export names, the `sidebar.panellist` + `main` slots, and TypertCodec still reading `create()`), and this was verified against 0.2.0's own `evaluatePluginCompatibility` and registry validator.
-  - The lower bound `0.1.5-rc.0` is where the plugin tree still loads — wider than the "panels verified" range in the table above. Being inside the range does not mean the panels are verified.
-  - To use it on a host outside the range, grant an exemption for that exact host version:
-
-    ```bash
-    dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.0 --dsh-version <host-version> --accept-risk
-    ```
-  - Guard: `test-cli-profiles.mjs` (calls the host's real `evaluatePluginCompatibility` to check both ends of the range).
-
-### Panel behaviour changes (v2.0.5)
-
-- The scope selector is always a collapsed dropdown (11 rows max, then scrolls); the group bar wraps onto multiple lines.
-- The skill list no longer depends on whether a session is open; without one the host falls back to the global registry.
+```bash
+dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.0 --dsh-version <host-version> --accept-risk
+```
 
 ## CLI
 
