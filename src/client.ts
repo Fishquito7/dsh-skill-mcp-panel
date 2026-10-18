@@ -868,6 +868,85 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					invocation: { kind: "direct" },
 					parameters: [],
 					result: codec("dsh-skill-mcp-panel#McpListResult")
+				},
+				// 下面 7 条必须与 src/mcp/wire.ts 的 MCP_MANIFEST 一一对应：客户端只认得
+				// 自己 $mount 过的描述符，漏一条就是运行期 "remote[method] is not a function"
+				// （Issue #51：单工具禁用面板与卡片上的 OAuth 按钮都因此点不动）。
+				// 守卫：test-client-contribution.mjs 做全量比对。
+				{
+					id: "dsh-skill-mcp-panel#mcpManager/listTools",
+					service: "mcpManager",
+					namespace: "mcpManager",
+					method: "listTools",
+					invocation: { kind: "direct" },
+					parameters: [
+						{ name: "payload", wire: "payload", source: "json", codec: codec("dsh-skill-mcp-panel#McpToolsPayload") }
+					],
+					result: codec("dsh-skill-mcp-panel#McpToolsResult")
+				},
+				{
+					id: "dsh-skill-mcp-panel#mcpManager/getToolFilter",
+					service: "mcpManager",
+					namespace: "mcpManager",
+					method: "getToolFilter",
+					invocation: { kind: "direct" },
+					parameters: [],
+					result: codec("dsh-skill-mcp-panel#McpToolFilterResult")
+				},
+				{
+					id: "dsh-skill-mcp-panel#mcpManager/setToolFilter",
+					service: "mcpManager",
+					namespace: "mcpManager",
+					method: "setToolFilter",
+					invocation: { kind: "direct" },
+					parameters: [
+						{ name: "payload", wire: "payload", source: "json", codec: codec("dsh-skill-mcp-panel#McpToolFilterPayload") }
+					],
+					result: codec("dsh-skill-mcp-panel#McpToolFilterResult")
+				},
+				{
+					id: "dsh-skill-mcp-panel#mcpManager/oauthStart",
+					service: "mcpManager",
+					namespace: "mcpManager",
+					method: "oauthStart",
+					invocation: { kind: "direct" },
+					parameters: [
+						{ name: "payload", wire: "payload", source: "json", codec: codec("dsh-skill-mcp-panel#McpOAuthStartPayload") }
+					],
+					result: codec("dsh-skill-mcp-panel#McpOAuthStartResult")
+				},
+				{
+					id: "dsh-skill-mcp-panel#mcpManager/oauthPoll",
+					service: "mcpManager",
+					namespace: "mcpManager",
+					method: "oauthPoll",
+					invocation: { kind: "direct" },
+					parameters: [
+						{ name: "payload", wire: "payload", source: "json", codec: codec("dsh-skill-mcp-panel#McpOAuthPollPayload") }
+					],
+					result: codec("dsh-skill-mcp-panel#McpOAuthPollResult")
+				},
+				{
+					id: "dsh-skill-mcp-panel#mcpManager/oauthStatus",
+					service: "mcpManager",
+					namespace: "mcpManager",
+					method: "oauthStatus",
+					invocation: { kind: "direct" },
+					parameters: [
+						{ name: "payload", wire: "payload", source: "json", codec: codec("dsh-skill-mcp-panel#McpOAuthServerPayload") }
+					],
+					result: codec("dsh-skill-mcp-panel#McpOAuthStatusResult")
+				},
+				{
+					id: "dsh-skill-mcp-panel#mcpManager/oauthDisconnect",
+					service: "mcpManager",
+					namespace: "mcpManager",
+					method: "oauthDisconnect",
+					invocation: { kind: "direct" },
+					parameters: [
+						{ name: "payload", wire: "payload", source: "json", codec: codec("dsh-skill-mcp-panel#McpOAuthServerPayload") }
+					],
+					result: codec("dsh-skill-mcp-panel#McpOAuthDisconnectResult")
 				}
 			]
 		};
