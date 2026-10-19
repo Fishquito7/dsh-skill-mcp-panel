@@ -681,8 +681,9 @@ const assert = (cond, message) => { if (!cond) throw new Error(message); };
   reset();
   let view = await mount();
   const toggleOf = (node) => findAll(node, (n) => n.type === "button" && n.props["data-layout-toggle"] === "true")[0];
-  const scopeMenuOf = (node) => findAll(node, (n) => n.type === MenuStub && n.props?.anchor?.props?.className === "SKV_scopeSelect")[0];
-  const cssText = styleTags.map((tag) => String(tag.textContent ?? "")).join(String.fromCharCode(10));
+  const scopeButtonOf = (node) => byClass(node, "SKV_scopeSelect")[0];
+  const menuItemsOf = (node) => byClass(node, "SKV_scopeMenuItem");
+  const itemLabelOf = (item) => item.props.children[0].props.children;
 
   check("工具栏里有布局开关，默认三栏", () => {
     assert(toggleOf(view.section), "layout toggle missing from the toolbar");
@@ -700,15 +701,27 @@ const assert = (cond, message) => { if (!cond) throw new Error(message); };
     assert(byClass(view.section, "SKV_mainCol").length === 1, "main column disappeared");
     assert(byClass(view.section, "SKV_filterBar").length === 1, "compact filter bar missing");
   });
-  check("工作区回到折叠式下拉表单，而不是一串 chip", () => {
-    const menu = scopeMenuOf(view.section);
-    assert(menu, "workspace dropdown (Menu + SKV_scopeSelect) is missing");
-    assert(Array.isArray(menu.props.items) && menu.props.items.length >= 2, "dropdown must list 全局 + workspaces");
-    assert(menu.props.items[0].id === "global", "first dropdown item must be 全局");
-    const anchorLabel = byClass(view.section, "SKV_scopeSelectLabel")[0];
-    assert(anchorLabel && anchorLabel.props.children === "全局", "dropdown label must show the current workspace");
+  check("工作区是折叠式下拉按钮，不是一串 chip", () => {
+    const button = scopeButtonOf(view.section);
+    assert(button, "workspace dropdown button (SKV_scopeSelect) is missing");
+    assert(button.props["aria-expanded"] === false, "dropdown must start collapsed");
+    assert(byClass(view.section, "SKV_scopeMenu").length === 0, "menu must not be rendered while collapsed");
     const chipLabels = byClass(view.section, "SKV_groupItem").map((chip) => (typeof chip.props.children[0] === "string" ? chip.props.children[0] : ""));
     assert(!chipLabels.includes("全局") && !chipLabels.includes("one"), "workspace leaked into the chip row: " + JSON.stringify(chipLabels));
+  });
+  check("下拉展开后是表单：全局 + 各工作区，当前项打勾、可点外部收起", () => {
+    scopeButtonOf(view.section).props.onClick();
+    view = paint(rpc);
+    assert(byClass(view.section, "SKV_scopeMenu").length === 1, "menu did not open");
+    assert(byClass(view.section, "SKV_scopeMenuOverlay").length === 1, "click-away overlay missing");
+    const labels = menuItemsOf(view.section).map(itemLabelOf);
+    assert(labels[0] === "全局", "first menu item must be 全局: " + JSON.stringify(labels));
+    assert(labels.includes("one"), "workspace item missing from the menu: " + JSON.stringify(labels));
+    const active = menuItemsOf(view.section).filter((item) => item.props["data-active"] === "true");
+    assert(active.length === 1 && itemLabelOf(active[0]) === "全局", "current scope is not marked in the menu");
+    byClass(view.section, "SKV_scopeMenuOverlay")[0].props.onClick();
+    view = paint(rpc);
+    assert(byClass(view.section, "SKV_scopeMenu").length === 0, "clicking the overlay must close the menu");
   });
   check("分组横栏还在，且只列分组（全部 / 分组名）", () => {
     const bars = byClass(view.section, "SKV_groupBar");
@@ -719,12 +732,18 @@ const assert = (cond, message) => { if (!cond) throw new Error(message); };
     assert(active.length === 1 && active[0].props.children[0] === "全部", "group filter must start on 全部");
   });
   check("简洁模式一行两个技能（旧版排列）", () => {
+    const cssText = styleTags.map((tag) => String(tag.textContent ?? "")).join(String.fromCharCode(10));
     assert(cssText.includes(".SKV_section[data-layout=compact] .SKV_cards{grid-template-columns:repeat(2,minmax(0,1fr))"), "compact cards must be two per row");
     assert(cssText.includes(".SKV_section[data-layout=compact] .SKV_mainScroll>.SKV_catalog{max-width:940px"), "compact content width not widened");
   });
   check("从下拉选工作区只筛该作用域，切回三栏不丢选择", () => {
-    scopeMenuOf(view.section).props.onSelect("C:/proj/one");
+    scopeButtonOf(view.section).props.onClick();
     view = paint(rpc);
+    const target = menuItemsOf(view.section).find((item) => itemLabelOf(item) === "one");
+    assert(target, "workspace item for one/ is missing");
+    target.props.onClick();
+    view = paint(rpc);
+    assert(byClass(view.section, "SKV_scopeMenu").length === 0, "menu must close after picking a workspace");
     const cards = findAll(view.section, (n) => n.props["data-skill-name"] !== undefined);
     assert(cards.length === 1 && cards[0].props["data-skill-name"] === "delta", "compact workspace filter did not narrow the list");
     const label = byClass(view.section, "SKV_scopeSelectLabel")[0];

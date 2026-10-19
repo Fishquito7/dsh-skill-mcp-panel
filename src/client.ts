@@ -88,6 +88,7 @@
 			plus: ["M12 5v14", "M5 12h14"],
 			// 布局切换：三栏 / 简洁（一根竖线把方框一分为二）
 			layout: ["M4 5h16v14H4z", "M13 5v14"],
+			check: ["M5 12.5l4.5 4.5L19 7.5"],
 			trash: ["M5 7h14", "M10 7V4h4v3", "M7 7l1 13h8l1-13"],
 			gear: ["M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z", "M12 3.5v2", "M12 18.5v2", "M20.5 12h-2", "M5.5 12h-2", "M18 6.6l-1.4 1.4", "M7.4 16 6 17.4", "M18 17.4 16.6 16", "M7.4 8 6 6.6"]
 		};
@@ -196,6 +197,16 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			+ ".SKV_toolButton:disabled{cursor:default;opacity:.5}"
 			+ ".SKV_toolButton:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}"
 			+ ".SKV_toolButton:hover:not(:disabled)::after{content:attr(aria-label);position:absolute;top:calc(100% + 6px);right:0;z-index:40;white-space:nowrap;background:var(--dsw-alias-tooltip-bg);color:var(--dsw-alias-toast-label);font-size:12px;line-height:18px;padding:3px 8px;border-radius:6px;box-shadow:var(--dsw-shadow-lv1);pointer-events:none}"
+			// 简洁模式的工作区下拉：自带定位，不依赖宿主 Menu 的 portal/锚点测量
+			+ ".SKV_scopeMenuWrap{position:relative;display:inline-flex}"
+			+ ".SKV_scopeMenuOverlay{position:fixed;inset:0;z-index:29}"
+			+ ".SKV_scopeMenu{position:absolute;left:0;top:calc(100% + 6px);z-index:30;box-sizing:border-box;min-width:220px;max-width:min(360px,calc(100vw - 48px));max-height:min(448px,calc(100vh - 32px));overflow-y:auto;scrollbar-width:thin;display:flex;flex-direction:column;gap:2px;padding:6px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-layer-3);box-shadow:var(--dsw-shadow-lv2)}"
+			+ ".SKV_scopeMenuItem{display:flex;align-items:center;gap:8px;width:100%;min-height:34px;padding:0 10px;border:0;border-radius:8px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer;white-space:nowrap}"
+			+ ".SKV_scopeMenuItem:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}"
+			+ ".SKV_scopeMenuItem[data-active=true]{color:var(--dsw-alias-label-primary);background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent)}"
+			+ ".SKV_scopeMenuItemLabel{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}"
+			+ ".SKV_scopeMenuItemCount{flex:none;font-size:11.5px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}"
+			+ ".SKV_scopeMenuItemCheck{flex:none;color:var(--dsw-alias-state-business-primary)}"
 			+ ".SKV_filterBar{display:flex;flex-direction:column;gap:2px;margin:2px 0 10px}"
 			// 简洁模式：内容区放宽一点，卡片恢复成一行两个（旧版就是这么排的，Issue #50）
 			+ ".SKV_section[data-layout=compact] .SKV_mainScroll>.SKV_catalog{max-width:940px}"
@@ -335,6 +346,13 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			scopeSelect: "SKV_scopeSelect",
 			scopeSelectLabel: "SKV_scopeSelectLabel",
 			scopeSelectChevron: "SKV_scopeSelectChevron",
+			scopeMenuWrap: "SKV_scopeMenuWrap",
+			scopeMenuOverlay: "SKV_scopeMenuOverlay",
+			scopeMenu: "SKV_scopeMenu",
+			scopeMenuItem: "SKV_scopeMenuItem",
+			scopeMenuItemLabel: "SKV_scopeMenuItemLabel",
+			scopeMenuItemCount: "SKV_scopeMenuItemCount",
+			scopeMenuItemCheck: "SKV_scopeMenuItemCheck",
 			groupBar: "SKV_groupBar",
 			groupItem: "SKV_groupItem",
 			groupItemCount: "SKV_groupItemCount",
@@ -2450,23 +2468,13 @@ function SkillsSection(props) {
 
 			// ── 三栏外壳：左轨（工作区）/ 中栏（分组·来源）/ 主区 ────────────────
 			// 加载态与错误态只占主区：外壳不闪、切页签回来也不用重新认路。
-			// 简洁模式的工作区选择器：旧版形态是**折叠式下拉**（宿主 Menu，超过 11 项在菜单里滚）。
-			// 万一当前宿主没导出 Menu，退回一排行内 chip——宁可样式退化，也别让整个面板渲染失败。
-			const HostMenu = typeof primitives.Menu === "function" ? primitives.Menu : null;
-			const compactWorkspacePicker = HostMenu !== null ? (0, react_jsx_runtime.jsx)(HostMenu, {
-				open: scopeMenuOpen,
-				onClose: () => {
-					setScopeMenuOpen(false);
-				},
-				items: railEntries.map((entry) => ({ id: entry.key, label: entry.label })),
-				selectedId: scopeFilter,
-				onSelect: (key) => {
-					setScopeFilter(key);
-					setScopeMenuOpen(false);
-				},
-				align: "end",
-				portal: true,
-				anchor: (0, react_jsx_runtime.jsxs)("button", {
+			// 简洁模式的工作区选择器：折叠式下拉表单。
+			// 自带定位（wrap 用 relative + 菜单 absolute），不依赖宿主 Menu 的 portal/锚点测量——
+			// 用宿主 Menu 时菜单会跑到页面最右侧（截图复现，2026-10-19）。
+			// 打开时铺一层透明遮罩接住外部点击，菜单最多 11 行、超出在自身滚动。
+			const compactWorkspacePicker = (0, react_jsx_runtime.jsxs)("div", {
+				className: c.scopeMenuWrap,
+				children: [(0, react_jsx_runtime.jsxs)("button", {
 					type: "button",
 					className: c.scopeSelect,
 					"aria-haspopup": "menu",
@@ -2481,25 +2489,40 @@ function SkillsSection(props) {
 						size: 14,
 						className: c.scopeSelectChevron
 					})]
-				})
-			}) : (0, react_jsx_runtime.jsx)("div", {
-				className: c.groupBar,
-				role: "group",
-				"aria-label": t("railWorkspaces"),
-				children: railEntries.map((entry) => (0, react_jsx_runtime.jsxs)("button", {
-					type: "button",
-					className: c.groupItem,
-					"data-active": scopeFilter === entry.key ? "true" : void 0,
-					"aria-pressed": scopeFilter === entry.key,
-					title: entry.label,
+				}), scopeMenuOpen ? (0, react_jsx_runtime.jsx)("div", {
+					className: c.scopeMenuOverlay,
+					"aria-hidden": "true",
 					onClick: () => {
-						setScopeFilter(entry.key);
-					},
-					children: [entry.label, (0, react_jsx_runtime.jsx)("span", {
-						className: c.groupItemCount,
-						children: String(entry.count)
-					})]
-				}, "ws:" + entry.key))
+						setScopeMenuOpen(false);
+					}
+				}) : null, scopeMenuOpen ? (0, react_jsx_runtime.jsx)("div", {
+					className: c.scopeMenu,
+					role: "menu",
+					"aria-label": t("railWorkspaces"),
+					children: railEntries.map((entry) => (0, react_jsx_runtime.jsxs)("button", {
+						type: "button",
+						key: entry.key,
+						role: "menuitemradio",
+						"aria-checked": scopeFilter === entry.key,
+						className: c.scopeMenuItem,
+						"data-active": scopeFilter === entry.key ? "true" : void 0,
+						title: entry.label,
+						onClick: () => {
+							setScopeFilter(entry.key);
+							setScopeMenuOpen(false);
+						},
+						children: [(0, react_jsx_runtime.jsx)("span", {
+							className: c.scopeMenuItemLabel,
+							children: entry.label
+						}), (0, react_jsx_runtime.jsx)("span", {
+							className: c.scopeMenuItemCount,
+							children: String(entry.count)
+						}), scopeFilter === entry.key ? (0, react_jsx_runtime.jsx)("span", {
+							className: c.scopeMenuItemCheck,
+							children: hostIcon(primitiveIcon("IconCheckOutlineRegular"), 14, ICON_PATHS.check)
+						}) : null]
+					}, entry.key))
+				}) : null]
 			});
 
 			const mainColumnBody = (0, react_jsx_runtime.jsx)("div", {
