@@ -122,7 +122,7 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 确需在老宿主上使用，用宿主打印的精确版本豁免：
 
 ```bash
-dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.1 --dsh-version <宿主版本> --accept-risk
+dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.3 --dsh-version <宿主版本> --accept-risk
 ```
 
 ## 命令行
@@ -253,6 +253,7 @@ dsh plugin --profile web remove dsh-skill-mcp-panel
 
 只列**会改变使用方式**的版本要点；完整改动见 [Releases](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)。
 
+- **v2.3.3** —— 技能页新增 **「三栏 / 简洁」布局开关**（#50）：简洁模式收起左右两栏，工作区变成折叠式下拉、分组变成横排 chip，技能一行两个，想回到旧版那种清爽的单栏就点工具栏最右那个按钮（选择记在浏览器里）。MCP 页那条「受管块里有外来行」的提醒现在能真正解决：**[移出受管块]** 把不属于面板的行原样搬到标记之外（语义不变），**[查看机制]** 说明它为什么会在块里、留在块里为什么没有影响；**「打开目录」修好了，而且真的会弹出资源管理器**（宿主侧调用系统文件管理器；技能根还不存在时会先建出来）。侧栏入口标签改为 `Skill / MCP`。另合并两条社区 PR：`@deepseek-ai/cordis` 移到 peerDependencies（dshmarket 不再报 shared-host-package-dependency）、落在受管块外的面板行标成「受管块外」
 - **v2.3.1** —— 修 **#51：单工具禁用面板点不开**（报 `remote[method] is not a function`）。原因很直给：浏览器束里另有一份 Remote 方法清单，客户端只认清单里挂过的方法，而 2.2.0 加 `listTools` / `getToolFilter` / `setToolFilter` 与 OAuth 三连时只补了宿主侧清单、漏了浏览器束那份，于是点「工具」按钮必然抛错；卡片上的 **OAuth 登录 / 断开** 按钮也是同一个病因，这次一并修好。新增 `test-client-contribution.mjs` 守两份清单双向全量比对，杜绝再漏
 - **v2.3.0** —— **只支持 DSH `0.2.x`**（peer 改为 `>=0.2.0-rc.1 <0.3.0-0`，0.1.x 的历史兼容分支全部删除：图标不再回退像素后缀旧名、strict codec 去掉 `schema` 字段）；适配 DSH `0.2.1`：协议依赖钉到 `@deepseek-ai/dsh-typert-protocol@^0.2.1-rc.1` 并显式带上它的 peer `@deepseek-ai/cordis`（此前 `^0.1.0-rc.6` 会在 profile 里装出旧协议，宿主 0.2.1 判「strict definition withdrawn」→ 技能页与 MCP 页全挂；peer 缺 `cordis` 时连导入都会失败，见 Issue #48）；`dsh-home-paths` / `dsh-subprocess` 里我们只用到的两个纯函数已内联，不再拖它们的 peer 链；MCP 卡片新增 **OAuth 登录 / 重新登录 / 断开** 按钮（`--disconnect` 同款能力搬进面板，轮询式，不再只能用 CLI）
 - **v2.2.0** —— 前端按新设计稿重构（三栏：工作区 / 分组 / 内容；批量选择 + 迁移；删除可撤销）；修 **#46 受管块改写外来行**（会连带把 dsh-market 的更新全部回滚，见 ADR-0003）；MCP 新增**单工具禁用**（真省上下文，见 ADR-0005）与 **OAuth 登录**（`dsh-panel mcp oauth`）；技能页新增**按来源分组**与工作区栏（#42：工作区全列出、放不下就滚动）；`dsh-panel skill add` 的同名判定收窄到目标作用域（ADR-0002）
