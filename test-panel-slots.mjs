@@ -144,7 +144,7 @@ check("the row sits right below the host's 插件 row (order 0)", () => {
 });
 
 check("row label resolves from the zh dictionary", () => {
-  assert.equal(rows[0].options.label(), "Skill/MCP");
+  assert.equal(rows[0].options.label(), "Skill / MCP");
 });
 
 check("the row addresses the reserved-for-us main key", () => {

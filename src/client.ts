@@ -458,7 +458,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 
 		const zh = {
 			nav: "技能",
-			navCombined: "Skill/MCP",
+			navCombined: "Skill / MCP",
 			panelIntro: "管理全局与工作区里的技能：搜索、展开正文、启用/停用、删除、添加、迁移与分组。",
 			back: "返回会话",
 			loading: "正在读取技能…",
@@ -576,7 +576,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 
 		const en = {
 			nav: "Skills",
-			navCombined: "Skill/MCP",
+			navCombined: "Skill / MCP",
 			panelIntro: "Manage global and workspace skills: search, read content, enable or disable, delete, add, migrate, and group.",
 			back: "Back to session",
 			loading: "Reading skills…",

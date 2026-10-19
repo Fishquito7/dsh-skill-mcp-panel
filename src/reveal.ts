@@ -11,7 +11,7 @@
  * - Windows 的 `explorer.exe` 即使成功也常返回非 0，所以不等退出码、不读输出。
  */
 import { spawn } from "node:child_process";
-import { stat } from "node:fs/promises";
+import { mkdir, stat } from "node:fs/promises";
 import { isAbsolute } from "node:path";
 
 export type RevealResult =
@@ -39,7 +39,14 @@ export async function revealInFileManager(
   try {
     info = await stat(target);
   } catch {
-    return { ok: false, error: "目录不存在：" + target };
+    // 技能根可能还没建出来（工作区里从没加过技能）：先按技能根的位置建出来再打开。
+    // 只建这一个目录，不做任何别的写入；建不出来（父级是文件、没权限）才报错。
+    try {
+      await mkdir(target, { recursive: true });
+      info = await stat(target);
+    } catch {
+      return { ok: false, error: "目录不存在：" + target };
+    }
   }
   if (!info.isDirectory()) return { ok: false, error: "不是目录：" + target };
   const { command, args } = revealCommand(target);

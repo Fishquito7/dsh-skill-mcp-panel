@@ -7,7 +7,7 @@
  *   这里的 spawn 用注入的假实现，断言命令/参数，**不会真的弹窗**。
  */
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { revealCommand, revealInFileManager } from "./lib/reveal.js";
@@ -62,11 +62,23 @@ try {
     assert.equal(calls[0].options.stdio, "ignore");
   });
 
-  const missing = await revealInFileManager(join(root, "does-not-exist"), fakeSpawn);
-  check("missing directory is rejected with a readable error", () => {
-    assert.equal(missing.ok, false);
-    assert.match(String(missing.error), /不存在/);
-    assert.equal(calls.length, 1, "must not spawn for a missing directory");
+  // 技能根还没建出来的工作区：先建出来再打开（用户 2026-10-19 要求）
+  const missingPath = join(root, "fresh-workspace", ".dsh", "skills");
+  const created = await revealInFileManager(missingPath, fakeSpawn);
+  const createdStat = await stat(missingPath).catch(() => null);
+  check("a missing skill root is created and then revealed", () => {
+    assert.equal(created.ok, true, "expected ok, got " + JSON.stringify(created));
+    assert.equal(calls.length, 2, "spawn must run once for the created root");
+    assert.deepEqual(calls[1].args, [missingPath]);
+    assert.equal(createdStat !== null && createdStat.isDirectory(), true, "the skill root must exist now");
+  });
+
+  const uncreatable = join(flat, "nested", "skills");
+  const failedCreate = await revealInFileManager(uncreatable, fakeSpawn);
+  check("a root that cannot be created is reported instead of thrown", () => {
+    assert.equal(failedCreate.ok, false);
+    assert.match(String(failedCreate.error), /不存在/);
+    assert.equal(calls.length, 2, "must not spawn when the directory cannot be created");
   });
 
   const file = await revealInFileManager(flat, fakeSpawn);

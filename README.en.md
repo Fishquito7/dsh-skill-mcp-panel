@@ -16,7 +16,7 @@
 
 ---
 
-A DSH plugin that brings **skill** and **MCP server** management into the DSH web home sidebar — click Skill/MCP in the left column and the center main area switches to a full panel (not a modal, not a tab in the Settings dialog), and changes take effect immediately. The package also ships the unified `dsh-panel` command: everything the panels can do, plus cross-profile upgrades.
+A DSH plugin that brings **skill** and **MCP server** management into the DSH web home sidebar — click Skill / MCP in the left column and the center main area switches to a full panel (not a modal, not a tab in the Settings dialog), and changes take effect immediately. The package also ships the unified `dsh-panel` command: everything the panels can do, plus cross-profile upgrades.
 
 - 🗂️ **Skill management** — list and preview installed skills, search, workspace split and group filters, expand a card to read the full content, hot enable/disable and delete, plus `.md` / `.zip` / skill-folder adding and batch migration
 - 🔌 **MCP server management** — visually maintain the MCP managed block in the profile's `cordis.patch.yml`, with Stdio / HTTP transports, connection tests, and hot reload through DSH HMR after saving
@@ -33,8 +33,8 @@ A DSH plugin that brings **skill** and **MCP server** management into the DSH we
 > The panels live in the home sidebar, right below Plugins (moved there from the Settings dialog in v2.1.0). Clicking Skills/MCP swaps the center main area to that panel, and each panel's top-left “← Back to session” arrow returns you to the session you were reading.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/sidebar-entry.png" width="260" alt="DSH home sidebar: Plugins / Skill/MCP">
-  <br><sub>Entry · Skill/MCP in the home sidebar (one merged row since v2.1.5, label always in English)</sub>
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/sidebar-entry.png" width="260" alt="DSH home sidebar: Plugins / Skill / MCP">
+  <br><sub>Entry · Skill / MCP in the home sidebar (one merged row since v2.1.5, label always in English)</sub>
 </p>
 
 <p align="center">
@@ -98,11 +98,11 @@ A DSH plugin that brings **skill** and **MCP server** management into the DSH we
    dsh-restart
    ```
 
-   Then refresh the page: right below Plugins the left column lists a single merged **Skill/MCP** row — clicking it swaps the center main area to the panel, and tabs inside the panel switch between Skills and MCP.
+   Then refresh the page: right below Plugins the left column lists a single merged **Skill / MCP** row — clicking it swaps the center main area to the panel, and tabs inside the panel switch between Skills and MCP.
 
 ## Features
 
-The panel works exactly like the host's built-in Plugins page: a single **Skill/MCP** row in the left column swaps the center main area to the panel — no Settings tab, no dialog. Tabs inside the panel switch between Skills and MCP and remember the page you left; **← Back to session** takes you back to where you were.
+The panel works exactly like the host's built-in Plugins page: a single **Skill / MCP** row in the left column swaps the center main area to the panel — no Settings tab, no dialog. Tabs inside the panel switch between Skills and MCP and remember the page you left; **← Back to session** takes you back to where you were.
 
 ### Skills panel
 
@@ -256,7 +256,7 @@ Only version notes that **change how you use the plugin**; see [Releases](https:
 - **v2.1.7** — the name-conflict test in “Adding skills” is narrowed to the **target scope**: it used to reject an add whenever the same name existed anywhere on the machine (another workspace, the global root), now only a same name *inside the target scope* is skipped; a same name in another scope is added and reported as a notice (`dsh-panel skill add` behaves the same). See ADR-0002: DSH resolves duplicate names by root rank, a workspace's discovery roots are resolved from the session cwd (other workspaces are not on that chain), and every other row-level operation already keys on (name + scope)
 
 - **v2.1.6** — the add flow is fixed: the folder picker no longer drops the selected folder’s own name (until now, picking any valid bundle was answered with a bogus “missing a top-level SKILL.md”); all three entry points (files / folder·ZIP / drag & drop) classify through one rule — a selection that directly contains `SKILL.md` is a single **skill bundle** (top-level dependency `.md` files plus `references/`, `scripts/` are payload and are no longer validated as skills), otherwise every skill found inside is discovered recursively and **flattened to the first level** of the skill root, so a folder holding several skills imports in one go (ZIP included); invalid, duplicate and conflicting items are skipped with a reason, and only a total failure is an error. `dsh-panel skill add` matches the panel
-- **v2.1.5** — the sidebar’s Skills and MCP rows merge into one “Skill/MCP” row (with a new merged-entry icon) plus tabs inside the panel (the tab you left is remembered); a new “show plugin skills” switch; MCP environment variables accept the intuitive `${NAME}` form (the panel/CLI formats them into `!!js`, and they read back as `${NAME}` instead of being flattened into a literal), a new “How it works” note on the MCP page, and grey examples on empty fields; an extension-less bash shim on Windows; `dsh-panel update` stays on each profile’s original install channel (tarball / npm / git) and the README install guide uses the version-less stable tarball link
+- **v2.1.5** — the sidebar’s Skills and MCP rows merge into one “Skill / MCP” row (with a new merged-entry icon) plus tabs inside the panel (the tab you left is remembered); a new “show plugin skills” switch; MCP environment variables accept the intuitive `${NAME}` form (the panel/CLI formats them into `!!js`, and they read back as `${NAME}` instead of being flattened into a literal), a new “How it works” note on the MCP page, and grey examples on empty fields; an extension-less bash shim on Windows; `dsh-panel update` stays on each profile’s original install channel (tarball / npm / git) and the README install guide uses the version-less stable tarball link
 - **v2.1.3** — DSH `0.2.0` support (peer upper bound raised to `<0.3.0-0`, without which the host denies the whole row at profile startup); an illegal MCP server name no longer answers with a bare gateway error
 - **v2.1.2** — `mcp` sub-commands require an explicit `--profile`, a typo is rejected instead of creating a profile; `dsh-panel update` updates every profile; new `dsh-panel profiles`
 - **v2.1.1** — DSH `0.1.7` support for the host's renamed icon exports, so the Skills page renders again
