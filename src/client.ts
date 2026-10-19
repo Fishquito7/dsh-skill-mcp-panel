@@ -197,6 +197,10 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			+ ".SKV_toolButton:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}"
 			+ ".SKV_toolButton:hover:not(:disabled)::after{content:attr(aria-label);position:absolute;top:calc(100% + 6px);right:0;z-index:40;white-space:nowrap;background:var(--dsw-alias-tooltip-bg);color:var(--dsw-alias-toast-label);font-size:12px;line-height:18px;padding:3px 8px;border-radius:6px;box-shadow:var(--dsw-shadow-lv1);pointer-events:none}"
 			+ ".SKV_filterBar{display:flex;flex-direction:column;gap:2px;margin:2px 0 10px}"
+			// 简洁模式：内容区放宽一点，卡片恢复成一行两个（旧版就是这么排的，Issue #50）
+			+ ".SKV_section[data-layout=compact] .SKV_mainScroll>.SKV_catalog{max-width:940px}"
+			+ ".SKV_section[data-layout=compact] .SKV_cards{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}"
+			+ "@media (max-width:900px){.SKV_section[data-layout=compact] .SKV_cards{grid-template-columns:minmax(0,1fr)}}"
 			+ "@media (max-width:820px){.SKV_rail{width:140px}.SKV_pane{width:150px}.SKV_mainScroll{padding:20px 20px 96px}}";
 		// 卡片行（v2.1.6 重构）：[勾选框][图标][名称 + 描述][红绿灯 + 删除]。
 		// 勾选框用原生 input（accent-color 跟随宿主主题），批量模式之外宽度收缩到 0。
@@ -1536,11 +1540,14 @@ function SkillsSection(props) {
 					return false;
 				}
 			});
+			// 简洁模式里工作区下拉的展开状态（宿主 Menu 以 portal 渲染）。
+			const [scopeMenuOpen, setScopeMenuOpen] = react.useState(false);
 			const toggleLayout = () => {
 				const next = !layoutCompact;
 				// 简洁模式下没有「分组 / 来源」切换入口，口径统一到分组维度，
 				// 否则会出现「筛选条显示的是分组、列表却按来源过滤」的错位。
 				if (next && paneMode !== "groups") setPaneMode("groups");
+				setScopeMenuOpen(false);
 				setLayoutCompact(next);
 				try {
 					if (typeof localStorage !== "undefined") localStorage.setItem(LAYOUT_KEY, next ? "compact" : "three");
@@ -2443,6 +2450,58 @@ function SkillsSection(props) {
 
 			// ── 三栏外壳：左轨（工作区）/ 中栏（分组·来源）/ 主区 ────────────────
 			// 加载态与错误态只占主区：外壳不闪、切页签回来也不用重新认路。
+			// 简洁模式的工作区选择器：旧版形态是**折叠式下拉**（宿主 Menu，超过 11 项在菜单里滚）。
+			// 万一当前宿主没导出 Menu，退回一排行内 chip——宁可样式退化，也别让整个面板渲染失败。
+			const HostMenu = typeof primitives.Menu === "function" ? primitives.Menu : null;
+			const compactWorkspacePicker = HostMenu !== null ? (0, react_jsx_runtime.jsx)(HostMenu, {
+				open: scopeMenuOpen,
+				onClose: () => {
+					setScopeMenuOpen(false);
+				},
+				items: railEntries.map((entry) => ({ id: entry.key, label: entry.label })),
+				selectedId: scopeFilter,
+				onSelect: (key) => {
+					setScopeFilter(key);
+					setScopeMenuOpen(false);
+				},
+				align: "end",
+				portal: true,
+				anchor: (0, react_jsx_runtime.jsxs)("button", {
+					type: "button",
+					className: c.scopeSelect,
+					"aria-haspopup": "menu",
+					"aria-expanded": scopeMenuOpen,
+					onClick: () => {
+						setScopeMenuOpen((value) => !value);
+					},
+					children: [(0, react_jsx_runtime.jsx)("span", {
+						className: c.scopeSelectLabel,
+						children: scopeFilter === "global" ? t("scopeGlobal") : labelOf(scopeFilter)
+					}), (0, react_jsx_runtime.jsx)(primitiveIcon("IconChevronDownOutlineRegular"), {
+						size: 14,
+						className: c.scopeSelectChevron
+					})]
+				})
+			}) : (0, react_jsx_runtime.jsx)("div", {
+				className: c.groupBar,
+				role: "group",
+				"aria-label": t("railWorkspaces"),
+				children: railEntries.map((entry) => (0, react_jsx_runtime.jsxs)("button", {
+					type: "button",
+					className: c.groupItem,
+					"data-active": scopeFilter === entry.key ? "true" : void 0,
+					"aria-pressed": scopeFilter === entry.key,
+					title: entry.label,
+					onClick: () => {
+						setScopeFilter(entry.key);
+					},
+					children: [entry.label, (0, react_jsx_runtime.jsx)("span", {
+						className: c.groupItemCount,
+						children: String(entry.count)
+					})]
+				}, "ws:" + entry.key))
+			});
+
 			const mainColumnBody = (0, react_jsx_runtime.jsx)("div", {
 				className: c.mainScroll,
 				children: listState.status === "loading" ? (0, react_jsx_runtime.jsx)("p", {
@@ -2588,29 +2647,12 @@ function SkillsSection(props) {
 								})]
 							})]
 						}),
-						// ── 简洁模式（Issue #50）：把左轨（工作区）与中栏（分组）压成列表上方的两条筛选条。
-						// 与三栏共用同一份筛选状态（scopeFilter / activePaneKey），切回三栏不会丢选择。
-						layoutCompact ? (0, react_jsx_runtime.jsxs)("div", {
+						// ── 简洁模式（Issue #50）────────────────────────────────────────────
+						// 照旧版（v2.1.x）的两条横栏来：工作区是**折叠式下拉表单**（宿主 Menu，超 11 项滚动），
+						// 分组是横排 chip。两者与三栏共用同一份筛选状态，切回三栏不会丢选择。
+						layoutCompact ? (0, react_jsx_runtime.jsx)("div", {
 							className: c.filterBar,
-							children: [(0, react_jsx_runtime.jsx)("div", {
-								className: c.groupBar,
-								role: "group",
-								"aria-label": t("railWorkspaces"),
-								children: railEntries.map((entry) => (0, react_jsx_runtime.jsxs)("button", {
-									type: "button",
-									className: c.groupItem,
-									"data-active": scopeFilter === entry.key ? "true" : void 0,
-									"aria-pressed": scopeFilter === entry.key,
-									title: entry.label,
-									onClick: () => {
-										setScopeFilter(entry.key);
-									},
-									children: [entry.label, (0, react_jsx_runtime.jsx)("span", {
-										className: c.groupItemCount,
-										children: String(entry.count)
-									})]
-								}, "ws:" + entry.key))
-							}), paneRows.length > 1 ? (0, react_jsx_runtime.jsx)("div", {
+							children: [compactWorkspacePicker, paneRows.length > 1 ? (0, react_jsx_runtime.jsx)("div", {
 								className: c.groupBar,
 								role: "group",
 								"aria-label": t("paneGroups"),
