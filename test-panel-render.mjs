@@ -541,6 +541,29 @@ const assert = (cond, message) => { if (!cond) throw new Error(message); };
       assert(text.includes("C:/proj/one/.dsh/skills"), "workspace fallback lost: " + text);
     });
   }
+  {
+    // 正常路径：宿主真的去弹资源管理器，不再退回剪贴板
+    reset();
+    const revealed = [];
+    clipboardWrites.length = 0;
+    const openRpc = {
+      ...rpc,
+      openFolder: async (path) => {
+        revealed.push(path);
+        return { opened: path, command: "explorer.exe" };
+      }
+    };
+    const clicked = await mount(openRpc);
+    byClass(clicked.section, "SKV_toolButton")[0].props.onClick();
+    await flush();
+    const revealedView = await mount(openRpc);
+    check("open-folder asks the host to reveal the directory (no clipboard fallback)", () => {
+      const text = byClass(revealedView.section, "SKV_noticeText").map((n) => n.props.children).join(" | ");
+      assert(revealed.length === 1 && revealed[0] === "C:/Users/x/.dsh/skills", "host was not asked: " + JSON.stringify(revealed));
+      assert(text.includes("已在资源管理器里打开"), "success wording missing: " + text);
+      assert(clipboardWrites.length === 0, "must not touch the clipboard when revealing works");
+    });
+  }
   check("the settings-page entry was dropped for good (Issue #27)", () => {
     // 2026-10-15 定案：面板元素太多，设置页塞不下，两处渲染等于维护两套前端 —— 只留侧栏入口。
     assert(source.includes("SKV_prefPanel") === false, "the preferences popover came back");

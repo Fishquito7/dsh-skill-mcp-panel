@@ -559,6 +559,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			emptyList: "这里还没有技能，点右上角的“添加”开始",
 			toolbarOpenFolder: "打开目录",
 			toolbarNewGroup: "新建分组",
+			openFolderRevealed: "已在资源管理器里打开：{path}",
 			openFolderCopied: "技能根路径已复制到剪贴板：{path}",
 			openFolderManual: "剪贴板不可用，请手动复制技能根路径：{path}",
 			openFolderUnavailable: "暂时拿不到技能根路径（该作用域还没有可读取的技能文件）。",
@@ -675,6 +676,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			emptyList: "No skills yet — start with “Add” in the top-right corner.",
 			toolbarOpenFolder: "Open folder",
 			toolbarNewGroup: "New group",
+			openFolderRevealed: "Opened in the file manager: {path}",
 			openFolderCopied: "Skill root copied to the clipboard: {path}",
 			openFolderManual: "Clipboard unavailable — copy the skill root manually: {path}",
 			openFolderUnavailable: "The skill root is unavailable right now (no readable skill file in this scope).",
@@ -720,6 +722,17 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					invocation: { kind: "direct" },
 					parameters: [],
 					result: codec("dsh-skill-mcp-panel#WorkspacesResult")
+				},
+				{
+					id: "dsh-skill-mcp-panel#skillsViewer/openFolder",
+					service: "skillsViewer",
+					namespace: "skillsViewer",
+					method: "openFolder",
+					invocation: { kind: "direct" },
+					parameters: [
+						{ name: "path", wire: "path", source: "json", codec: codec("dsh-skill-mcp-panel#FilePath") }
+					],
+					result: codec("dsh-skill-mcp-panel#OpenFolderResult")
 				},
 				{
 					id: "dsh-skill-mcp-panel#skillsViewer/groups",
@@ -1467,7 +1480,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 		}
 
 function SkillsSection(props) {
-			const { t, currentSessionId, subscribeSession, useSessions, listSkills, loadContent, setSkillEnabled, removeSkill, addSkill, listWorkspaces, batchMigrateSkill, listGroups, saveGroupSkill, deleteGroupSkill, checkUpdateRemote } = props;
+			const { t, currentSessionId, subscribeSession, useSessions, listSkills, loadContent, setSkillEnabled, removeSkill, addSkill, listWorkspaces, openFolder, batchMigrateSkill, listGroups, saveGroupSkill, deleteGroupSkill, checkUpdateRemote } = props;
 			// 当前会话 id，仅用于会话级项目作用域与「随会话刷新列表」，
 			// 不再门控任何 UI：技能页在没有会话时同样正常显示（服务端回退全局注册表）。
 			// 宿主客户端以「主视图引用计数」定义当前会话，判据是
@@ -2253,9 +2266,14 @@ function SkillsSection(props) {
 						setShellNotice({ kind: "error", text: t("openFolderUnavailable") });
 						return;
 					}
-					return copyTextToClipboard(root).then((ok) => {
-						setShellNotice({ kind: "info", text: (ok ? t("openFolderCopied") : t("openFolderManual")).replace("{path}", root) });
-					});
+					// 宿主侧真的去弹资源管理器；宿主打不开（目录还没建出来、没有 xdg-open 等）
+					// 再退回「复制路径」，不让按钮变成死路。
+					return openFolder(root).then(
+						() => setShellNotice({ kind: "info", text: t("openFolderRevealed").replace("{path}", root) }),
+						() => copyTextToClipboard(root).then((ok) => {
+							setShellNotice({ kind: "info", text: (ok ? t("openFolderCopied") : t("openFolderManual")).replace("{path}", root) });
+						})
+					);
 				});
 			};
 
@@ -4448,6 +4466,7 @@ function mcpWireScalar(text) {
 				subscribeSession,
 				listSkills: () => callRemote("list", currentSessionId()),
 				listWorkspaces: () => callRemote("workspaces"),
+				openFolder: (path) => callRemote("openFolder", path),
 				loadContent: (name, scope) => callRemote("content", name, currentSessionId(), scope),
 				setSkillEnabled: (name, enabled, scope) => callRemote("setEnabled", name, currentSessionId(), enabled, scope),
 				batchMigrateSkill: (payload) => callRemote("batchMigrate", currentSessionId(), payload),
