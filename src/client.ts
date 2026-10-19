@@ -905,6 +905,15 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					result: codec("dsh-skill-mcp-panel#McpToolFilterResult")
 				},
 				{
+					id: "dsh-skill-mcp-panel#mcpManager/evacuateForeign",
+					service: "mcpManager",
+					namespace: "mcpManager",
+					method: "evacuateForeign",
+					invocation: { kind: "direct" },
+					parameters: [],
+					result: codec("dsh-skill-mcp-panel#McpEvacuateResult")
+				},
+				{
 					id: "dsh-skill-mcp-panel#mcpManager/oauthStart",
 					service: "mcpManager",
 					namespace: "mcpManager",
@@ -3024,6 +3033,17 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         // #46：受管块里的外来行可见化（面板永不改写它们，但必须让用户看见）
                         foreignOthers: "受管块内还有 {count} 条不属于面板的行（{list}），面板不会改动它们。",
                         foreignMine: "另有 {count} 条面板行被放在外来 insert 列表里（{list}），面板暂不管理它们。",
+                        foreignEvacuate: "移出受管块",
+                        foreignEvacuating: "正在移出…",
+                        foreignEvacuated: "已把 {count} 条外来行原样移到受管块外，内容和语义都没变。",
+                        foreignEvacuateNone: "块内已经没有外来行了。",
+                        foreignEvacuateFailed: "移出失败：",
+                        foreignDoc: "查看机制",
+                        foreignDocTitle: "受管块与「外来行」",
+                        foreignDocWhat: "面板在 profile 的 cordis.patch.yml 里用两行注释（begin / end）圈出自己管理的一段，每次保存只重写这一段，圈外的内容一个字节都不碰。",
+                        foreignDocWhy: "圈里可能出现不属于面板的行：DSH 自己的配置编辑器给某个插件首次写配置时会往文件末尾追加一行，而 end 注释正好是最后一行，序列化后这行就落在圈内了（例如「权限预设」的 permission 行）。",
+                        foreignDocEffect: "留在块里没有任何功能影响：DSH 是整份列表读取的，行的位置不改变语义。「移出受管块」只是把那条行原样搬到 begin 之前，内容一字不改，权限预设照常生效。",
+                        foreignDocKeep: "面板不会自动搬动它们：改写别人的行曾经把 dsh-market 的更新整体回滚（Issue #46），所以现在的规矩是「只碰 panel-mcp-*，其余原样保留，并且让你看得见」。",
 oauthLogin: "OAuth 登录",
 oauthRelogin: "重新登录",
 oauthWorking: "登录中…",
@@ -3140,6 +3160,17 @@ authStdioHint: "stdio 服务器的令牌没有单独的认证项——写在这�
                         // #46: surface foreign rows inside the managed block (never rewritten by the panel)
                         foreignOthers: "{count} row(s) in the managed block do not belong to this panel ({list}); the panel leaves them untouched.",
                         foreignMine: "{count} panel row(s) sit inside a foreign insert list ({list}); the panel does not manage them yet.",
+                        foreignEvacuate: "Move out of block",
+                        foreignEvacuating: "Moving…",
+                        foreignEvacuated: "Moved {count} foreign row(s) out of the managed block; content and meaning are unchanged.",
+                        foreignEvacuateNone: "No foreign rows are left in the block.",
+                        foreignEvacuateFailed: "Move failed: ",
+                        foreignDoc: "How this works",
+                        foreignDocTitle: "The managed block and “foreign rows”",
+                        foreignDocWhat: "The panel fences off its own slice of the profile's cordis.patch.yml with two comment lines (begin / end) and only ever rewrites that slice; bytes outside the fence are never touched.",
+                        foreignDocWhy: "Rows that are not the panel's can end up inside the fence: when DSH's own config editor writes an entry for a plugin the first time, it appends to the YAML list, and since our end comment is the last line of the file the appended row is serialized before it (that is where the permission-presets row came from).",
+                        foreignDocEffect: "Leaving it inside changes nothing: DSH reads the whole list, so a row's position does not alter its meaning. “Move out of block” only copies that row verbatim to just before the begin marker — the permission presets keep working.",
+                        foreignDocKeep: "The panel never moves them automatically: rewriting someone else's rows once rolled back every dsh-market update (issue #46), so the rule is “only touch panel-mcp-*, keep everything else as-is, and show it to you”.",
 oauthLogin: "OAuth sign-in",
 oauthRelogin: "Sign in again",
 oauthWorking: "Signing in…",
@@ -3552,7 +3583,7 @@ function mcpWireScalar(text) {
                                 })
                         });
                 }
-                function McpSection({ t, listMcp, saveMcp, removeMcp, setEnabledMcp, testMcp, reloadMcp, checkUpdateRemote, oauthStart, oauthPoll, oauthDisconnect, listMcpTools, getToolFilter, setToolFilter }) {
+                function McpSection({ t, listMcp, saveMcp, removeMcp, setEnabledMcp, testMcp, reloadMcp, checkUpdateRemote, oauthStart, oauthPoll, oauthDisconnect, listMcpTools, getToolFilter, setToolFilter, evacuateForeign }) {
                         const [loadState, setLoadState] = react.useState({ kind: "loading" } as any);
                         const [data, setData] = react.useState(null);
                         const [request, setRequest] = react.useState(0);
@@ -3571,6 +3602,10 @@ function mcpWireScalar(text) {
                         const [toolsOpen, setToolsOpen] = react.useState(null);
                         const [toolsPanel, setToolsPanel] = react.useState(null);
                         const [toolsBusy, setToolsBusy] = react.useState(false);
+                        // 受管块里的外来行（#46 后续）：展开「查看机制」说明、移出结果与忙碌态。
+                        const [foreignDocOpen, setForeignDocOpen] = react.useState(false);
+                        const [evacNotice, setEvacNotice] = react.useState(null);
+                        const [evacBusy, setEvacBusy] = react.useState(false);
                         react.useEffect(() => {
                                 let cancelled = false;
                                 listMcp().then((value) => {
@@ -3618,6 +3653,21 @@ function mcpWireScalar(text) {
                                 foreignMine.length > 0 && t !== null ? t("foreignMine").replace("{count}", String(foreignMine.length)).replace("{list}", foreignListText(foreignMine)) : null
                         ].filter((line) => line !== null);
                         const refresh = (quiet) => setRequest((value) => value + 1);
+                        // 把受管块里的外来行原样搬到块外（语义不变），然后刷新列表让提醒消失。
+                        const applyEvacuate = () => {
+                                if (evacBusy) return;
+                                setEvacBusy(true);
+                                setEvacNotice(null);
+                                Promise.resolve().then(() => evacuateForeign()).then((result) => {
+                                        setEvacBusy(false);
+                                        const moved = Number(result?.moved ?? 0);
+                                        setEvacNotice(t !== null ? t(moved > 0 ? "foreignEvacuated" : "foreignEvacuateNone").replace("{count}", String(moved)) : "");
+                                        refresh(true);
+                                }, (error) => {
+                                        setEvacBusy(false);
+                                        setEvacNotice(t !== null ? t("foreignEvacuateFailed") + String(error?.message ?? error) : String(error?.message ?? error));
+                                });
+                        };
                         const stateLabel = (server) => {
                                 if (!server.enabled) return t !== null ? "stateStopped" : "";
                                 const phase = server.fiberPhase;
@@ -3978,11 +4028,38 @@ function mcpWireScalar(text) {
                                                         style: { display: "block" },
                                                         children: line
                                                 }, index))
+                                        }), foreignOthers.length > 0 ? (0, react_jsx_runtime.jsx)("button", {
+                                                type: "button",
+                                                className: c.noticeButton,
+                                                "data-action": "evacuate",
+                                                disabled: evacBusy,
+                                                onClick: applyEvacuate,
+                                                children: t !== null ? t(evacBusy ? "foreignEvacuating" : "foreignEvacuate") : ""
+                                        }) : null, (0, react_jsx_runtime.jsx)("button", {
+                                                type: "button",
+                                                className: c.noticeButton,
+                                                "data-action": "foreign-doc",
+                                                "aria-expanded": foreignDocOpen,
+                                                onClick: () => { setForeignDocOpen((value) => !value); },
+                                                children: t !== null ? t("foreignDoc") : ""
                                         }), (0, react_jsx_runtime.jsx)("button", {
                                                 type: "button",
                                                 className: c.noticeButton,
                                                 onClick: () => { setRequest((value) => value + 1); },
                                                 children: t !== null ? t("refresh") : ""
+                                        })]
+                                }) : null, foreignNotice.length > 0 && foreignDocOpen ? (0, react_jsx_runtime.jsxs)("div", {
+                                        className: m.doc,
+                                        children: [(0, react_jsx_runtime.jsx)("h4", { children: t !== null ? t("foreignDocTitle") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("foreignDocWhat") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("foreignDocWhy") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("foreignDocEffect") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("foreignDocKeep") : "" })]
+                                }) : null, evacNotice !== null ? (0, react_jsx_runtime.jsxs)("div", {
+                                        className: c.notice,
+                                        "data-kind": "info",
+                                        role: "status",
+                                        children: [(0, react_jsx_runtime.jsx)("span", { className: c.noticeText, children: evacNotice }), (0, react_jsx_runtime.jsx)("button", {
+                                                type: "button",
+                                                className: c.noticeButton,
+                                                onClick: () => { setEvacNotice(null); },
+                                                children: t !== null ? t("close") : ""
                                         })]
                                 }) : null, loadState.kind === "error" ? (0, react_jsx_runtime.jsxs)("div", {
                                         className: c.notice,
@@ -4227,6 +4304,7 @@ function mcpWireScalar(text) {
 				listMcpTools: (payload) => callMcp("listTools", payload),
 				getToolFilter: () => callMcp("getToolFilter"),
 				setToolFilter: (payload) => callMcp("setToolFilter", payload),
+				evacuateForeign: () => callMcp("evacuateForeign"),
 			});
 			// 技能与 MCP 合成一个侧栏入口：注入面同时带两边的动作与字典绑定，
 			// 页面内部的页签决定渲染哪一个 section。

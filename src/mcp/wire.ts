@@ -70,6 +70,11 @@ export const mcpListResultSchema = z.object({
   })
 });
 
+/** 把受管块里的外来顶层行搬到块外（#46 后续）：返回搬走的条数。 */
+export const mcpEvacuateResultSchema = z.object({
+  moved: z.number().int().nonnegative()
+});
+
 export const mcpSavePayloadSchema = z.object({
   input: mcpServerInputSchema,
   previousServerName: z.string().optional(),
@@ -268,6 +273,15 @@ export const MCP_MANIFEST = {
         { name: "payload", wire: "payload", source: "json", codec: strictCodec("dsh-skill-mcp-panel#McpToolFilterPayload", boundaryPayloadSchema) }
       ],
       result: strictCodec("dsh-skill-mcp-panel#McpToolFilterResult", mcpToolFilterResultSchema)
+    },
+    {
+      id: "dsh-skill-mcp-panel#mcpManager/evacuateForeign",
+      service: "mcpManager",
+      namespace: "mcpManager",
+      method: "evacuateForeign",
+      invocation: { kind: "direct" },
+      parameters: [],
+      result: strictCodec("dsh-skill-mcp-panel#McpEvacuateResult", mcpEvacuateResultSchema)
     },
     {
       id: "dsh-skill-mcp-panel#mcpManager/oauthStart",
