@@ -10,6 +10,7 @@ import {
   readManagedBlock,
   readPatchFile,
   replaceManagedBlock,
+  evacuateForeignRows,
   validatePatchText,
   writeManagedRows
 } from "./lib/patch-editor.js";
@@ -265,6 +266,63 @@ assert.equal(kept2.includes("    - id: someone-else"), true, "混合 insert 里�
 assert.equal((kept2.match(/panel-mcp-notmine/g) ?? []).length, 1, "不得重复写入");
 await validatePatchText(kept2);
 pass("mixed insert entries stay untouched and are reported");
+
+// ── 受管块内的外来顶层行：搬到块外，内容与语义不变（#46 后续）────────────
+{
+  const input = [
+    "- id: keep-me",
+    "  name: \"@deepseek-ai/dsh-permission-presets\"",
+    "  config:",
+    "    defaultPreset: read-only",
+    "",
+    "# >>> dsh-skill-mcp-panel:mcp:begin",
+    "- id: permission",
+    "  name: \"@deepseek-ai/dsh-permission-presets\"",
+    "  config:",
+    "    first: 1",
+    "- insert:",
+    "    - id: panel-mcp-a",
+    "      name: \"@deepseek-ai/dsh-mcp-client\"",
+    "      config:",
+    "        serverName: a",
+    "        transport: stdio",
+    "        command: node",
+    "# <<< dsh-skill-mcp-panel:mcp:end",
+    ""
+  ].join("\n");
+  const moved = evacuateForeignRows(input);
+  assert.equal(moved.moved, 1, "只搬顶层外来行，条数要报出来");
+  const begin = moved.raw.indexOf("# >>> dsh-skill-mcp-panel:mcp:begin");
+  const permission = moved.raw.indexOf("- id: permission");
+  assert.ok(permission >= 0 && permission < begin, "外来行要落到 begin 标记之前");
+  assert.equal(moved.raw.includes("first: 1"), true, "外来行内容逐字节保留");
+  const block = readManagedBlock(moved.raw);
+  assert.deepEqual(block.managed.map((row) => row.id), ["panel-mcp-a"], "面板行不受影响");
+  assert.equal(block.foreign.top, "", "块内不再有外来顶层行");
+  const again = evacuateForeignRows(moved.raw);
+  assert.equal(again.moved, 0, "重复调用必须是幂等的");
+  assert.equal(again.raw, moved.raw, "幂等时不得改动文件");
+  await validatePatchText(moved.raw);
+  pass("foreign top-level rows move out of the managed block verbatim");
+}
+
+{
+  // 外来 insert 成员不在搬运范围内：搬出去会改变「插入哪些插件」的语义
+  const input = [
+    "# >>> dsh-skill-mcp-panel:mcp:begin",
+    "- insert:",
+    "    - id: someone-else",
+    "      name: \"@deepseek-ai/dsh-mcp-client\"",
+    "    - id: panel-mcp-a",
+    "      name: \"@deepseek-ai/dsh-mcp-client\"",
+    "# <<< dsh-skill-mcp-panel:mcp:end",
+    ""
+  ].join("\n");
+  const moved = evacuateForeignRows(input);
+  assert.equal(moved.moved, 0, "混合 insert 不搬");
+  assert.equal(moved.raw, input, "不搬时文件不得变动");
+  pass("foreign insert members are never evacuated");
+}
 
 console.log("\n" + passed + " passed, 0 failed");
 console.log("ALL PATCH EDITOR TESTS PASSED");

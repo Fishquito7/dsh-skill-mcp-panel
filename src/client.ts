@@ -86,6 +86,9 @@
 			group: ["M3 7h6l2 2h10v10H3z", "M12 12v5", "M9.5 14.5h5"],
 			migrate: ["M4 8h14", "M14 4l4 4-4 4", "M20 16H6", "M10 12l-4 4 4 4"],
 			plus: ["M12 5v14", "M5 12h14"],
+			// 布局切换：三栏 / 简洁（一根竖线把方框一分为二）
+			layout: ["M4 5h16v14H4z", "M13 5v14"],
+			check: ["M5 12.5l4.5 4.5L19 7.5"],
 			trash: ["M5 7h14", "M10 7V4h4v3", "M7 7l1 13h8l1-13"],
 			gear: ["M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z", "M12 3.5v2", "M12 18.5v2", "M20.5 12h-2", "M5.5 12h-2", "M18 6.6l-1.4 1.4", "M7.4 16 6 17.4", "M18 17.4 16.6 16", "M7.4 8 6 6.6"]
 		};
@@ -194,6 +197,21 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			+ ".SKV_toolButton:disabled{cursor:default;opacity:.5}"
 			+ ".SKV_toolButton:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}"
 			+ ".SKV_toolButton:hover:not(:disabled)::after{content:attr(aria-label);position:absolute;top:calc(100% + 6px);right:0;z-index:40;white-space:nowrap;background:var(--dsw-alias-tooltip-bg);color:var(--dsw-alias-toast-label);font-size:12px;line-height:18px;padding:3px 8px;border-radius:6px;box-shadow:var(--dsw-shadow-lv1);pointer-events:none}"
+			// 简洁模式的工作区下拉：自带定位，不依赖宿主 Menu 的 portal/锚点测量
+			+ ".SKV_scopeMenuWrap{position:relative;display:inline-flex}"
+			+ ".SKV_scopeMenuOverlay{position:fixed;inset:0;z-index:29}"
+			+ ".SKV_scopeMenu{position:absolute;left:0;top:calc(100% + 6px);z-index:30;box-sizing:border-box;min-width:220px;max-width:min(360px,calc(100vw - 48px));max-height:min(448px,calc(100vh - 32px));overflow-y:auto;scrollbar-width:thin;display:flex;flex-direction:column;gap:2px;padding:6px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-layer-3);box-shadow:var(--dsw-shadow-lv2)}"
+			+ ".SKV_scopeMenuItem{display:flex;align-items:center;gap:8px;width:100%;min-height:34px;padding:0 10px;border:0;border-radius:8px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer;white-space:nowrap}"
+			+ ".SKV_scopeMenuItem:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}"
+			+ ".SKV_scopeMenuItem[data-active=true]{color:var(--dsw-alias-label-primary);background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent)}"
+			+ ".SKV_scopeMenuItemLabel{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}"
+			+ ".SKV_scopeMenuItemCount{flex:none;font-size:11.5px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}"
+			+ ".SKV_scopeMenuItemCheck{flex:none;color:var(--dsw-alias-state-business-primary)}"
+			+ ".SKV_filterBar{display:flex;flex-direction:column;gap:2px;margin:2px 0 10px}"
+			// 简洁模式：内容区放宽一点，卡片恢复成一行两个（旧版就是这么排的，Issue #50）
+			+ ".SKV_section[data-layout=compact] .SKV_mainScroll>.SKV_catalog{max-width:940px}"
+			+ ".SKV_section[data-layout=compact] .SKV_cards{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}"
+			+ "@media (max-width:900px){.SKV_section[data-layout=compact] .SKV_cards{grid-template-columns:minmax(0,1fr)}}"
 			+ "@media (max-width:820px){.SKV_rail{width:140px}.SKV_pane{width:150px}.SKV_mainScroll{padding:20px 20px 96px}}";
 		// 卡片行（v2.1.6 重构）：[勾选框][图标][名称 + 描述][红绿灯 + 删除]。
 		// 勾选框用原生 input（accent-color 跟随宿主主题），批量模式之外宽度收缩到 0。
@@ -328,6 +346,13 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			scopeSelect: "SKV_scopeSelect",
 			scopeSelectLabel: "SKV_scopeSelectLabel",
 			scopeSelectChevron: "SKV_scopeSelectChevron",
+			scopeMenuWrap: "SKV_scopeMenuWrap",
+			scopeMenuOverlay: "SKV_scopeMenuOverlay",
+			scopeMenu: "SKV_scopeMenu",
+			scopeMenuItem: "SKV_scopeMenuItem",
+			scopeMenuItemLabel: "SKV_scopeMenuItemLabel",
+			scopeMenuItemCount: "SKV_scopeMenuItemCount",
+			scopeMenuItemCheck: "SKV_scopeMenuItemCheck",
 			groupBar: "SKV_groupBar",
 			groupItem: "SKV_groupItem",
 			groupItemCount: "SKV_groupItemCount",
@@ -403,6 +428,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			toolRow: "SKV_toolRow",
 			toolButtons: "SKV_toolButtons",
 			toolButton: "SKV_toolButton",
+			filterBar: "SKV_filterBar",
 			// v2.1.6 卡片行
 			cardRow: "SKV_cardRow",
 			check: "SKV_check",
@@ -432,7 +458,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 
 		const zh = {
 			nav: "技能",
-			navCombined: "Skill/MCP",
+			navCombined: "Skill / MCP",
 			panelIntro: "管理全局与工作区里的技能：搜索、展开正文、启用/停用、删除、添加、迁移与分组。",
 			back: "返回会话",
 			loading: "正在读取技能…",
@@ -527,9 +553,13 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			panePluginProvided: "插件自带",
 			paneProviderUnknown: "未知来源",
 			emptyProvider: "该来源下暂无技能。",
+			// 布局开关：简洁模式 = 收起左右两栏，把工作区与分组做成列表上方的筛选条（Issue #50）
+			layoutToCompact: "切换到简洁模式",
+			layoutToThree: "切回三栏模式",
 			emptyList: "这里还没有技能，点右上角的“添加”开始",
 			toolbarOpenFolder: "打开目录",
 			toolbarNewGroup: "新建分组",
+			openFolderRevealed: "已在资源管理器里打开：{path}",
 			openFolderCopied: "技能根路径已复制到剪贴板：{path}",
 			openFolderManual: "剪贴板不可用，请手动复制技能根路径：{path}",
 			openFolderUnavailable: "暂时拿不到技能根路径（该作用域还没有可读取的技能文件）。",
@@ -546,7 +576,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 
 		const en = {
 			nav: "Skills",
-			navCombined: "Skill/MCP",
+			navCombined: "Skill / MCP",
 			panelIntro: "Manage global and workspace skills: search, read content, enable or disable, delete, add, migrate, and group.",
 			back: "Back to session",
 			loading: "Reading skills…",
@@ -641,9 +671,12 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			panePluginProvided: "Plugin-provided",
 			paneProviderUnknown: "Unknown source",
 			emptyProvider: "No skills from this source yet.",
+			layoutToCompact: "Switch to the compact layout",
+			layoutToThree: "Switch back to the three-column layout",
 			emptyList: "No skills yet — start with “Add” in the top-right corner.",
 			toolbarOpenFolder: "Open folder",
 			toolbarNewGroup: "New group",
+			openFolderRevealed: "Opened in the file manager: {path}",
 			openFolderCopied: "Skill root copied to the clipboard: {path}",
 			openFolderManual: "Clipboard unavailable — copy the skill root manually: {path}",
 			openFolderUnavailable: "The skill root is unavailable right now (no readable skill file in this scope).",
@@ -689,6 +722,17 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					invocation: { kind: "direct" },
 					parameters: [],
 					result: codec("dsh-skill-mcp-panel#WorkspacesResult")
+				},
+				{
+					id: "dsh-skill-mcp-panel#skillsViewer/openFolder",
+					service: "skillsViewer",
+					namespace: "skillsViewer",
+					method: "openFolder",
+					invocation: { kind: "direct" },
+					parameters: [
+						{ name: "path", wire: "path", source: "json", codec: codec("dsh-skill-mcp-panel#FilePath") }
+					],
+					result: codec("dsh-skill-mcp-panel#OpenFolderResult")
 				},
 				{
 					id: "dsh-skill-mcp-panel#skillsViewer/groups",
@@ -903,6 +947,15 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 						{ name: "payload", wire: "payload", source: "json", codec: codec("dsh-skill-mcp-panel#McpToolFilterPayload") }
 					],
 					result: codec("dsh-skill-mcp-panel#McpToolFilterResult")
+				},
+				{
+					id: "dsh-skill-mcp-panel#mcpManager/evacuateForeign",
+					service: "mcpManager",
+					namespace: "mcpManager",
+					method: "evacuateForeign",
+					invocation: { kind: "direct" },
+					parameters: [],
+					result: codec("dsh-skill-mcp-panel#McpEvacuateResult")
 				},
 				{
 					id: "dsh-skill-mcp-panel#mcpManager/oauthStart",
@@ -1427,7 +1480,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 		}
 
 function SkillsSection(props) {
-			const { t, currentSessionId, subscribeSession, useSessions, listSkills, loadContent, setSkillEnabled, removeSkill, addSkill, listWorkspaces, batchMigrateSkill, listGroups, saveGroupSkill, deleteGroupSkill, checkUpdateRemote } = props;
+			const { t, currentSessionId, subscribeSession, useSessions, listSkills, loadContent, setSkillEnabled, removeSkill, addSkill, listWorkspaces, openFolder, batchMigrateSkill, listGroups, saveGroupSkill, deleteGroupSkill, checkUpdateRemote } = props;
 			// 当前会话 id，仅用于会话级项目作用域与「随会话刷新列表」，
 			// 不再门控任何 UI：技能页在没有会话时同样正常显示（服务端回退全局注册表）。
 			// 宿主客户端以「主视图引用计数」定义当前会话，判据是
@@ -1514,6 +1567,34 @@ function SkillsSection(props) {
 			const RAIL_LIST_PAD_TOP = 4;
 			const RAIL_ITEM_PITCH = 38;
 			const [railBarY, setRailBarY] = react.useState(RAIL_LIST_PAD_TOP + 8);
+
+			// ── 布局开关（Issue #50）：三栏 / 简洁 ────────────────────────────
+			// 简洁模式 = 收起左轨（工作区）与中栏（分组），把两者做成列表上方的两条筛选条，
+			// 卡片、批量、撤销、迁移、添加全部沿用同一套组件——只有外壳不同，不写第二套前端。
+			// 选择记在 localStorage，键与页签同一个前缀；读不到就当三栏（默认）。
+			const LAYOUT_KEY = "dsh-skill-mcp-panel:layout";
+			const [layoutCompact, setLayoutCompact] = react.useState(() => {
+				try {
+					return typeof localStorage !== "undefined" && localStorage.getItem(LAYOUT_KEY) === "compact";
+				} catch {
+					return false;
+				}
+			});
+			// 简洁模式里工作区下拉的展开状态（宿主 Menu 以 portal 渲染）。
+			const [scopeMenuOpen, setScopeMenuOpen] = react.useState(false);
+			const toggleLayout = () => {
+				const next = !layoutCompact;
+				// 简洁模式下没有「分组 / 来源」切换入口，口径统一到分组维度，
+				// 否则会出现「筛选条显示的是分组、列表却按来源过滤」的错位。
+				if (next && paneMode !== "groups") setPaneMode("groups");
+				setScopeMenuOpen(false);
+				setLayoutCompact(next);
+				try {
+					if (typeof localStorage !== "undefined") localStorage.setItem(LAYOUT_KEY, next ? "compact" : "three");
+				} catch {
+					// 存不了就只在本次会话生效，不影响功能。
+				}
+			};
 
 			// 列表拉取：首次显示加载态；此后静默刷新，保留旧列表避免闪烁。
 			// 合并结果按名称排序——启停切换不会改变卡片位置。
@@ -2134,33 +2215,50 @@ function SkillsSection(props) {
 			// ── 「打开目录」（宿主没有打开文件管理器的 API）──────────────────
 			// 宿主既没有「在系统文件管理器里打开路径」的 RPC，也没有回传技能根路径的接口，
 			// 所以这一版把根路径复制到剪贴板、并在通知条里回显，用户自己粘贴到资源管理器。
-			// 路径来源优先级见 resolveSkillRoot()。
+			//
+			// 关键点：`rel` 是**相对技能根的目录路径**（"cat/beta"，目录型技能包），
+			// 扁平 `.md` 技能则是空串；而 `content` 回的是 SKILL.md 的绝对路径。
+			// 早先只按「path 以 rel 结尾」判断，两者对不上，于是每个工作区都报
+			// 「暂时拿不到技能根路径」（2026-10-19 用户复现）。
+			const skillRootOf = (filePath, rel) => {
+				const normalized = String(filePath ?? "").replaceAll("\\", "/");
+				if (normalized === "") return null;
+				const lower = normalized.toLocaleLowerCase();
+				const suffix = String(rel ?? "").replaceAll("\\", "/").replace(/^\/+/, "").replace(/\/+$/, "");
+				const cut = (tail) => normalized.slice(0, normalized.length - tail.length - 1).replace(/\/+$/, "");
+				if (suffix !== "") {
+					for (const tail of [suffix + "/SKILL.md", suffix + "/SKILL.md.disabled", suffix]) {
+						if (lower.endsWith("/" + tail.toLocaleLowerCase())) return cut(tail);
+					}
+				}
+				// 根层的扁平技能：rel 为空，根目录就是文件所在目录。
+				if (suffix === "") return normalized.replace(/\/[^/]+$/, "");
+				return null;
+			};
 			const resolveSkillRoot = () => {
-				const stripSuffix = (filePath, rel) => {
-					const normalized = String(filePath ?? "").replaceAll("\\", "/");
-					const suffix = String(rel ?? "").replaceAll("\\", "/").replace(/^\/+/, "");
-					if (suffix !== "" && normalized.toLocaleLowerCase().endsWith(suffix.toLocaleLowerCase())) return normalized.slice(0, normalized.length - suffix.length).replace(/\/+$/, "");
-					return null;
-				};
-				// 1) 已展开过的技能正文里带着 SKILL.md 的绝对路径，去掉 rel 后缀就是根目录。
+				// 1) 已经展开过的技能正文里带着 SKILL.md 的绝对路径。
 				for (const skill of scopedAll) {
 					const body = bodies[opKeyOf(skill)];
 					if (body === undefined || body.status !== "ready") continue;
-					const root = stripSuffix(body.skill?.path, skill.rel);
-					if (root !== null) return Promise.resolve(root);
+					const root = skillRootOf(body.skill?.path, skill.rel);
+					if (root) return Promise.resolve(root);
 				}
 				// 2) 没展开过：拿当前作用域里第一个技能调一次 content，只为读它的 path。
+				//    失败不早退——继续走第 3 步的兜底，否则（只要有技能存在）兜底永远走不到。
 				const probe = scopedAll.find((skill) => typeof skill.name === "string" && skill.name !== "");
-				if (probe !== undefined) {
-					return Promise.resolve().then(() => loadContent(probe.name, scopeOf(probe))).then(
-						(body) => stripSuffix(body?.path, probe.rel),
+				const probeRoot = probe === undefined
+					? Promise.resolve(null)
+					: Promise.resolve().then(() => loadContent(probe.name, scopeOf(probe))).then(
+						(body) => skillRootOf(body?.path, probe.rel),
 						() => null
 					);
-				}
-				// 3) 兜底：工作区作用域按 src/scope.ts 的规则拼 <工作区根>/.dsh/skills；
-				//    全局作用域没有可推导的锚点，宁可直说拿不到，也不猜一个路径给用户。
-				if (scopeFilter !== "global") return Promise.resolve(String(scopeFilter).replaceAll("\\", "/").replace(/\/+$/, "") + "/.dsh/skills");
-				return Promise.resolve(null);
+				return probeRoot.then((root) => {
+					if (root) return root;
+					// 3) 兜底：工作区作用域按 src/scope.ts 的规则拼 <工作区根>/.dsh/skills；
+					//    全局作用域没有可推导的锚点，宁可直说拿不到，也不猜一个路径给用户。
+					if (scopeFilter !== "global") return String(scopeFilter).replaceAll("\\", "/").replace(/\/+$/, "") + "/.dsh/skills";
+					return null;
+				});
 			};
 			const openSkillFolder = () => {
 				resolveSkillRoot().then((root) => {
@@ -2168,9 +2266,14 @@ function SkillsSection(props) {
 						setShellNotice({ kind: "error", text: t("openFolderUnavailable") });
 						return;
 					}
-					return copyTextToClipboard(root).then((ok) => {
-						setShellNotice({ kind: "info", text: (ok ? t("openFolderCopied") : t("openFolderManual")).replace("{path}", root) });
-					});
+					// 宿主侧真的去弹资源管理器；宿主打不开（目录还没建出来、没有 xdg-open 等）
+					// 再退回「复制路径」，不让按钮变成死路。
+					return openFolder(root).then(
+						() => setShellNotice({ kind: "info", text: t("openFolderRevealed").replace("{path}", root) }),
+						() => copyTextToClipboard(root).then((ok) => {
+							setShellNotice({ kind: "info", text: (ok ? t("openFolderCopied") : t("openFolderManual")).replace("{path}", root) });
+						})
+					);
 				});
 			};
 
@@ -2409,6 +2512,63 @@ function SkillsSection(props) {
 
 			// ── 三栏外壳：左轨（工作区）/ 中栏（分组·来源）/ 主区 ────────────────
 			// 加载态与错误态只占主区：外壳不闪、切页签回来也不用重新认路。
+			// 简洁模式的工作区选择器：折叠式下拉表单。
+			// 自带定位（wrap 用 relative + 菜单 absolute），不依赖宿主 Menu 的 portal/锚点测量——
+			// 用宿主 Menu 时菜单会跑到页面最右侧（截图复现，2026-10-19）。
+			// 打开时铺一层透明遮罩接住外部点击，菜单最多 11 行、超出在自身滚动。
+			const compactWorkspacePicker = (0, react_jsx_runtime.jsxs)("div", {
+				className: c.scopeMenuWrap,
+				children: [(0, react_jsx_runtime.jsxs)("button", {
+					type: "button",
+					className: c.scopeSelect,
+					"aria-haspopup": "menu",
+					"aria-expanded": scopeMenuOpen,
+					onClick: () => {
+						setScopeMenuOpen((value) => !value);
+					},
+					children: [(0, react_jsx_runtime.jsx)("span", {
+						className: c.scopeSelectLabel,
+						children: scopeFilter === "global" ? t("scopeGlobal") : labelOf(scopeFilter)
+					}), (0, react_jsx_runtime.jsx)(primitiveIcon("IconChevronDownOutlineRegular"), {
+						size: 14,
+						className: c.scopeSelectChevron
+					})]
+				}), scopeMenuOpen ? (0, react_jsx_runtime.jsx)("div", {
+					className: c.scopeMenuOverlay,
+					"aria-hidden": "true",
+					onClick: () => {
+						setScopeMenuOpen(false);
+					}
+				}) : null, scopeMenuOpen ? (0, react_jsx_runtime.jsx)("div", {
+					className: c.scopeMenu,
+					role: "menu",
+					"aria-label": t("railWorkspaces"),
+					children: railEntries.map((entry) => (0, react_jsx_runtime.jsxs)("button", {
+						type: "button",
+						key: entry.key,
+						role: "menuitemradio",
+						"aria-checked": scopeFilter === entry.key,
+						className: c.scopeMenuItem,
+						"data-active": scopeFilter === entry.key ? "true" : void 0,
+						title: entry.label,
+						onClick: () => {
+							setScopeFilter(entry.key);
+							setScopeMenuOpen(false);
+						},
+						children: [(0, react_jsx_runtime.jsx)("span", {
+							className: c.scopeMenuItemLabel,
+							children: entry.label
+						}), (0, react_jsx_runtime.jsx)("span", {
+							className: c.scopeMenuItemCount,
+							children: String(entry.count)
+						}), scopeFilter === entry.key ? (0, react_jsx_runtime.jsx)("span", {
+							className: c.scopeMenuItemCheck,
+							children: hostIcon(primitiveIcon("IconCheckOutlineRegular"), 14, ICON_PATHS.check)
+						}) : null]
+					}, entry.key))
+				}) : null]
+			});
+
 			const mainColumnBody = (0, react_jsx_runtime.jsx)("div", {
 				className: c.mainScroll,
 				children: listState.status === "loading" ? (0, react_jsx_runtime.jsx)("p", {
@@ -2542,9 +2702,43 @@ function SkillsSection(props) {
 											children: t("addFolderZip")
 										})]
 									}) : null]
+								}), (0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									className: c.toolButton,
+									"data-layout-toggle": "true",
+									"data-active": layoutCompact ? "true" : void 0,
+									"aria-pressed": layoutCompact,
+									"aria-label": layoutCompact ? t("layoutToThree") : t("layoutToCompact"),
+									onClick: toggleLayout,
+									children: hostIcon(primitiveIcon("IconSettingsOutlineRegular"), 15, ICON_PATHS.layout)
 								})]
 							})]
 						}),
+						// ── 简洁模式（Issue #50）────────────────────────────────────────────
+						// 照旧版（v2.1.x）的两条横栏来：工作区是**折叠式下拉表单**（宿主 Menu，超 11 项滚动），
+						// 分组是横排 chip。两者与三栏共用同一份筛选状态，切回三栏不会丢选择。
+						layoutCompact ? (0, react_jsx_runtime.jsx)("div", {
+							className: c.filterBar,
+							children: [compactWorkspacePicker, paneRows.length > 1 ? (0, react_jsx_runtime.jsx)("div", {
+								className: c.groupBar,
+								role: "group",
+								"aria-label": t("paneGroups"),
+								children: paneRows.map((row) => (0, react_jsx_runtime.jsxs)("button", {
+									type: "button",
+									className: c.groupItem,
+									"data-active": activePaneKey === row.key ? "true" : void 0,
+									"aria-pressed": activePaneKey === row.key,
+									title: row.label,
+									onClick: () => {
+										selectPaneRow(row.key);
+									},
+									children: [row.label, (0, react_jsx_runtime.jsx)("span", {
+										className: c.groupItemCount,
+										children: String(row.count)
+									})]
+								}, "grp:" + row.key))
+							}) : null]
+						}) : null,
 						adding.status === "busy" ? (0, react_jsx_runtime.jsx)("p", {
 							className: c.addStatus,
 							children: t("addBusy")
@@ -2927,10 +3121,11 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
 				"aria-busy": listState.status === "loading",
 				"data-batch": batchMode ? "true" : void 0,
 				"data-dragging": dragActive ? "true" : void 0,
+				"data-layout": layoutCompact ? "compact" : "three",
 				onDragOver: onDragOver,
 				onDragLeave: onDragLeave,
 				onDrop: onDrop,
-				children: [railNode, paneNode, (0, react_jsx_runtime.jsxs)("div", {
+				children: [layoutCompact ? null : railNode, layoutCompact ? null : paneNode, (0, react_jsx_runtime.jsxs)("div", {
 					className: c.mainCol,
 					children: [mainColumnBody, batchBar, toastNode]
 				})]
@@ -3024,6 +3219,17 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         // #46：受管块里的外来行可见化（面板永不改写它们，但必须让用户看见）
                         foreignOthers: "受管块内还有 {count} 条不属于面板的行（{list}），面板不会改动它们。",
                         foreignMine: "另有 {count} 条面板行被放在外来 insert 列表里（{list}），面板暂不管理它们。",
+                        foreignEvacuate: "移出受管块",
+                        foreignEvacuating: "正在移出…",
+                        foreignEvacuated: "已把 {count} 条外来行移到受管块外。",
+                        foreignEvacuateNone: "块内已经没有外来行了。",
+                        foreignEvacuateFailed: "移出失败：",
+                        foreignDoc: "查看机制",
+                        foreignDocTitle: "受管块与「外来行」",
+                        foreignDocWhat: "面板在 profile 的 cordis.patch.yml 里用两行注释（begin / end）圈出自己管理的一段，每次保存只重写这一段，圈外的内容一个字节都不碰。",
+                        foreignDocWhy: "圈里可能出现不属于面板的行：DSH 自己的配置编辑器给某个插件首次写配置时会往文件末尾追加一行，而 end 注释正好是最后一行，序列化后这行就落在圈内了（例如「权限预设」的 permission 行）。",
+                        foreignDocEffect: "留在块里没有任何功能影响：DSH 是整份列表读取的，行的位置不改变语义。「移出受管块」只是把那条行原样搬到 begin 之前，内容一字不改，权限预设照常生效。",
+                        foreignDocKeep: "面板不会自动搬动它们：改写别人的行曾经把 dsh-market 的更新整体回滚（Issue #46），所以现在的规矩是「只碰 panel-mcp-*，其余原样保留，并且让你看得见」。",
 oauthLogin: "OAuth 登录",
 oauthRelogin: "重新登录",
 oauthWorking: "登录中…",
@@ -3140,6 +3346,17 @@ authStdioHint: "stdio 服务器的令牌没有单独的认证项——写在这�
                         // #46: surface foreign rows inside the managed block (never rewritten by the panel)
                         foreignOthers: "{count} row(s) in the managed block do not belong to this panel ({list}); the panel leaves them untouched.",
                         foreignMine: "{count} panel row(s) sit inside a foreign insert list ({list}); the panel does not manage them yet.",
+                        foreignEvacuate: "Move out of block",
+                        foreignEvacuating: "Moving…",
+                        foreignEvacuated: "Moved {count} foreign row(s) out of the managed block.",
+                        foreignEvacuateNone: "No foreign rows are left in the block.",
+                        foreignEvacuateFailed: "Move failed: ",
+                        foreignDoc: "How this works",
+                        foreignDocTitle: "The managed block and “foreign rows”",
+                        foreignDocWhat: "The panel fences off its own slice of the profile's cordis.patch.yml with two comment lines (begin / end) and only ever rewrites that slice; bytes outside the fence are never touched.",
+                        foreignDocWhy: "Rows that are not the panel's can end up inside the fence: when DSH's own config editor writes an entry for a plugin the first time, it appends to the YAML list, and since our end comment is the last line of the file the appended row is serialized before it (that is where the permission-presets row came from).",
+                        foreignDocEffect: "Leaving it inside changes nothing: DSH reads the whole list, so a row's position does not alter its meaning. “Move out of block” only copies that row verbatim to just before the begin marker — the permission presets keep working.",
+                        foreignDocKeep: "The panel never moves them automatically: rewriting someone else's rows once rolled back every dsh-market update (issue #46), so the rule is “only touch panel-mcp-*, keep everything else as-is, and show it to you”.",
 oauthLogin: "OAuth sign-in",
 oauthRelogin: "Sign in again",
 oauthWorking: "Signing in…",
@@ -3552,7 +3769,7 @@ function mcpWireScalar(text) {
                                 })
                         });
                 }
-                function McpSection({ t, listMcp, saveMcp, removeMcp, setEnabledMcp, testMcp, reloadMcp, checkUpdateRemote, oauthStart, oauthPoll, oauthDisconnect, listMcpTools, getToolFilter, setToolFilter }) {
+                function McpSection({ t, listMcp, saveMcp, removeMcp, setEnabledMcp, testMcp, reloadMcp, checkUpdateRemote, oauthStart, oauthPoll, oauthDisconnect, listMcpTools, getToolFilter, setToolFilter, evacuateForeign }) {
                         const [loadState, setLoadState] = react.useState({ kind: "loading" } as any);
                         const [data, setData] = react.useState(null);
                         const [request, setRequest] = react.useState(0);
@@ -3571,6 +3788,10 @@ function mcpWireScalar(text) {
                         const [toolsOpen, setToolsOpen] = react.useState(null);
                         const [toolsPanel, setToolsPanel] = react.useState(null);
                         const [toolsBusy, setToolsBusy] = react.useState(false);
+                        // 受管块里的外来行（#46 后续）：展开「查看机制」说明、移出结果与忙碌态。
+                        const [foreignDocOpen, setForeignDocOpen] = react.useState(false);
+                        const [evacNotice, setEvacNotice] = react.useState(null);
+                        const [evacBusy, setEvacBusy] = react.useState(false);
                         react.useEffect(() => {
                                 let cancelled = false;
                                 listMcp().then((value) => {
@@ -3618,6 +3839,21 @@ function mcpWireScalar(text) {
                                 foreignMine.length > 0 && t !== null ? t("foreignMine").replace("{count}", String(foreignMine.length)).replace("{list}", foreignListText(foreignMine)) : null
                         ].filter((line) => line !== null);
                         const refresh = (quiet) => setRequest((value) => value + 1);
+                        // 把受管块里的外来行原样搬到块外（语义不变），然后刷新列表让提醒消失。
+                        const applyEvacuate = () => {
+                                if (evacBusy) return;
+                                setEvacBusy(true);
+                                setEvacNotice(null);
+                                Promise.resolve().then(() => evacuateForeign()).then((result) => {
+                                        setEvacBusy(false);
+                                        const moved = Number(result?.moved ?? 0);
+                                        setEvacNotice(t !== null ? t(moved > 0 ? "foreignEvacuated" : "foreignEvacuateNone").replace("{count}", String(moved)) : "");
+                                        refresh(true);
+                                }, (error) => {
+                                        setEvacBusy(false);
+                                        setEvacNotice(t !== null ? t("foreignEvacuateFailed") + String(error?.message ?? error) : String(error?.message ?? error));
+                                });
+                        };
                         const stateLabel = (server) => {
                                 if (!server.enabled) return t !== null ? "stateStopped" : "";
                                 const phase = server.fiberPhase;
@@ -3978,11 +4214,38 @@ function mcpWireScalar(text) {
                                                         style: { display: "block" },
                                                         children: line
                                                 }, index))
+                                        }), foreignOthers.length > 0 ? (0, react_jsx_runtime.jsx)("button", {
+                                                type: "button",
+                                                className: c.noticeButton,
+                                                "data-action": "evacuate",
+                                                disabled: evacBusy,
+                                                onClick: applyEvacuate,
+                                                children: t !== null ? t(evacBusy ? "foreignEvacuating" : "foreignEvacuate") : ""
+                                        }) : null, (0, react_jsx_runtime.jsx)("button", {
+                                                type: "button",
+                                                className: c.noticeButton,
+                                                "data-action": "foreign-doc",
+                                                "aria-expanded": foreignDocOpen,
+                                                onClick: () => { setForeignDocOpen((value) => !value); },
+                                                children: t !== null ? t("foreignDoc") : ""
                                         }), (0, react_jsx_runtime.jsx)("button", {
                                                 type: "button",
                                                 className: c.noticeButton,
                                                 onClick: () => { setRequest((value) => value + 1); },
                                                 children: t !== null ? t("refresh") : ""
+                                        })]
+                                }) : null, foreignNotice.length > 0 && foreignDocOpen ? (0, react_jsx_runtime.jsxs)("div", {
+                                        className: m.doc,
+                                        children: [(0, react_jsx_runtime.jsx)("h4", { children: t !== null ? t("foreignDocTitle") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("foreignDocWhat") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("foreignDocWhy") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("foreignDocEffect") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("foreignDocKeep") : "" })]
+                                }) : null, evacNotice !== null ? (0, react_jsx_runtime.jsxs)("div", {
+                                        className: c.notice,
+                                        "data-kind": "info",
+                                        role: "status",
+                                        children: [(0, react_jsx_runtime.jsx)("span", { className: c.noticeText, children: evacNotice }), (0, react_jsx_runtime.jsx)("button", {
+                                                type: "button",
+                                                className: c.noticeButton,
+                                                onClick: () => { setEvacNotice(null); },
+                                                children: t !== null ? t("close") : ""
                                         })]
                                 }) : null, loadState.kind === "error" ? (0, react_jsx_runtime.jsxs)("div", {
                                         className: c.notice,
@@ -4203,6 +4466,7 @@ function mcpWireScalar(text) {
 				subscribeSession,
 				listSkills: () => callRemote("list", currentSessionId()),
 				listWorkspaces: () => callRemote("workspaces"),
+				openFolder: (path) => callRemote("openFolder", path),
 				loadContent: (name, scope) => callRemote("content", name, currentSessionId(), scope),
 				setSkillEnabled: (name, enabled, scope) => callRemote("setEnabled", name, currentSessionId(), enabled, scope),
 				batchMigrateSkill: (payload) => callRemote("batchMigrate", currentSessionId(), payload),
@@ -4227,6 +4491,7 @@ function mcpWireScalar(text) {
 				listMcpTools: (payload) => callMcp("listTools", payload),
 				getToolFilter: () => callMcp("getToolFilter"),
 				setToolFilter: (payload) => callMcp("setToolFilter", payload),
+				evacuateForeign: () => callMcp("evacuateForeign"),
 			});
 			// 技能与 MCP 合成一个侧栏入口：注入面同时带两边的动作与字典绑定，
 			// 页面内部的页签决定渲染哪一个 section。

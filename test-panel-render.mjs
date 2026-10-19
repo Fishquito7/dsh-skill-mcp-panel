@@ -149,8 +149,10 @@ const rpc = {
   deleteGroupSkill: async () => ({ groups: [] }),
   checkUpdateRemote: async () => ({ current: "2.2.0", latest: null, updateAvailable: false })
 };
+const evacCalls = [];
 const mcpFace = {
   ...rpc,
+  evacuateForeign: async () => { evacCalls.push(1); return { moved: 1 }; },
   listMcp: async () => ({
     servers: [{ serverName: "gh", transport: "stdio", enabled: true, fiberPhase: "active", toolCount: 3, envKeys: [] }],
     externalServers: [],
@@ -284,11 +286,11 @@ const assert = (cond, message) => { if (!cond) throw new Error(message); };
     assert(byClass(view.section, "SKV_paneMode").length === 2, "group/source switch missing");
     assert(byClass(view.section, "SKV_paneNew").length === 1, "inline new-group button missing");
   });
-  check("toolbar exposes the four square buttons with aria-label tooltips", () => {
+  check("toolbar exposes the square buttons with aria-label tooltips", () => {
     const buttons = byClass(view.section, "SKV_toolButton");
     const labels = buttons.map((n) => n.props["aria-label"]);
-    assert(buttons.length === 4, "expected 4 toolbar buttons, got " + buttons.length);
-    for (const wanted of ["打开目录", "批量迁移", "新建分组", "添加技能"]) {
+    assert(buttons.length === 5, "expected 5 toolbar buttons, got " + buttons.length);
+    for (const wanted of ["打开目录", "批量迁移", "新建分组", "添加技能", "切换到简洁模式"]) {
       assert(labels.includes(wanted), "toolbar button missing: " + wanted + " in " + JSON.stringify(labels));
     }
   });
@@ -488,6 +490,80 @@ const assert = (cond, message) => { if (!cond) throw new Error(message); };
     });
     navigatorStub.clipboard = saved;
   }
+  {
+    // 真实 rel 形态（目录路径 "alpha"，不是 "alpha/SKILL.md"）+ Windows 反斜杠绝对路径：
+    // 这是 2026-10-19 用户报「每个工作区都拿不到根路径」的那个组合。
+    reset();
+    const dirRelRpc = {
+      ...rpc,
+      listSkills: async () => ({
+        skills: [{ name: "alpha", description: "A", provider: "filesystem", source: "user", enabled: true, rel: "alpha", scope: { kind: "global" } }]
+      }),
+      loadContent: async () => ({
+        name: "alpha",
+        description: "A",
+        content: "x",
+        provider: "filesystem",
+        path: "C:\\Users\\x\\.dsh\\skills\\alpha\\SKILL.md"
+      })
+    };
+    const mounted = await mount(dirRelRpc);
+    byClass(mounted.section, "SKV_toolButton")[0].props.onClick();
+    await flush();
+    const noticeView = await mount(dirRelRpc);
+    check("open-folder understands the real rel shape (directory path, backslash file path)", () => {
+      const text = byClass(noticeView.section, "SKV_noticeText").map((n) => n.props.children).join(" | ");
+      assert(text.includes("C:/Users/x/.dsh/skills"), "skill root lost for real rel shape: " + text);
+      assert(!text.includes("拿不到"), "must not report the unavailable message: " + text);
+    });
+  }
+  {
+    // 工作区作用域里读不到任何正文时，仍应给出 <工作区>/.dsh/skills（以前这里被提前 return 掉）。
+    reset();
+    const offlineRpc = {
+      ...rpc,
+      listSkills: async () => ({
+        skills: [{ name: "delta", description: "D", provider: "filesystem", source: "user", enabled: true, rel: "delta", scope: { kind: "workspace", path: "C:/proj/one" } }]
+      }),
+      loadContent: async () => { throw new Error("unreadable"); }
+    };
+    const wsView = await mount(offlineRpc);
+    const one = byClass(wsView.section, "SKV_railItem").find((row) => row.props.children[0].props.children === "one");
+    assert(one, "workspace rail item missing");
+    one.props.onClick({ currentTarget: { offsetTop: 0, offsetHeight: 34 } });
+    await flush();
+    const wsMounted = await mount(offlineRpc);
+    byClass(wsMounted.section, "SKV_toolButton")[0].props.onClick();
+    await flush();
+    const wsNotice = await mount(offlineRpc);
+    check("open-folder falls back to <workspace>/.dsh/skills when content cannot be read", () => {
+      const text = byClass(wsNotice.section, "SKV_noticeText").map((n) => n.props.children).join(" | ");
+      assert(text.includes("C:/proj/one/.dsh/skills"), "workspace fallback lost: " + text);
+    });
+  }
+  {
+    // 正常路径：宿主真的去弹资源管理器，不再退回剪贴板
+    reset();
+    const revealed = [];
+    clipboardWrites.length = 0;
+    const openRpc = {
+      ...rpc,
+      openFolder: async (path) => {
+        revealed.push(path);
+        return { opened: path, command: "explorer.exe" };
+      }
+    };
+    const clicked = await mount(openRpc);
+    byClass(clicked.section, "SKV_toolButton")[0].props.onClick();
+    await flush();
+    const revealedView = await mount(openRpc);
+    check("open-folder asks the host to reveal the directory (no clipboard fallback)", () => {
+      const text = byClass(revealedView.section, "SKV_noticeText").map((n) => n.props.children).join(" | ");
+      assert(revealed.length === 1 && revealed[0] === "C:/Users/x/.dsh/skills", "host was not asked: " + JSON.stringify(revealed));
+      assert(text.includes("已在资源管理器里打开"), "success wording missing: " + text);
+      assert(clipboardWrites.length === 0, "must not touch the clipboard when revealing works");
+    });
+  }
   check("the settings-page entry was dropped for good (Issue #27)", () => {
     // 2026-10-15 定案：面板元素太多，设置页塞不下，两处渲染等于维护两套前端 —— 只留侧栏入口。
     assert(source.includes("SKV_prefPanel") === false, "the preferences popover came back");
@@ -565,6 +641,31 @@ const assert = (cond, message) => { if (!cond) throw new Error(message); };
     assert(all.includes("受管块内还有 2 条"), "expected the count of non-panel rows: " + all);
     assert(all.includes("panel-mcp-a"), "panel rows inside a foreign insert list must be reported: " + all);
     assert(all.includes("暂不管理"), "second line wording missing: " + all);
+  });
+  check("foreign notice offers 移出受管块 / 查看机制 next to 刷新", () => {
+    const buttons = findAll(view.section, (n) => n.type === "button" && typeof n.props.className === "string" && n.props.className === "SKV_noticeButton");
+    const actions = buttons.map((n) => n.props["data-action"]).filter(Boolean);
+    assert(actions.includes("evacuate"), "missing the evacuate button: " + JSON.stringify(actions));
+    assert(actions.includes("foreign-doc"), "missing the how-it-works button: " + JSON.stringify(actions));
+    const labels = buttons.map((n) => n.props.children).join("|");
+    assert(labels.includes("刷新"), "refresh button disappeared: " + labels);
+  });
+  check("查看机制 explains the block, why the row is there, and that it is harmless", () => {
+    const docBtn = findAll(view.section, (n) => n.type === "button" && n.props["data-action"] === "foreign-doc")[0];
+    docBtn.props.onClick();
+    const opened = paint(mcpFace);
+    const text = JSON.stringify(findAll(opened.section, (n) => typeof n.props.className === "string" && n.props.className === "MCP_doc" || String(n.props.className ?? "").includes("MCP_doc")));
+    assert(text.includes("受管块与「外来行」"), "doc title missing");
+    assert(text.includes("没有任何功能影响"), "doc must say the row is harmless: " + text.slice(0, 200));
+    assert(text.includes("移出受管块"), "doc must explain the move action");
+  });
+  evacCalls.length = 0;
+  const evacBtn = findAll(paint(mcpFace).section, (n) => n.type === "button" && n.props["data-action"] === "evacuate")[0];
+  if (evacBtn) evacBtn.props.onClick();
+  await flush();
+  check("移出受管块 calls the RPC once and reports the count", () => {
+    assert(evacBtn, "evacuate button missing on the fresh render");
+    assert(evacCalls.length === 1, "evacuateForeign should be called exactly once, got " + evacCalls.length);
   });
   check("MCP switch (round switch) is untouched", () => {
     assert(byClass(view.section, "SKV_switch").length === 1, "MCP card should keep the round switch");
@@ -673,6 +774,90 @@ const assert = (cond, message) => { if (!cond) throw new Error(message); };
     assert(cssText.includes("@keyframes skvTabIn"), "fade keyframes missing");
     assert(/\.SKV_page\[data-tab\]>\.SKV_section,\.SKV_page\[data-tab\]>\.MCP_section\{animation:skvTabIn/.test(cssText), "fade not applied to the tab bodies");
     assert(cssText.includes(".SKV_page *{animation-duration:.001ms!important"), "reduced-motion must cover the page-level fade");
+  });
+}
+
+// ── 8. 布局开关（Issue #50）：三栏 ↔ 简洁 ────────────────────────────────
+{
+  reset();
+  let view = await mount();
+  const toggleOf = (node) => findAll(node, (n) => n.type === "button" && n.props["data-layout-toggle"] === "true")[0];
+  const scopeButtonOf = (node) => byClass(node, "SKV_scopeSelect")[0];
+  const menuItemsOf = (node) => byClass(node, "SKV_scopeMenuItem");
+  const itemLabelOf = (item) => item.props.children[0].props.children;
+
+  check("工具栏里有布局开关，默认三栏", () => {
+    assert(toggleOf(view.section), "layout toggle missing from the toolbar");
+    assert(view.section.props["data-layout"] === "three", "default layout must be three columns");
+    assert(byClass(view.section, "SKV_rail").length === 1 && byClass(view.section, "SKV_pane").length === 1, "three-column shell broken");
+    assert(byClass(view.section, "SKV_filterBar").length === 0, "compact filter bar must be hidden by default");
+  });
+
+  toggleOf(view.section).props.onClick();
+  view = await mount();
+  check("切到简洁模式：两栏收起、筛选条出现", () => {
+    assert(view.section.props["data-layout"] === "compact", "layout did not switch: " + view.section.props["data-layout"]);
+    assert(byClass(view.section, "SKV_rail").length === 0, "rail still rendered in compact layout");
+    assert(byClass(view.section, "SKV_pane").length === 0, "pane still rendered in compact layout");
+    assert(byClass(view.section, "SKV_mainCol").length === 1, "main column disappeared");
+    assert(byClass(view.section, "SKV_filterBar").length === 1, "compact filter bar missing");
+  });
+  check("工作区是折叠式下拉按钮，不是一串 chip", () => {
+    const button = scopeButtonOf(view.section);
+    assert(button, "workspace dropdown button (SKV_scopeSelect) is missing");
+    assert(button.props["aria-expanded"] === false, "dropdown must start collapsed");
+    assert(byClass(view.section, "SKV_scopeMenu").length === 0, "menu must not be rendered while collapsed");
+    const chipLabels = byClass(view.section, "SKV_groupItem").map((chip) => (typeof chip.props.children[0] === "string" ? chip.props.children[0] : ""));
+    assert(!chipLabels.includes("全局") && !chipLabels.includes("one"), "workspace leaked into the chip row: " + JSON.stringify(chipLabels));
+  });
+  check("下拉展开后是表单：全局 + 各工作区，当前项打勾、可点外部收起", () => {
+    scopeButtonOf(view.section).props.onClick();
+    view = paint(rpc);
+    assert(byClass(view.section, "SKV_scopeMenu").length === 1, "menu did not open");
+    assert(byClass(view.section, "SKV_scopeMenuOverlay").length === 1, "click-away overlay missing");
+    const labels = menuItemsOf(view.section).map(itemLabelOf);
+    assert(labels[0] === "全局", "first menu item must be 全局: " + JSON.stringify(labels));
+    assert(labels.includes("one"), "workspace item missing from the menu: " + JSON.stringify(labels));
+    const active = menuItemsOf(view.section).filter((item) => item.props["data-active"] === "true");
+    assert(active.length === 1 && itemLabelOf(active[0]) === "全局", "current scope is not marked in the menu");
+    byClass(view.section, "SKV_scopeMenuOverlay")[0].props.onClick();
+    view = paint(rpc);
+    assert(byClass(view.section, "SKV_scopeMenu").length === 0, "clicking the overlay must close the menu");
+  });
+  check("分组横栏还在，且只列分组（全部 / 分组名）", () => {
+    const bars = byClass(view.section, "SKV_groupBar");
+    assert(bars.length === 1, "expected exactly one group row, got " + bars.length);
+    const labels = byClass(view.section, "SKV_groupItem").map((chip) => (typeof chip.props.children[0] === "string" ? chip.props.children[0] : ""));
+    assert(labels.includes("全部") && labels.includes("办公"), "group chips missing: " + JSON.stringify(labels));
+    const active = byClass(view.section, "SKV_groupItem").filter((chip) => chip.props["data-active"] === "true");
+    assert(active.length === 1 && active[0].props.children[0] === "全部", "group filter must start on 全部");
+  });
+  check("简洁模式一行两个技能（旧版排列）", () => {
+    const cssText = styleTags.map((tag) => String(tag.textContent ?? "")).join(String.fromCharCode(10));
+    assert(cssText.includes(".SKV_section[data-layout=compact] .SKV_cards{grid-template-columns:repeat(2,minmax(0,1fr))"), "compact cards must be two per row");
+    assert(cssText.includes(".SKV_section[data-layout=compact] .SKV_mainScroll>.SKV_catalog{max-width:940px"), "compact content width not widened");
+  });
+  check("从下拉选工作区只筛该作用域，切回三栏不丢选择", () => {
+    scopeButtonOf(view.section).props.onClick();
+    view = paint(rpc);
+    const target = menuItemsOf(view.section).find((item) => itemLabelOf(item) === "one");
+    assert(target, "workspace item for one/ is missing");
+    target.props.onClick();
+    view = paint(rpc);
+    assert(byClass(view.section, "SKV_scopeMenu").length === 0, "menu must close after picking a workspace");
+    const cards = findAll(view.section, (n) => n.props["data-skill-name"] !== undefined);
+    assert(cards.length === 1 && cards[0].props["data-skill-name"] === "delta", "compact workspace filter did not narrow the list");
+    const label = byClass(view.section, "SKV_scopeSelectLabel")[0];
+    assert(label && label.props.children === "one", "dropdown did not follow the selection: " + (label && label.props.children));
+    toggleOf(view.section).props.onClick();
+    view = paint(rpc);
+    assert(view.section.props["data-layout"] === "three", "could not switch back to three columns");
+    assert(byClass(view.section, "SKV_rail").length === 1, "rail did not come back");
+    const railActive = byClass(view.section, "SKV_railItem").filter((item) => item.props["data-active"] === "true");
+    assert(railActive.length === 1 && railActive[0].props.children[0].props.children === "one", "three-column rail lost the selection");
+  });
+  check("布局选择写进 localStorage（同一个键前缀）", () => {
+    assert(store.get("dsh-skill-mcp-panel:layout") === "three", "layout preference not persisted: " + store.get("dsh-skill-mcp-panel:layout"));
   });
 }
 

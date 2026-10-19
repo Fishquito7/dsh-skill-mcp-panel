@@ -27,6 +27,7 @@ import {
   readManagedBlock,
   readPatchFile,
   writeManagedRows,
+  writeEvacuatedForeign,
   type PatchRow
 } from "../patch-editor.js";
 import {
@@ -287,6 +288,15 @@ export class McpManagerGateway extends TypertRemoteService {
       disabled: deny.filter((name) => tools.some((row) => row.name === name)),
       connected: tools.length > 0
     };
+  }
+
+  /**
+   * 把受管块内**不属于面板**的顶层行原样搬到块外（#46 后续）。
+   * 只搬顶层行；块外内容、面板自己的行都不动，搬完语义与之前一致。
+   */
+  async evacuateForeign() {
+    const result = await writeEvacuatedForeign(this.patchPath());
+    return { moved: result.moved };
   }
 
   /** 读取单工具禁用列表。 */

@@ -361,6 +361,59 @@ export async function withPatchLock<T>(path: string, fn: () => Promise<T> | T): 
 }
 
 /**
+ * 把受管块内的外来**顶层**条目原样搬到 begin 标记之前（仍在标记外，语义不变）。
+ *
+ * 背景：DSH 自己的配置编辑器（`dsh-config-editor`）在给某个插件首次写配置时，
+ * 会往 patch 数组末尾 `document.add()` 一行；而我们的 end 注释正好是文件最后一行，
+ * YAML 序列化时新行被排在尾注释之前，于是落进受管块里（Issue #46 的后续）。
+ *
+ * 只搬顶层行：`insert:` 里的外来成员搬出去会改变「插入哪些插件」的语义，留原样。
+ * 异常输入（标记不成对、块被整体缩进、解析失败）一律原样返回，绝不半途改文件。
+ */
+export function evacuateForeignRows(raw: string): { raw: string; moved: number } {
+  const begin = raw.indexOf(PANEL_MCP_BLOCK_BEGIN);
+  const end = raw.indexOf(PANEL_MCP_BLOCK_END);
+  if (begin < 0 || end < 0) return { raw, moved: 0 };
+  // 整块被缩进时（嵌在别的结构里），搬出去会改变层级语义，宁可不做。
+  if (blockBaseIndent(raw) !== "") return { raw, moved: 0 };
+  let block;
+  try {
+    block = readManagedBlock(raw);
+  } catch {
+    return { raw, moved: 0 };
+  }
+  if (block.foreign.top === "") return { raw, moved: 0 };
+  // 只统计顶层条目：把 foreign.top 本身再解析一遍。
+  let moved = 0;
+  try {
+    const doc = parseDocument(block.foreign.top, { logLevel: "silent", customTags: YAML_CUSTOM_TAGS });
+    moved = isSeq(doc.contents) ? doc.contents.items.length : 0;
+  } catch {
+    return { raw, moved: 0 };
+  }
+  if (moved === 0) return { raw, moved: 0 };
+  const withoutTop = replaceManagedBlock(raw, block.managed, { ...block.foreign, top: "" });
+  const lineStart = withoutTop.lastIndexOf("\n", withoutTop.indexOf(PANEL_MCP_BLOCK_BEGIN) - 1) + 1;
+  const blockText = block.foreign.top.replace(/\s*$/, "\n");
+  return { raw: withoutTop.slice(0, lineStart) + blockText + withoutTop.slice(lineStart), moved };
+}
+
+/**
+ * 读取 patch 文件、把受管块内的外来顶层条目搬出去、校验、加锁原子写回。
+ * 返回搬走的条数与写回后的完整文本。
+ */
+export async function writeEvacuatedForeign(path: string): Promise<{ moved: number; raw: string }> {
+  return withPatchLock(path, async () => {
+    const raw = await readPatchFile(path);
+    const result = evacuateForeignRows(raw);
+    if (result.moved === 0) return { moved: 0, raw };
+    await validatePatchText(result.raw);
+    await writeFileAtomic(path, result.raw);
+    return { moved: result.moved, raw: result.raw };
+  });
+}
+
+/**
  * 读取 patch 文件、替换受管块、校验、加锁原子写回。
  * 返回写回后的完整文本。
  */
