@@ -2977,6 +2977,8 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         delete: "删除",
                         confirmDelete: "确认删除？",
                         external: "外部管理",
+                        orphan: "受管块外",
+                        orphanHint: "该行的 id 属于面板（panel-mcp-*），但不在 begin/end 受管块内，面板只改写受管块，所以这里只读。把这些 MCP 行用 begin/end 标记包住即可在这里启停。",
                         patchBroken: "cordis.patch.yml 不可用：",
                         reconciled: "已写入，等待 HMR 生效…",
                         reconcileTimeout: "配置已写入，但 HMR 确认超时，请稍后刷新。",
@@ -3091,6 +3093,8 @@ authStdioHint: "stdio 服务器的令牌没有单独的认证项——写在这�
                         delete: "Delete",
                         confirmDelete: "Confirm delete?",
                         external: "External",
+                        orphan: "Outside block",
+                        orphanHint: "This row carries a panel id (panel-mcp-*) but sits outside the managed block, and the panel only rewrites that block, so it stays read-only here. Wrap those MCP rows with the begin/end markers to manage it from this page.",
                         patchBroken: "cordis.patch.yml is unavailable:",
                         reconciled: "Written, waiting for HMR…",
                         reconcileTimeout: "Config written, but HMR confirmation timed out. Refresh later.",
@@ -3833,7 +3837,11 @@ function mcpWireScalar(text) {
                                                 className: m.cardTop,
                                                 children: [(0, react_jsx_runtime.jsx)("span", { className: m.name, children: server.serverName }), (0, react_jsx_runtime.jsxs)("span", {
                                                         className: m.badges,
-                                                        children: [(0, react_jsx_runtime.jsx)("span", { className: m.badge, children: server.transport === "streamable-http" ? "HTTP" : "STDIO" }), server.transport === "streamable-http" && (server.headerKeys ?? []).includes("Authorization") ? (0, react_jsx_runtime.jsx)("span", { className: m.badge, title: t("authBadgeHint"), children: t("authBadge") }) : null, isExternal ? (0, react_jsx_runtime.jsx)("span", { className: m.badge, children: t("external") }) : null]
+                                                        children: [(0, react_jsx_runtime.jsx)("span", { className: m.badge, children: server.transport === "streamable-http" ? "HTTP" : "STDIO" }), server.transport === "streamable-http" && (server.headerKeys ?? []).includes("Authorization") ? (0, react_jsx_runtime.jsx)("span", { className: m.badge, title: t("authBadgeHint"), children: t("authBadge") }) : null, isExternal ? (0, react_jsx_runtime.jsx)("span", {
+                                                                className: m.badge,
+                                                                title: server.orphan ? t("orphanHint") : void 0,
+                                                                children: server.orphan ? t("orphan") : t("external")
+                                                        }) : null]
                                                 }), (0, react_jsx_runtime.jsx)("span", { className: m.spacer }), isExternal ? null : (0, react_jsx_runtime.jsx)("button", {
                                                         type: "button",
                                                         className: m.iconBtn,
