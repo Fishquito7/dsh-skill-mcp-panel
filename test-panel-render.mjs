@@ -542,15 +542,18 @@ const assert = (cond, message) => { if (!cond) throw new Error(message); };
     });
   }
   {
-    // 正常路径：宿主真的去弹资源管理器，不再退回剪贴板
+    // 正常路径：宿主真的去弹资源管理器，不再退回剪贴板。
+    // 宿主会把面板传来的正斜杠路径换成本机分隔符再交给 explorer（src/reveal.ts），
+    // 提示条要显示宿主回传的那份，否则用户看到的是 explorer 根本不认的形态。
     reset();
     const revealed = [];
     clipboardWrites.length = 0;
+    const nativeRoot = process.platform === "win32" ? "C:\\Users\\x\\.dsh\\skills" : "C:/Users/x/.dsh/skills";
     const openRpc = {
       ...rpc,
       openFolder: async (path) => {
         revealed.push(path);
-        return { opened: path, command: "explorer.exe" };
+        return { opened: nativeRoot, command: "explorer.exe" };
       }
     };
     const clicked = await mount(openRpc);
@@ -561,6 +564,7 @@ const assert = (cond, message) => { if (!cond) throw new Error(message); };
       const text = byClass(revealedView.section, "SKV_noticeText").map((n) => n.props.children).join(" | ");
       assert(revealed.length === 1 && revealed[0] === "C:/Users/x/.dsh/skills", "host was not asked: " + JSON.stringify(revealed));
       assert(text.includes("已在资源管理器里打开"), "success wording missing: " + text);
+      assert(text.includes(nativeRoot), "notice must echo the host-normalised path, got: " + text);
       assert(clipboardWrites.length === 0, "must not touch the clipboard when revealing works");
     });
   }

@@ -38,8 +38,13 @@ A DSH plugin that brings **skill** and **MCP server** management into the DSH we
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skills-panel.png" width="1000" alt="Skills panel: search, bulk enable/disable, the show-plugin-skills switch and skill cards">
-  <br><sub>Skills panel · search / bulk enable-disable / show-plugin-skills switch / expand a card to read it</sub>
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skills-panel.png" width="1000" alt="Skills panel (three-column layout): workspaces / groups / content columns, search, bulk enable/disable, show-plugin-skills switch and skill cards">
+  <br><sub>Skills panel · three-column layout (workspaces / groups / content) · search / bulk enable-disable / show-plugin-skills switch</sub>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skills-panel-compact.png" width="1000" alt="Skills panel (compact layout): both side columns collapsed, the workspace picker folded into a dropdown, groups as chips, two skills per row">
+  <br><sub>Skills panel · compact layout (toggle at the far right of the toolbar) · side columns collapsed / workspace dropdown / two skills per row</sub>
 </p>
 
 <p align="center">
@@ -126,7 +131,7 @@ Only **DSH `0.2.x`** is supported (peer declaration `>=0.2.0-rc.1 <0.3.0-0`). DS
 If you really need it on an older host, grant the exemption the host prints:
 
 ```bash
-dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.3 --dsh-version <host-version> --accept-risk
+dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.4 --dsh-version <host-version> --accept-risk
 ```
 
 ## CLI
@@ -249,6 +254,7 @@ dsh plugin --profile web remove dsh-skill-mcp-panel
 
 Only version notes that **change how you use the plugin**; see [Releases](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases) for the full history.
 
+- **v2.3.4** — fixes the “Open folder” bug where only the Documents folder opened (a regression from 2.3.3). `explorer.exe` on Windows does not accept forward slashes: the panel normalised the skill root into `C:/Users/.../.dsh/skills`, explorer treated that as an invalid target and silently opened its own default location, so every workspace showed “Documents”. The host now converts the path to native separators before handing it to the system, and the notice echoes that same path, so it can be pasted straight into Explorer. Two edge cases fixed along the way: the drive root `C:/` is no longer trimmed to `C:`, and a redundant trailing `\` is collapsed. The preview screenshots are refreshed with the two layouts (three-column / compact)
 - **v2.3.3** — the skills page gains a **three-column / compact layout switch** (#50): compact hides both side columns, turns the workspace picker into a collapsed dropdown and the groups into a chip row, and shows two cards per row; the button sits at the far right of the toolbar and the choice is remembered in the browser. The MCP page's “foreign rows in the managed block” notice can now actually be resolved: **[Move out of block]** copies those rows verbatim outside the markers (meaning unchanged), and **[How this works]** explains why a row lands there and why leaving it is harmless. **“Open folder” is fixed and really opens the file manager** (the host launches the platform's file manager, and creates the skill root first when it does not exist yet). The sidebar entry label is now `Skill / MCP`. Also merged two community PRs: `@deepseek-ai/cordis` moved to peerDependencies (no more shared-host-package-dependency warning from dshmarket) and panel rows outside the managed block are badged “Outside block”
 - **v2.3.1** — fixes **#51: the per-tool disabling panel would not open** (`remote[method] is not a function`). The cause is blunt: the browser bundle carries its own Remote method list, and the client only knows methods mounted from that list — v2.2.0 added `listTools` / `getToolFilter` / `setToolFilter` plus the OAuth trio to the host-side list only, so clicking “Tools” always threw. The card's **OAuth sign-in / disconnect** buttons had the same root cause and are fixed too. A new `test-client-contribution.mjs` compares both lists in both directions so this cannot slip again
 - **v2.3.0** — **DSH `0.2.x` only** (peer raised to `>=0.2.0-rc.1 <0.3.0-0`; every 0.1.x compatibility branch is gone: icons no longer fall back to the pixel-suffixed names, and the strict codec dropped its `schema` field); DSH `0.2.1` support: the protocol dependency is pinned to `@deepseek-ai/dsh-typert-protocol@^0.2.1-rc.1` and its peer `@deepseek-ai/cordis` is now declared explicitly (the old `^0.1.0-rc.6` installed a pre-0.2 protocol into the profile, which DSH 0.2.1 rejected with “strict definition withdrawn” and took both pages down; a missing `cordis` peer broke even the import — issue #48); the two pure helpers we used from `dsh-home-paths` / `dsh-subprocess` are inlined so their peer chains disappear; MCP cards gain **OAuth sign-in / sign-in again / disconnect** buttons (the CLI capability, now in the panel: open the authorization page, poll until done)

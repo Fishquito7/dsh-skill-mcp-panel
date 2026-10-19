@@ -2268,8 +2268,14 @@ function SkillsSection(props) {
 					}
 					// 宿主侧真的去弹资源管理器；宿主打不开（目录还没建出来、没有 xdg-open 等）
 					// 再退回「复制路径」，不让按钮变成死路。
+					// 提示条里的路径用宿主回传的那份：宿主会把它换成本机分隔符
+					// （Windows 的 explorer.exe 不认正斜杠，见 src/reveal.ts），
+					// 这里跟着显示同一份，用户复制出来粘进资源管理器也直接可用。
 					return openFolder(root).then(
-						() => setShellNotice({ kind: "info", text: t("openFolderRevealed").replace("{path}", root) }),
+						(result) => {
+							const opened = result !== null && typeof result === "object" && typeof result.opened === "string" && result.opened !== "" ? result.opened : root;
+							setShellNotice({ kind: "info", text: t("openFolderRevealed").replace("{path}", opened) });
+						},
 						() => copyTextToClipboard(root).then((ok) => {
 							setShellNotice({ kind: "info", text: (ok ? t("openFolderCopied") : t("openFolderManual")).replace("{path}", root) });
 						})

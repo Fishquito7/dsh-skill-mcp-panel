@@ -38,8 +38,13 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skills-panel.png" width="1000" alt="技能面板：搜索、全部启停、显示插件技能开关与技能卡片">
-  <br><sub>技能面板 · 搜索 / 全部启停 / 显示插件技能开关 / 卡片展开查看全文</sub>
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skills-panel.png" width="1000" alt="技能面板（三栏布局）：工作区 / 分组 / 内容三栏，搜索、全部启停、显示插件技能开关与技能卡片">
+  <br><sub>技能面板 · 三栏布局（工作区 / 分组 / 内容）· 搜索 / 全部启停 / 显示插件技能开关</sub>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Fishquito7/dsh-skill-mcp-panel/main/docs/images/skills-panel-compact.png" width="1000" alt="技能面板（简洁布局）：收起左右两栏，工作区折叠成下拉、分组横排 chip、一行两个技能">
+  <br><sub>技能面板 · 简洁布局（工具栏最右按钮切换）· 收起左右两栏 / 工作区折叠下拉 / 一行两个技能</sub>
 </p>
 
 <p align="center">
@@ -122,7 +127,7 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 确需在老宿主上使用，用宿主打印的精确版本豁免：
 
 ```bash
-dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.3 --dsh-version <宿主版本> --accept-risk
+dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.4 --dsh-version <宿主版本> --accept-risk
 ```
 
 ## 命令行
@@ -253,6 +258,7 @@ dsh plugin --profile web remove dsh-skill-mcp-panel
 
 只列**会改变使用方式**的版本要点；完整改动见 [Releases](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)。
 
+- **v2.3.4** —— 修「打开目录」只弹出「文档」的那个 bug（2.3.3 的回归）。Windows 的 `explorer.exe` 不认正斜杠：面板把技能根路径规范化成了 `C:/Users/.../.dsh/skills`，explorer 收到这种参数会当成无效目标、默默打开自己的默认位置，于是点哪个工作区都只看到「文档」。现在宿主先把路径换成本机分隔符再交给系统，提示条里显示的也是同一份路径，复制出来直接能粘进资源管理器；顺手修了两个边界：盘符根 `C:/` 不再被裁成 `C:`，末尾多余的 `\` 会收敛掉。界面预览换成新版截图（三栏 / 简洁两种布局各一张）
 - **v2.3.3** —— 技能页新增 **「三栏 / 简洁」布局开关**（#50）：简洁模式收起左右两栏，工作区变成折叠式下拉、分组变成横排 chip，技能一行两个，想回到旧版那种清爽的单栏就点工具栏最右那个按钮（选择记在浏览器里）。MCP 页那条「受管块里有外来行」的提醒现在能真正解决：**[移出受管块]** 把不属于面板的行原样搬到标记之外（语义不变），**[查看机制]** 说明它为什么会在块里、留在块里为什么没有影响；**「打开目录」修好了，而且真的会弹出资源管理器**（宿主侧调用系统文件管理器；技能根还不存在时会先建出来）。侧栏入口标签改为 `Skill / MCP`。另合并两条社区 PR：`@deepseek-ai/cordis` 移到 peerDependencies（dshmarket 不再报 shared-host-package-dependency）、落在受管块外的面板行标成「受管块外」
 - **v2.3.1** —— 修 **#51：单工具禁用面板点不开**（报 `remote[method] is not a function`）。原因很直给：浏览器束里另有一份 Remote 方法清单，客户端只认清单里挂过的方法，而 2.2.0 加 `listTools` / `getToolFilter` / `setToolFilter` 与 OAuth 三连时只补了宿主侧清单、漏了浏览器束那份，于是点「工具」按钮必然抛错；卡片上的 **OAuth 登录 / 断开** 按钮也是同一个病因，这次一并修好。新增 `test-client-contribution.mjs` 守两份清单双向全量比对，杜绝再漏
 - **v2.3.0** —— **只支持 DSH `0.2.x`**（peer 改为 `>=0.2.0-rc.1 <0.3.0-0`，0.1.x 的历史兼容分支全部删除：图标不再回退像素后缀旧名、strict codec 去掉 `schema` 字段）；适配 DSH `0.2.1`：协议依赖钉到 `@deepseek-ai/dsh-typert-protocol@^0.2.1-rc.1` 并显式带上它的 peer `@deepseek-ai/cordis`（此前 `^0.1.0-rc.6` 会在 profile 里装出旧协议，宿主 0.2.1 判「strict definition withdrawn」→ 技能页与 MCP 页全挂；peer 缺 `cordis` 时连导入都会失败，见 Issue #48）；`dsh-home-paths` / `dsh-subprocess` 里我们只用到的两个纯函数已内联，不再拖它们的 peer 链；MCP 卡片新增 **OAuth 登录 / 重新登录 / 断开** 按钮（`--disconnect` 同款能力搬进面板，轮询式，不再只能用 CLI）
