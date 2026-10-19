@@ -149,8 +149,10 @@ const rpc = {
   deleteGroupSkill: async () => ({ groups: [] }),
   checkUpdateRemote: async () => ({ current: "2.2.0", latest: null, updateAvailable: false })
 };
+const evacCalls = [];
 const mcpFace = {
   ...rpc,
+  evacuateForeign: async () => { evacCalls.push(1); return { moved: 1 }; },
   listMcp: async () => ({
     servers: [{ serverName: "gh", transport: "stdio", enabled: true, fiberPhase: "active", toolCount: 3, envKeys: [] }],
     externalServers: [],
@@ -565,6 +567,31 @@ const assert = (cond, message) => { if (!cond) throw new Error(message); };
     assert(all.includes("受管块内还有 2 条"), "expected the count of non-panel rows: " + all);
     assert(all.includes("panel-mcp-a"), "panel rows inside a foreign insert list must be reported: " + all);
     assert(all.includes("暂不管理"), "second line wording missing: " + all);
+  });
+  check("foreign notice offers 移出受管块 / 查看机制 next to 刷新", () => {
+    const buttons = findAll(view.section, (n) => n.type === "button" && typeof n.props.className === "string" && n.props.className === "SKV_noticeButton");
+    const actions = buttons.map((n) => n.props["data-action"]).filter(Boolean);
+    assert(actions.includes("evacuate"), "missing the evacuate button: " + JSON.stringify(actions));
+    assert(actions.includes("foreign-doc"), "missing the how-it-works button: " + JSON.stringify(actions));
+    const labels = buttons.map((n) => n.props.children).join("|");
+    assert(labels.includes("刷新"), "refresh button disappeared: " + labels);
+  });
+  check("查看机制 explains the block, why the row is there, and that it is harmless", () => {
+    const docBtn = findAll(view.section, (n) => n.type === "button" && n.props["data-action"] === "foreign-doc")[0];
+    docBtn.props.onClick();
+    const opened = paint(mcpFace);
+    const text = JSON.stringify(findAll(opened.section, (n) => typeof n.props.className === "string" && n.props.className === "MCP_doc" || String(n.props.className ?? "").includes("MCP_doc")));
+    assert(text.includes("受管块与「外来行」"), "doc title missing");
+    assert(text.includes("没有任何功能影响"), "doc must say the row is harmless: " + text.slice(0, 200));
+    assert(text.includes("移出受管块"), "doc must explain the move action");
+  });
+  evacCalls.length = 0;
+  const evacBtn = findAll(paint(mcpFace).section, (n) => n.type === "button" && n.props["data-action"] === "evacuate")[0];
+  if (evacBtn) evacBtn.props.onClick();
+  await flush();
+  check("移出受管块 calls the RPC once and reports the count", () => {
+    assert(evacBtn, "evacuate button missing on the fresh render");
+    assert(evacCalls.length === 1, "evacuateForeign should be called exactly once, got " + evacCalls.length);
   });
   check("MCP switch (round switch) is untouched", () => {
     assert(byClass(view.section, "SKV_switch").length === 1, "MCP card should keep the round switch");
