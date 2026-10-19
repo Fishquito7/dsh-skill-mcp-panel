@@ -44,7 +44,6 @@
   },
   "dependencies": {
     "@deepseek-ai/dsh-typert-protocol": "^0.2.0-rc.1 || ^0.2.1-rc.1",
-    "@deepseek-ai/cordis": "^4.0.1",
     "fflate": "^0.8.3",
     "yaml": "^2.9.0",
     "zod": "^4.4.3",
@@ -52,6 +51,7 @@
     "chokidar": "^5.0.0"
   },
   "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh": ">=0.2.0-rc.1 <0.3.0-0"
   },
   "peerDependenciesMeta": {
