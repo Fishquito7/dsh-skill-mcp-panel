@@ -490,6 +490,57 @@ const assert = (cond, message) => { if (!cond) throw new Error(message); };
     });
     navigatorStub.clipboard = saved;
   }
+  {
+    // 真实 rel 形态（目录路径 "alpha"，不是 "alpha/SKILL.md"）+ Windows 反斜杠绝对路径：
+    // 这是 2026-10-19 用户报「每个工作区都拿不到根路径」的那个组合。
+    reset();
+    const dirRelRpc = {
+      ...rpc,
+      listSkills: async () => ({
+        skills: [{ name: "alpha", description: "A", provider: "filesystem", source: "user", enabled: true, rel: "alpha", scope: { kind: "global" } }]
+      }),
+      loadContent: async () => ({
+        name: "alpha",
+        description: "A",
+        content: "x",
+        provider: "filesystem",
+        path: "C:\\Users\\x\\.dsh\\skills\\alpha\\SKILL.md"
+      })
+    };
+    const mounted = await mount(dirRelRpc);
+    byClass(mounted.section, "SKV_toolButton")[0].props.onClick();
+    await flush();
+    const noticeView = await mount(dirRelRpc);
+    check("open-folder understands the real rel shape (directory path, backslash file path)", () => {
+      const text = byClass(noticeView.section, "SKV_noticeText").map((n) => n.props.children).join(" | ");
+      assert(text.includes("C:/Users/x/.dsh/skills"), "skill root lost for real rel shape: " + text);
+      assert(!text.includes("拿不到"), "must not report the unavailable message: " + text);
+    });
+  }
+  {
+    // 工作区作用域里读不到任何正文时，仍应给出 <工作区>/.dsh/skills（以前这里被提前 return 掉）。
+    reset();
+    const offlineRpc = {
+      ...rpc,
+      listSkills: async () => ({
+        skills: [{ name: "delta", description: "D", provider: "filesystem", source: "user", enabled: true, rel: "delta", scope: { kind: "workspace", path: "C:/proj/one" } }]
+      }),
+      loadContent: async () => { throw new Error("unreadable"); }
+    };
+    const wsView = await mount(offlineRpc);
+    const one = byClass(wsView.section, "SKV_railItem").find((row) => row.props.children[0].props.children === "one");
+    assert(one, "workspace rail item missing");
+    one.props.onClick({ currentTarget: { offsetTop: 0, offsetHeight: 34 } });
+    await flush();
+    const wsMounted = await mount(offlineRpc);
+    byClass(wsMounted.section, "SKV_toolButton")[0].props.onClick();
+    await flush();
+    const wsNotice = await mount(offlineRpc);
+    check("open-folder falls back to <workspace>/.dsh/skills when content cannot be read", () => {
+      const text = byClass(wsNotice.section, "SKV_noticeText").map((n) => n.props.children).join(" | ");
+      assert(text.includes("C:/proj/one/.dsh/skills"), "workspace fallback lost: " + text);
+    });
+  }
   check("the settings-page entry was dropped for good (Issue #27)", () => {
     // 2026-10-15 定案：面板元素太多，设置页塞不下，两处渲染等于维护两套前端 —— 只留侧栏入口。
     assert(source.includes("SKV_prefPanel") === false, "the preferences popover came back");

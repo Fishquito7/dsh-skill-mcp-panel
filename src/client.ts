@@ -2202,33 +2202,50 @@ function SkillsSection(props) {
 			// ── 「打开目录」（宿主没有打开文件管理器的 API）──────────────────
 			// 宿主既没有「在系统文件管理器里打开路径」的 RPC，也没有回传技能根路径的接口，
 			// 所以这一版把根路径复制到剪贴板、并在通知条里回显，用户自己粘贴到资源管理器。
-			// 路径来源优先级见 resolveSkillRoot()。
+			//
+			// 关键点：`rel` 是**相对技能根的目录路径**（"cat/beta"，目录型技能包），
+			// 扁平 `.md` 技能则是空串；而 `content` 回的是 SKILL.md 的绝对路径。
+			// 早先只按「path 以 rel 结尾」判断，两者对不上，于是每个工作区都报
+			// 「暂时拿不到技能根路径」（2026-10-19 用户复现）。
+			const skillRootOf = (filePath, rel) => {
+				const normalized = String(filePath ?? "").replaceAll("\\", "/");
+				if (normalized === "") return null;
+				const lower = normalized.toLocaleLowerCase();
+				const suffix = String(rel ?? "").replaceAll("\\", "/").replace(/^\/+/, "").replace(/\/+$/, "");
+				const cut = (tail) => normalized.slice(0, normalized.length - tail.length - 1).replace(/\/+$/, "");
+				if (suffix !== "") {
+					for (const tail of [suffix + "/SKILL.md", suffix + "/SKILL.md.disabled", suffix]) {
+						if (lower.endsWith("/" + tail.toLocaleLowerCase())) return cut(tail);
+					}
+				}
+				// 根层的扁平技能：rel 为空，根目录就是文件所在目录。
+				if (suffix === "") return normalized.replace(/\/[^/]+$/, "");
+				return null;
+			};
 			const resolveSkillRoot = () => {
-				const stripSuffix = (filePath, rel) => {
-					const normalized = String(filePath ?? "").replaceAll("\\", "/");
-					const suffix = String(rel ?? "").replaceAll("\\", "/").replace(/^\/+/, "");
-					if (suffix !== "" && normalized.toLocaleLowerCase().endsWith(suffix.toLocaleLowerCase())) return normalized.slice(0, normalized.length - suffix.length).replace(/\/+$/, "");
-					return null;
-				};
-				// 1) 已展开过的技能正文里带着 SKILL.md 的绝对路径，去掉 rel 后缀就是根目录。
+				// 1) 已经展开过的技能正文里带着 SKILL.md 的绝对路径。
 				for (const skill of scopedAll) {
 					const body = bodies[opKeyOf(skill)];
 					if (body === undefined || body.status !== "ready") continue;
-					const root = stripSuffix(body.skill?.path, skill.rel);
-					if (root !== null) return Promise.resolve(root);
+					const root = skillRootOf(body.skill?.path, skill.rel);
+					if (root) return Promise.resolve(root);
 				}
 				// 2) 没展开过：拿当前作用域里第一个技能调一次 content，只为读它的 path。
+				//    失败不早退——继续走第 3 步的兜底，否则（只要有技能存在）兜底永远走不到。
 				const probe = scopedAll.find((skill) => typeof skill.name === "string" && skill.name !== "");
-				if (probe !== undefined) {
-					return Promise.resolve().then(() => loadContent(probe.name, scopeOf(probe))).then(
-						(body) => stripSuffix(body?.path, probe.rel),
+				const probeRoot = probe === undefined
+					? Promise.resolve(null)
+					: Promise.resolve().then(() => loadContent(probe.name, scopeOf(probe))).then(
+						(body) => skillRootOf(body?.path, probe.rel),
 						() => null
 					);
-				}
-				// 3) 兜底：工作区作用域按 src/scope.ts 的规则拼 <工作区根>/.dsh/skills；
-				//    全局作用域没有可推导的锚点，宁可直说拿不到，也不猜一个路径给用户。
-				if (scopeFilter !== "global") return Promise.resolve(String(scopeFilter).replaceAll("\\", "/").replace(/\/+$/, "") + "/.dsh/skills");
-				return Promise.resolve(null);
+				return probeRoot.then((root) => {
+					if (root) return root;
+					// 3) 兜底：工作区作用域按 src/scope.ts 的规则拼 <工作区根>/.dsh/skills；
+					//    全局作用域没有可推导的锚点，宁可直说拿不到，也不猜一个路径给用户。
+					if (scopeFilter !== "global") return String(scopeFilter).replaceAll("\\", "/").replace(/\/+$/, "") + "/.dsh/skills";
+					return null;
+				});
 			};
 			const openSkillFolder = () => {
 				resolveSkillRoot().then((root) => {
@@ -3186,7 +3203,7 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         foreignMine: "另有 {count} 条面板行被放在外来 insert 列表里（{list}），面板暂不管理它们。",
                         foreignEvacuate: "移出受管块",
                         foreignEvacuating: "正在移出…",
-                        foreignEvacuated: "已把 {count} 条外来行原样移到受管块外，内容和语义都没变。",
+                        foreignEvacuated: "已把 {count} 条外来行移到受管块外。",
                         foreignEvacuateNone: "块内已经没有外来行了。",
                         foreignEvacuateFailed: "移出失败：",
                         foreignDoc: "查看机制",
@@ -3313,7 +3330,7 @@ authStdioHint: "stdio 服务器的令牌没有单独的认证项——写在这�
                         foreignMine: "{count} panel row(s) sit inside a foreign insert list ({list}); the panel does not manage them yet.",
                         foreignEvacuate: "Move out of block",
                         foreignEvacuating: "Moving…",
-                        foreignEvacuated: "Moved {count} foreign row(s) out of the managed block; content and meaning are unchanged.",
+                        foreignEvacuated: "Moved {count} foreign row(s) out of the managed block.",
                         foreignEvacuateNone: "No foreign rows are left in the block.",
                         foreignEvacuateFailed: "Move failed: ",
                         foreignDoc: "How this works",
