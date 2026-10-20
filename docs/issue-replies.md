@@ -58,3 +58,19 @@
 
 > 修好了，v2.3.1。`remote[method] is not a function` 跟服务器连不连得上没关系，是**客户端清单漏了方法**：浏览器束里另有一份 Remote 方法表，客户端 `remote.mcpManager` 上只有表里挂过的方法——宿主只安装贡献项里列出的方法，没列的压根不存在。2.2.0 加单工具禁用（`listTools` / `getToolFilter` / `setToolFilter`）时只补了宿主侧清单，漏了浏览器束那份，所以「工具」按钮必抛错；卡片上的 **OAuth 登录 / 断开** 按钮是同一个病根，这次一并修好。
 > 升级：`dsh-panel update` 或重装 tarball，然后**重启 DSH Desktop**。另外加了 `test-client-contribution.mjs` 做两份清单的双向全量比对，这类「加功能漏补客户端」以后测试里就能拦住。
+
+## #59 禁用MCP中的任一一个工具后，新建会话时dsh会卡死（附「显示插件技能」不记忆）
+
+> 这条里的两个问题在 **v2.3.5 都修了**，已发布。
+>
+> **1. 卡死**：和 #62 是同一个 bug。宿主 `@deepseek-ai/dsh-scope` 的 `ScopedLayers.effect()` 在限制生效后**和撤销（undo）时**都会同步广播 `tools/change`；我们的插件既监听这个事件、又在回调里 `undo()` / `restrict()`，于是自己触发自己，同步无限递归。递归到栈上限抛出的 `RangeError` 又被空 `catch` 吞掉，所以不崩溃、只是主线程持续 100% 打转。用宿主真实的 `dsh-scope` 复现：旧代码一次事件放大成 **887 次 `restrict` / 1774 次 `view` / 递归 458 层**；修复后 **1 次 `restrict` / 2 次 `view` / 深度 2**。修法是控制器统一监听 + 重入守卫 + 只在禁用集合真的变化时重施，并把静默的 `catch` 接到 logger。
+> **2. 「显示插件技能」复选框不记忆**：也修了，勾选状态记在浏览器 localStorage（`dsh-skill-mcp-panel:show-plugin-skills`），重新打开面板保持上次选择。
+> 升级：`dsh plugin --profile web add .../releases/latest/download/dsh-skill-mcp-panel.tgz` 或 `npm i -g dsh-skill-mcp-panel@2.3.5`，装完重启。和本地 FastMCP 无关，禁任何工具都会触发。
+
+## #62 tool-filter 的 applyNow 监听 tools/change 又调用 restrict()，形成无限递归
+
+> 感谢这份非常完整的定位，分析是对的——根因、调用环、以及「RangeError 被吞所以只烧 CPU 不崩」都说中了。**已在 v2.3.5 修复并发布。**
+> 补充两点现场事实：① 宿主 `ScopedLayers.effect()` 确实在施加限制之后（`if (notify) this.onChange()`）和 undo 执行时（yield 出去的清理函数里）都同步通知；`restrict()` 走默认 `notify: true`，而宿主自己的 `guard()` 传了 `notify: false`，所以 guard 没这个问题。② 用宿主真实的 `dsh-scope` 复现：旧代码一次 `tools/change` → **887 次 restrict / 1774 次 view / 递归 458 层**；修复后 → **1 次 restrict / 2 次 view / 深度 2**。
+> 修复没有只加重入标志，还加了建议的第二层：控制器单点监听 `tools/change` + 重入守卫；每个插件实例的 `sync()` 也有自己的守卫；记录上次真正施加的集合签名，集合没变只多一次 `view()`、不 undo 不 restrict；`applyTo` 用 `mounting` 挡住挂载中重入；静默 `catch` 全部接 logger。
+> 升级到 2.3.5 即可，不用再手工改 `tool-filter.js`。
+
