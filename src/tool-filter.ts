@@ -15,6 +15,20 @@
  * 于是禁用是**按 agent 施加**的：订阅 `agent/created`，在 agent 的作用域上注册限制，
  * 作用域销毁时限制随之解绑；`agent/disposed` 只用来清账。
  *
+ * 2026-10-20 修 Issue #59 / #62（禁用任一工具后宿主主线程 100% 卡死）：
+ * 宿主的 `ScopedLayers.effect()` 在**施加限制之后**和**撤销限制（dispose）时**都会
+ * 同步 `ctx.emit("tools/change")`（见 @deepseek-ai/dsh-scope 的 ScopedLayers.effect，
+ * 以及 dsh-tools 里 `layers = new ScopedLayers(..., () => this.ctx.emit("tools/change"))`）。
+ * 而本插件此前既监听 `tools/change`、又在监听器里 undo/restrict——于是
+ *   tools/change → applyNow → undo()/restrict() → 同步 emit → applyNow → …
+ * 自己触发自己，同步无限递归；爆栈抛出的 RangeError 被空 catch 吞掉，外层继续再来，
+ * 表现为不崩但持续烧 CPU。现在改成三条约束：
+ *   - **重入守卫**：`syncAll()` 在自己的 undo/restrict 引发的回调里直接返回；
+ *   - **只在集合真的变化时重施**：记住上一次施加的签名，没变就什么都不做；
+ *   - **监听器归控制器统一持有**：插件实例不再各自 `c.on("tools/change")`，
+ *     挂载途中的 agent 用 `mounting` 挡掉，避免「挂载 → emit → 再挂载」。
+ * 另外所有原本静默的 catch 都接到了 logger（这次故障没有日志的直接原因）。
+ *
  * 配置保存在 `<dshHome>/skills/.system/skill-viewer/tool-filter.json`：
  *   { "version": 1, "deny": ["mcp__github__search", ...] }
  * 只记**完整公开工具名**（`mcp__<serverName>__<原始名>`）。服务器改名或工具改名后
@@ -62,6 +76,42 @@ export async function saveToolFilter(dshHome, deny: string[]): Promise<void> {
   }
 }
 
+/** 把错误整理成一行日志文本。 */
+function errorText(error: unknown): string {
+  if (error !== null && typeof error === "object" && "message" in error) return String((error as { message: unknown }).message);
+  return String(error);
+}
+
+/**
+ * 往宿主 logger 打一条警告（拿不到 logger 时退回 console）。
+ *
+ * 这次「禁用工具后卡死」没有任何日志，就是因为关键 catch 是空的；这里统一接到
+ * logger，出问题时至少能在宿主日志里看到 [tool-filter] 前缀。
+ */
+function warnOf(ctx: any, message: string): void {
+  const line = "[tool-filter] " + message;
+  try {
+    const logger = typeof ctx?.get === "function" ? ctx.get("logger") : undefined;
+    if (logger !== null && typeof logger === "object" && typeof logger.warn === "function") {
+      logger.warn(line);
+      return;
+    }
+  } catch {
+    // logger 服务不可用：继续退回 console
+  }
+  try {
+    if (typeof console !== "undefined" && typeof console.warn === "function") console.warn(line);
+  } catch {
+    // 连 console 都没有（极简宿主）：放弃这条日志，不影响功能
+  }
+}
+
+/** 一个 agent 上挂着的过滤插件：纤维 + 重新施加限制的回调。 */
+interface MountedFilter {
+  fiber: any;
+  holder: { sync: () => void };
+}
+
 /**
  * 把禁用列表施加到**每一个** agent 的作用域上。
  *
@@ -75,14 +125,18 @@ export async function saveToolFilter(dshHome, deny: string[]): Promise<void> {
  *   - 插件纤维是 agent 作用域的子节点，agent 销毁时限制随之解绑。
  *
  * 名字必须在施加时**已经**存在于可限制集合里，否则 `restrict()` 直接抛错
- * （"names unknown global tool"）。MCP 服务器是异步连上来的，所以插件里：
- *   - 只对当前已知的名字注册限制；
- *   - 监听 `tools/change`，等工具真的出现后再补一次。
+ * （"names unknown global tool"）。MCP 服务器是异步连上来的，所以控制器监听
+ * `tools/change`，等工具真的出现后再对每个 agent 补一轮（`sync()`）；每轮只在
+ * 实际集合变化时才 undo + restrict（见文件头 2026-10-20 的说明）。
  */
 export class ToolFilterController {
   ctx: any;
   deny: string[];
-  mounted: Map<string, any> = new Map();
+  mounted: Map<string, MountedFilter> = new Map();
+  /** 正在挂载的 agent：挂载途中 restrict() 会同步 emit tools/change，必须挡住重入。 */
+  mounting: Set<string> = new Set();
+  /** tools/change 的重入守卫（我们自己 undo/restrict 引发的回调直接忽略）。 */
+  syncing = false;
   disposed = false;
 
   constructor(ctx: any, deny: string[]) {
@@ -90,55 +144,126 @@ export class ToolFilterController {
     this.deny = deny;
   }
 
-  /** 挂到 agent 作用域上的过滤插件；`inject` 是硬要求，不能省。 */
-  pluginFor(deny: string[]) {
+  /**
+   * 生成挂到 agent 作用域上的过滤插件。
+   *
+   * `holder.sync()` 由控制器在 `tools/change` 时调用——插件实例自己**不订阅**
+   * `tools/change`，否则每个实例都会在事件里重入自己，又回到这次修的递归。
+   */
+  pluginFor(deny: string[]): { plugin: any; holder: { sync: () => void } } {
+    const holder: { sync: () => void } = { sync: () => {} };
     return {
-      name: "dsh-skill-mcp-panel:tool-filter",
-      inject: ["tools"],
-      apply(c: any) {
-        let undo: (() => void) | undefined;
-        const applyNow = () => {
-          if (undo !== undefined) {
+      holder,
+      plugin: {
+        name: "dsh-skill-mcp-panel:tool-filter",
+        inject: ["tools"],
+        apply(c: any) {
+          let undo: (() => void) | undefined;
+          /** 上一次真正施加的禁用集合签名；null 表示当前没有施加。 */
+          let applied: string | null = null;
+          let live = true;
+          /** 单个插件实例的重入守卫：挂载时 restrict() 的同步 emit 会绕回这里。 */
+          let inside = false;
+          const sync = () => {
+            if (!live || inside) return;
+            inside = true;
             try {
-              undo();
-            } catch {
-              // 上一轮的注册可能已随作用域销毁，忽略。
+              syncOnce();
+            } finally {
+              inside = false;
             }
-            undo = undefined;
-          }
-          if (deny.length === 0) return;
-          let known: Set<string>;
+          };
+          const syncOnce = () => {
+            let known: Set<string>;
+            try {
+              known = new Set<string>(c.tools.view(undefined).restrictableNames);
+            } catch (error) {
+              warnOf(c, "读取可限制工具列表失败：" + errorText(error));
+              return;
+            }
+            const usable = deny.filter((name) => known.has(name));
+            const signature = usable.slice().sort().join("\u0000");
+            // 集合没变就什么都不做：这是 Issue #62 里 CPU 的热点（每次 tools/change
+            // 都 undo + view + restrict 一轮，view() 本身还是 O(工具数 × 层数)）。
+            if (signature === applied) return;
+            if (undo !== undefined) {
+              try {
+                undo();
+              } catch (error) {
+                warnOf(c, "撤销上一轮限制失败：" + errorText(error));
+              }
+              undo = undefined;
+              applied = null;
+            }
+            if (usable.length === 0) {
+              applied = "";
+              return;
+            }
+            try {
+              undo = c.tools.restrict({ deny: usable });
+              applied = signature;
+            } catch (error) {
+              // 名字在注册的一瞬间消失了：留给下一次 tools/change 再试。
+              warnOf(c, "施加工具限制失败：" + errorText(error));
+              undo = undefined;
+              applied = null;
+            }
+          };
+          holder.sync = sync;
+          // 插件纤维被宿主回收时停止再施加（纤维销毁时限制本身会被宿主自动撤销）。
           try {
-            known = new Set<string>(c.tools.view(undefined).restrictableNames);
+            c.effect(() => () => {
+              live = false;
+              holder.sync = () => {};
+            });
           } catch {
-            return;
+            // 极简宿主没有 effect：至少别再被控制器调到
           }
-          const usable = deny.filter((name) => known.has(name));
-          if (usable.length === 0) return;
-          try {
-            undo = c.tools.restrict({ deny: usable });
-          } catch {
-            // 名字在注册的一瞬间消失了：留给下一次 tools/change。
-            undo = undefined;
-          }
-        };
-        applyNow();
-        c.on("tools/change", applyNow);
+          sync();
+        }
       }
     };
   }
 
-  /** 给一个 agent 施加限制；已经施加过的跳过。 */
+  /**
+   * 对所有已挂载的 agent 补一轮限制。
+   *
+   * 重入守卫是这次修复的核心：`undo()` 与 `restrict()` 都会**同步**触发
+   * `tools/change`，而控制器正是监听这个事件——没有守卫就是无限递归。
+   */
+  syncAll(): void {
+    if (this.disposed || this.syncing) return;
+    this.syncing = true;
+    try {
+      for (const entry of [...this.mounted.values()]) {
+        try {
+          entry.holder.sync();
+        } catch (error) {
+          warnOf(this.ctx, "重新施加工具限制失败：" + errorText(error));
+        }
+      }
+    } finally {
+      this.syncing = false;
+    }
+  }
+
+  /** 给一个 agent 施加限制；已经施加过（或正在挂载）的跳过。 */
   applyTo(agent: any): void {
     if (this.disposed || this.deny.length === 0) return;
     const id = typeof agent?.id === "string" ? agent.id : undefined;
-    if (id === undefined || this.mounted.has(id)) return;
+    if (id === undefined || this.mounted.has(id) || this.mounting.has(id)) return;
     const scopeCtx = agent.ctx;
     if (scopeCtx === undefined || typeof scopeCtx.plugin !== "function") return;
+    this.mounting.add(id);
     try {
-      this.mounted.set(id, scopeCtx.plugin(this.pluginFor(this.deny)));
-    } catch {
+      const { plugin, holder } = this.pluginFor(this.deny);
+      const fiber = scopeCtx.plugin(plugin);
+      this.mounted.set(id, { fiber, holder });
+    } catch (error) {
       // 作用域已经销毁或不接受挂载：跳过，不因为一个 agent 失败就中断。
+      warnOf(this.ctx, "挂载工具过滤插件失败（agent " + id + "）：" + errorText(error));
+    } finally {
+      this.mounting.delete(id);
     }
   }
 
@@ -156,15 +281,21 @@ export class ToolFilterController {
   /** 更新禁用列表：先全部卸载，再按新列表重新施加。 */
   setDeny(deny: string[]): void {
     this.deny = deny;
-    for (const [id, fiber] of [...this.mounted.entries()]) {
+    this.unmountAll();
+    this.reapply();
+  }
+
+  /** 卸载所有过滤插件（纤维销毁会连带撤销它注册的限制）。 */
+  unmountAll(): void {
+    for (const [id, entry] of [...this.mounted.entries()]) {
       this.mounted.delete(id);
       try {
-        fiber?.dispose?.();
-      } catch {
-        // 作用域已经没了，忽略。
+        entry.fiber?.dispose?.();
+      } catch (error) {
+        // 作用域已经没了，忽略（但留一条日志，别再无声吞掉）
+        warnOf(this.ctx, "卸载工具过滤插件失败（agent " + id + "）：" + errorText(error));
       }
     }
-    this.reapply();
   }
 
   listAgents(): any[] {
@@ -189,14 +320,7 @@ export class ToolFilterController {
 
   dispose(): void {
     this.disposed = true;
-    for (const [id, fiber] of [...this.mounted.entries()]) {
-      this.mounted.delete(id);
-      try {
-        fiber?.dispose?.();
-      } catch {
-        // 同上。
-      }
-    }
+    this.unmountAll();
   }
 }
 
@@ -213,7 +337,10 @@ export function attachToolFilter(ctx: any, deny: string[]): ToolFilterController
     const agent = payload?.agent;
     if (typeof agent?.id === "string") controller.release(agent.id);
   });
-  const offTools = ctx.on("tools/change", () => controller.reapply());
+  // 工具集合变化（MCP 服务器连上来 / 工具注册）时对每个 agent 补一轮。
+  // 事件由控制器统一持有，且 syncAll() 带重入守卫——restrict()/undo() 自己也会
+  // 同步触发这个事件，不挡就是 Issue #59 / #62 的无限递归。
+  const offTools = ctx.on("tools/change", () => controller.syncAll());
   controller.reapply();
   const originalDispose = controller.dispose.bind(controller);
   controller.dispose = () => {

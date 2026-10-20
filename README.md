@@ -127,7 +127,7 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 确需在老宿主上使用，用宿主打印的精确版本豁免：
 
 ```bash
-dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.4 --dsh-version <宿主版本> --accept-risk
+dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.5 --dsh-version <宿主版本> --accept-risk
 ```
 
 ## 命令行
@@ -258,6 +258,7 @@ dsh plugin --profile web remove dsh-skill-mcp-panel
 
 只列**会改变使用方式**的版本要点；完整改动见 [Releases](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)。
 
+- **v2.3.5** —— 修 **禁用任一 MCP 工具后宿主卡死（#59 / #62）**。根因在我们自己的监听器：宿主的 `ScopedLayers.effect()` 在限制生效后**和撤销时**都会同步广播 `tools/change`，而插件既监听这个事件、又在回调里 `undo()` / `restrict()`，等于自己触发自己——同步无限递归，爆栈抛出的 `RangeError` 又被空 `catch` 吞掉，进程不崩、只是主线程持续 100% 烧 CPU。用宿主真实的 `@deepseek-ai/dsh-scope` 复现：一次事件放大成 **887 次 `restrict` / 1774 次 `view` / 递归 458 层**。现在 `tools/change` 只由控制器统一监听并带重入守卫，每个插件的 `sync()` 只在**禁用集合真的变化**时才撤销重施（集合没变就只多一次 `view`），挂载途中的 agent 用 `mounting` 挡住；原本静默的 `catch` 全部接上 logger，这类故障以后至少留得下日志；顺便修了同一 issue 里「显示插件技能」复选框不记忆的问题（现在勾选状态记在浏览器里）
 - **v2.3.4** —— 修「打开目录」只弹出「文档」的那个 bug（2.3.3 的回归）。Windows 的 `explorer.exe` 不认正斜杠：面板把技能根路径规范化成了 `C:/Users/.../.dsh/skills`，explorer 收到这种参数会当成无效目标、默默打开自己的默认位置，于是点哪个工作区都只看到「文档」。现在宿主先把路径换成本机分隔符再交给系统，提示条里显示的也是同一份路径，复制出来直接能粘进资源管理器；顺手修了两个边界：盘符根 `C:/` 不再被裁成 `C:`，末尾多余的 `\` 会收敛掉。界面预览换成新版截图（三栏 / 简洁两种布局各一张）
 - **v2.3.3** —— 技能页新增 **「三栏 / 简洁」布局开关**（#50）：简洁模式收起左右两栏，工作区变成折叠式下拉、分组变成横排 chip，技能一行两个，想回到旧版那种清爽的单栏就点工具栏最右那个按钮（选择记在浏览器里）。MCP 页那条「受管块里有外来行」的提醒现在能真正解决：**[移出受管块]** 把不属于面板的行原样搬到标记之外（语义不变），**[查看机制]** 说明它为什么会在块里、留在块里为什么没有影响；**「打开目录」修好了，而且真的会弹出资源管理器**（宿主侧调用系统文件管理器；技能根还不存在时会先建出来）。侧栏入口标签改为 `Skill / MCP`。另合并两条社区 PR：`@deepseek-ai/cordis` 移到 peerDependencies（dshmarket 不再报 shared-host-package-dependency）、落在受管块外的面板行标成「受管块外」
 - **v2.3.1** —— 修 **#51：单工具禁用面板点不开**（报 `remote[method] is not a function`）。原因很直给：浏览器束里另有一份 Remote 方法清单，客户端只认清单里挂过的方法，而 2.2.0 加 `listTools` / `getToolFilter` / `setToolFilter` 与 OAuth 三连时只补了宿主侧清单、漏了浏览器束那份，于是点「工具」按钮必然抛错；卡片上的 **OAuth 登录 / 断开** 按钮也是同一个病因，这次一并修好。新增 `test-client-contribution.mjs` 守两份清单双向全量比对，杜绝再漏

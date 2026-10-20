@@ -865,5 +865,32 @@ const assert = (cond, message) => { if (!cond) throw new Error(message); };
   });
 }
 
+// ── 8. 显示插件技能开关的记忆（Issue #59 附带问题）────────────────────────
+{
+  reset();
+  const checkboxOf = (node) => byClass(node, "SKV_pluginToggle")[0].props.children[0];
+  let view = await mount();
+  check("显示插件技能的复选框默认勾选", () => {
+    assert(checkboxOf(view.section).props.checked === true, "default must be checked");
+  });
+  checkboxOf(view.section).props.onChange({ target: { checked: false } });
+  view = paint(rpc);
+  check("取消勾选：插件技能立即隐藏并写进 localStorage（#59）", () => {
+    assert(checkboxOf(view.section).props.checked === false, "checkbox state did not change");
+    assert(store.get("dsh-skill-mcp-panel:show-plugin-skills") === "off", "偏好没写进 localStorage: " + store.get("dsh-skill-mcp-panel:show-plugin-skills"));
+    assert(!findAll(view.section, (n) => n.props["data-skill-name"] === "gamma").length, "plugin-provided skill must be hidden");
+  });
+  // 模拟重新打开面板：清掉 hook 槽位 = 重新挂载，但保留 localStorage。
+  slots.clear();
+  refs.clear();
+  effectRuns.clear();
+  view = await mount();
+  check("重新打开面板后仍是上次的勾选状态（#59）", () => {
+    assert(checkboxOf(view.section).props.checked === false, "remount lost the checkbox state");
+    assert(store.get("dsh-skill-mcp-panel:show-plugin-skills") === "off", "localStorage value was overwritten");
+    assert(!findAll(view.section, (n) => n.props["data-skill-name"] === "gamma").length, "hidden plugin skill came back after remount");
+  });
+}
+
 console.log("\n" + (failures === 0 ? "ALL HARNESS CHECKS PASSED" : failures + " harness check(s) FAILED"));
 process.exit(failures === 0 ? 0 : 1);

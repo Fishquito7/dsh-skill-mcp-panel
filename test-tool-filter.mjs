@@ -85,6 +85,142 @@ try {
     assert.deepEqual(visible(agentKey), ["mcp__demo__alpha", "mcp__demo__beta", "mcp__demo__gamma"], "解绑后工具要回来");
     pass("restrict() hides denied MCP tools from the agent's model-facing schemas");
   }
+
+  // 4. 自激递归回归（Issue #59 / #62：禁用任一工具后宿主主线程 100% 卡死）。
+  //    宿主的 ScopedLayers.effect（@deepseek-ai/dsh-scope）在 restrict() 生效后
+  //    和 undo() 撤销时都会**同步** emit "tools/change"；插件又监听这个事件去
+  //    undo/restrict，于是自己触发自己。这里用与宿主同构的替身复现：
+  //    restrict / undo 同步广播事件、事件同步派发；不加守卫时一次事件会放大成
+  //    成百上千次 restrict（真实宿主实测 7.27M 次、递归 727 万层后爆栈）。
+  {
+    const CAP = 200; // 失控时打断，避免测试进程把栈打爆（复位前的代码会撞到它）
+    const listeners = new Set();
+    const known = new Set(["mcp__demo__alpha", "mcp__demo__beta"]);
+    let applied = new Set();
+    let restrictCalls = 0;
+    let viewCalls = 0;
+    let emits = 0;
+    let depth = 0;
+    let maxDepth = 0;
+    const emit = () => {
+      emits += 1;
+      depth += 1;
+      if (depth > maxDepth) maxDepth = depth;
+      try {
+        for (const listener of [...listeners]) listener();
+      } finally {
+        depth -= 1;
+      }
+    };
+    const tools = {
+      view: () => {
+        viewCalls += 1;
+        return { restrictableNames: new Set(known) };
+      },
+      restrict: ({ deny }) => {
+        restrictCalls += 1;
+        if (restrictCalls > CAP) return () => {};
+        const before = new Set(applied);
+        for (const name of deny) applied.add(name);
+        emit();
+        let undone = false;
+        return () => {
+          if (undone) return;
+          undone = true;
+          applied = new Set(before);
+          emit();
+        };
+      }
+    };
+    const agents = [];
+    const controllerCtx = {
+      on(name, listener) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+      get(name) {
+        return name === "agents" ? { list: () => agents } : undefined;
+      }
+    };
+    const makeAgentCtx = () => ({
+      plugin(plugin) {
+        const undos = [];
+        const cleanups = [];
+        const c = {
+          tools: {
+            view: tools.view,
+            restrict: (filter) => {
+              const undo = tools.restrict(filter);
+              undos.push(undo);
+              return undo;
+            }
+          },
+          get: () => undefined,
+          effect: (fn) => {
+            cleanups.push(fn());
+            return () => {};
+          },
+          on: () => () => {}
+        };
+        plugin.apply(c);
+        return {
+          dispose() {
+            for (const undo of undos.reverse()) {
+              try {
+                undo();
+              } catch {
+                // 测试替身：忽略重复撤销
+              }
+            }
+            for (const cleanup of cleanups.reverse()) {
+              try {
+                cleanup?.();
+              } catch {
+                // 同上
+              }
+            }
+          }
+        };
+      }
+    });
+
+    const controller = attachToolFilter(controllerCtx, ["mcp__demo__beta", "mcp__demo__delta"]);
+    const agent = { id: "recursion-agent", ctx: makeAgentCtx() };
+    agents.push(agent);
+    controller.applyTo(agent);
+    assert.equal(controller.activeCount(), 1, "过滤插件要挂到 agent 上");
+    assert.equal(restrictCalls, 1, "挂载时只施加一次限制，实际 " + restrictCalls + " 次");
+    assert.deepEqual([...applied], ["mcp__demo__beta"], "只有已知的禁用名生效");
+    const afterMount = { restrictCalls, viewCalls, emits };
+
+    // MCP 服务器连上来后新工具注册：宿主会 emit 一次 tools/change。
+    known.add("mcp__demo__gamma");
+    emit();
+    assert.equal(restrictCalls, afterMount.restrictCalls, "新工具不在禁用列表里时不该重新施加（实际多施加了 " + (restrictCalls - afterMount.restrictCalls) + " 次）");
+    assert.equal(viewCalls, afterMount.viewCalls + 1, "每次 tools/change 最多看一眼工具表");
+    assert.equal(depth, 0, "事件派发结束后递归深度必须归零");
+
+    // 禁用列表里的工具晚到（MCP 异步连上）：要补一次「撤销→重施」，且只补一次。
+    known.add("mcp__demo__delta");
+    emit();
+    assert.equal(restrictCalls, afterMount.restrictCalls + 1, "晚到的禁用工具要补一次限制，实际 " + (restrictCalls - afterMount.restrictCalls) + " 次");
+    assert.deepEqual([...applied].sort(), ["mcp__demo__beta", "mcp__demo__delta"], "两条禁用名都要生效");
+
+    // 再触发一次无变化的事件：不能有任何 undo/restrict。
+    const steady = { restrictCalls, viewCalls, emits };
+    emit();
+    assert.equal(restrictCalls, steady.restrictCalls, "集合没变时不许再 undo/restrict（否则就是烧 CPU 的循环）");
+    assert.equal(viewCalls, steady.viewCalls + 1, "换来的只是多一次廉价的 view()");
+    assert.ok(maxDepth <= 3, "tools/change 的递归深度必须很浅，实际 " + maxDepth + " 层（大于 " + CAP + " 次 restrict 即为失控）");
+    pass(`tools/change re-entrancy stays bounded (restrict=${restrictCalls}, view=${viewCalls}, depth=${maxDepth})`);
+
+    // 清空禁用列表：纤维销毁要把限制撤掉。
+    controller.setDeny([]);
+    assert.equal(controller.activeCount(), 0, "清空后不该还挂着插件");
+    assert.deepEqual([...applied], [], "清空禁用列表后限制要撤销");
+    controller.dispose();
+    assert.equal(listeners.size, 0, "dispose 要把订阅全部摘掉");
+  }
 } finally {
   await rm(dir, { recursive: true, force: true });
 }
