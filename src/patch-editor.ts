@@ -1,12 +1,18 @@
 /**
- * dsh-skill-mcp-panel —— profile cordis.patch.yml 受管块编辑器。
+ * dsh-skill-mcp-panel —— profile cordis.patch.yml 编辑器。
  *
- * 面板只读写 begin/end 标记之间的 MCP 行，标记之外的内容逐字节保留。
+ * 每一条 `@deepseek-ai/dsh-mcp-client` 行都归面板管（启停、表单编辑、删除、原文编辑），
+ * 不再用受管块或 `panel-mcp-*` 前缀区分「受管 / 外部」。对这些行的改动都是就地拼接：
+ * 只替换目标 entry 的字节跨度，文件其余部分逐字节保留。
+ *
+ * begin/end 受管块仍然是「面板新建的行」落点，也仍然是非 MCP 外来行的字节保真边界
+ * （ADR-0003）：重写受管块时，块里不属于面板的非 MCP 条目原样搬回去。
+ *
  * 写入使用同目录临时文件 + rename，并通过锁文件避免 Web 宿主与 CLI 并发写。
  */
 import { open, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { isMap, isSeq, parseDocument, stringify } from "yaml";
+import { isMap, isPair, isScalar, isSeq, parseDocument, stringify } from "yaml";
 
 export const PANEL_MCP_BLOCK_BEGIN = "# >>> dsh-skill-mcp-panel:mcp:begin";
 export const PANEL_MCP_BLOCK_END = "# <<< dsh-skill-mcp-panel:mcp:end";
@@ -63,7 +69,11 @@ export function isJsExprValue(value: unknown): value is JsExprValue {
 export interface PatchRow {
   id?: string;
   name?: string;
-  disabled?: boolean;
+  /**
+   * 布尔开关、`!!js` 表达式，或用户手写的其它值（`"true"`、`1`…）。
+   * 最后一种面板不解释：只在表单/原文保存时原样保留，绝不悄悄改成布尔。
+   */
+  disabled?: unknown;
   config?: Record<string, unknown>;
   [key: string]: unknown;
 }
@@ -80,13 +90,18 @@ export async function readPatchFile(path: string): Promise<string> {
 }
 
 /** 校验整份 patch 文本：可解析且顶层是数组。不解出/写回任何值。 */
-export async function validatePatchText(raw: string): Promise<void> {
+export function assertPatchText(raw: string): void {
   const doc = parseDocument(raw, { logLevel: "silent", customTags: YAML_CUSTOM_TAGS });
   if (doc.errors.length > 0) {
     throw new Error("cordis.patch.yml 解析失败：" + String(doc.errors[0]?.message ?? doc.errors[0]));
   }
   const parsed = doc.toJS();
   if (!Array.isArray(parsed)) throw new Error("cordis.patch.yml 顶层必须是 YAML 数组");
+}
+
+/** 校验整份 patch 文本：可解析且顶层是数组。不解出/写回任何值。 */
+export async function validatePatchText(raw: string): Promise<void> {
+  assertPatchText(raw);
 }
 
 /** 把 YAML 解析出的单个条目收成 patch 行；`id`/`name` 都不是字符串的条目返回 undefined。 */
@@ -97,7 +112,9 @@ function rowFromValue(value: unknown): PatchRow | undefined {
   const normalized: PatchRow = { ...row };
   if (typeof row.id !== "string") delete normalized.id;
   if (typeof row.name !== "string") delete normalized.name;
-  if (typeof row.disabled !== "boolean") delete normalized.disabled;
+  // disabled 一律原样留下：布尔是开关，!!js 是表达式，其它是用户手写的值。
+  // 丢掉它会让这条服务器在表单保存后变回启用。
+  if (row.disabled === undefined || row.disabled === null) delete normalized.disabled;
   if (row.config === null || typeof row.config !== "object" || Array.isArray(row.config)) delete normalized.config;
   return normalized;
 }
@@ -422,6 +439,499 @@ export async function writeManagedRows(path: string, rows: PatchRow[]): Promise<
     const raw = await readPatchFile(path);
     const next = replaceManagedBlock(raw, rows);
     await validatePatchText(next);
+    await writeFileAtomic(path, next);
+    return next;
+  });
+}
+
+// ── 单条 MCP entry 的就地编辑（字节级）──────────────────────────────────────
+//
+// 启停、删除、原文替换、表单落盘都只动目标 entry 的文本跨度。loader 会热应用
+// `disabled` 的翻转（disabled → fiber.dispose()，删掉键 → entry.init()），
+// 所以就地改这一键就是热启停。!!js 表达式、注释、键序、未建模字段
+// （例如 maxInstructionBytes）在不改写它们的操作里逐字节保留。
+
+/** 定位一条 MCP 行：有 id 时按 id，否则按 config.serverName。 */
+export interface McpEntryLocator {
+  id?: string;
+  serverName?: string;
+}
+
+const SERVER_NAME_RE = /^[A-Za-z0-9_-]{1,32}$/;
+
+/** 取某个映射里指定标量键的 pair。 */
+function scalarPairOf(map: any, key: string): any | undefined {
+  for (const pair of map.items ?? []) {
+    if (!isPair(pair)) continue;
+    if (isScalar(pair.key) && pair.key.value === key) return pair;
+  }
+  return undefined;
+}
+
+/** entry 映射的 id 值（非标量返回 undefined）。 */
+function entryIdOfNode(map: any): string | undefined {
+  const pair = scalarPairOf(map, "id");
+  return pair !== undefined && isScalar(pair.value) && typeof pair.value.value === "string" ? pair.value.value : undefined;
+}
+
+/** entry 映射的 config.serverName（非字符串返回 undefined）。 */
+function serverNameOfNode(map: any): string | undefined {
+  const config = scalarPairOf(map, "config");
+  if (config === undefined || !isMap(config.value)) return undefined;
+  const name = scalarPairOf(config.value, "serverName");
+  return name !== undefined && isScalar(name.value) && typeof name.value.value === "string" ? name.value.value : undefined;
+}
+
+/** 映射的 name 标量是不是 MCP 客户端插件。 */
+function isMcpMap(map: any): boolean {
+  const pair = scalarPairOf(map, "name");
+  return pair !== undefined && isScalar(pair.value) && pair.value.value === MCP_PLUGIN_NAME;
+}
+
+/** pair 的行首位置：Pair 节点本身不带 range，以 key 标量的 range 为准。 */
+function pairStartOf(pair: any): number | undefined {
+  return isScalar(pair.key) && typeof pair.key.range?.[0] === "number" ? pair.key.range[0] : undefined;
+}
+
+/** pair 内容结束位置（value 末尾；无 value 时到 key 末尾）。 */
+function pairContentEndOf(pair: any): number | undefined {
+  if (pair?.value !== undefined && pair?.value !== null) {
+    const end = nodeContentEndOf(pair.value);
+    if (end !== undefined) return end;
+  }
+  return isScalar(pair?.key) && typeof pair.key.range?.[1] === "number" ? pair.key.range[1] : undefined;
+}
+
+/**
+ * 节点**内容**的结束位置：最后一个标量/子节点的末尾。
+ *
+ * 不能用 `node.range[2]`：yaml 把条目后面的注释行算进节点的尾随范围，
+ * 用它当跨度结尾会在替换/删除时把「下一条的说明注释」一起吞掉。
+ */
+function nodeContentEndOf(node: any): number | undefined {
+  if (node === null || typeof node !== "object") return undefined;
+  if (isSeq(node)) {
+    const items: any[] = Array.isArray(node.items) ? node.items : [];
+    for (let index = items.length - 1; index >= 0; index -= 1) {
+      const end = nodeContentEndOf(items[index]);
+      if (end !== undefined) return end;
+    }
+    return typeof node.range?.[0] === "number" ? node.range[0] : undefined;
+  }
+  if (isMap(node)) {
+    const items: any[] = Array.isArray(node.items) ? node.items : [];
+    for (let index = items.length - 1; index >= 0; index -= 1) {
+      const end = pairContentEndOf(items[index]);
+      if (end !== undefined) return end;
+    }
+    return typeof node.range?.[0] === "number" ? node.range[0] : undefined;
+  }
+  if (typeof node.range?.[1] === "number") return node.range[1];
+  if (typeof node.range?.[2] === "number") return node.range[2];
+  return undefined;
+}
+
+/** index 处字符所在行的行首。 */
+function lineStartOf(text: string, index: number): number {
+  return text.lastIndexOf("\n", Math.max(0, index - 1)) + 1;
+}
+
+/** index 处字符所在行之后的位置（下一行行首；无换行则到文末）。 */
+function lineEndAfter(text: string, index: number): number {
+  const newline = text.indexOf("\n", index);
+  return newline < 0 ? text.length : newline + 1;
+}
+
+/** 文件用的换行符（新插入/重写的行跟随原文件，避免 CRLF 文件被掺进 LF 行）。 */
+function eolOf(text: string): string {
+  return text.includes("\r\n") ? "\r\n" : "\n";
+}
+
+/**
+ * 序列条目的完整文本跨度：从所在行行首（含缩进与 `- `）到条目**内容**最后一行的行尾。
+ * 条目后面的注释、空行不在跨度里，替换/删除时原样留下。
+ */
+function itemSpan(raw: string, node: any): { start: number; end: number } {
+  const rangeStart = node?.range?.[0];
+  const contentEnd = nodeContentEndOf(node);
+  if (typeof rangeStart !== "number" || contentEnd === undefined) {
+    throw new Error("这条 MCP 行的 YAML 结构不支持就地编辑，请检查 cordis.patch.yml");
+  }
+  return { start: lineStartOf(raw, rangeStart), end: lineEndAfter(raw, contentEnd) };
+}
+
+interface FoundMcpEntry {
+  node: any;
+  /** 要替换 / 展示的序列条目（顶层行，或 insert 列表成员）。 */
+  item: any;
+  /** 是不是某个 `- insert:` 列表的成员（决定原文编辑能否改缩进/位置）。 */
+  inInsert: boolean;
+  /** insert 列表里只剩这一条时，删除应拿掉整个 `- insert:` 条目。 */
+  soleInsertItem?: any;
+}
+
+/** 收集整份 patch 里的 MCP 映射（顶层条目与 insert 成员）。 */
+function collectMcpEntries(doc: any): FoundMcpEntry[] {
+  const found: FoundMcpEntry[] = [];
+  if (!isSeq(doc.contents)) return found;
+  for (const item of doc.contents.items) {
+    if (!isMap(item)) continue;
+    const members = insertMembers(item);
+    if (members !== undefined) {
+      const mcpMembers = members.filter((member) => isMap(member) && isMcpMap(member));
+      for (const member of mcpMembers) {
+        found.push({
+          node: member,
+          item: member,
+          inInsert: true,
+          soleInsertItem: members.length === 1 ? item : undefined
+        });
+      }
+      continue;
+    }
+    if (isMcpMap(item)) found.push({ node: item, item, inInsert: false });
+  }
+  return found;
+}
+
+function parsePatchDocument(raw: string): any {
+  const doc = parseDocument(raw, { logLevel: "silent", customTags: YAML_CUSTOM_TAGS });
+  if (doc.errors.length > 0) {
+    throw new Error("cordis.patch.yml 解析失败：" + String(doc.errors[0]?.message ?? doc.errors[0]));
+  }
+  return doc;
+}
+
+/**
+ * 在整份 patch 里定位一条 MCP entry。
+ *
+ * 同时给了 id 和 serverName 时按「两个都对上」匹配——文件里 id 重复（不同
+ * serverName）或 serverName 重复（不同 id）都能唯一定位到用户点的那一条。
+ * 缺一个字段时退回单字段匹配；命中多条仍报错（提示用原文按 id 逐条修正）。
+ */
+function findMcpEntry(raw: string, locator: McpEntryLocator): FoundMcpEntry {
+  const doc = parsePatchDocument(raw);
+  const all = collectMcpEntries(doc);
+  const id = typeof locator.id === "string" && locator.id !== "" ? locator.id : undefined;
+  const serverName = typeof locator.serverName === "string" && locator.serverName !== "" ? locator.serverName : undefined;
+  const byId = (entry: FoundMcpEntry) => (id === undefined ? true : entryIdOfNode(entry.node) === id);
+  const byName = (entry: FoundMcpEntry) => (serverName === undefined ? true : serverNameOfNode(entry.node) === serverName);
+  let hits = id !== undefined || serverName !== undefined ? all.filter((entry) => byId(entry) && byName(entry)) : [];
+  if (hits.length === 0 && id !== undefined) hits = all.filter(byId);
+  if (hits.length === 0 && serverName !== undefined) hits = all.filter(byName);
+  if (hits.length === 0) {
+    const label = id ?? serverName ?? "";
+    throw new Error('cordis.patch.yml 中找不到 MCP 行 "' + label + '"');
+  }
+  if (hits.length > 1) {
+    const label = serverName ?? id ?? "";
+    throw new Error(
+      'MCP 行 "' + label + '" 在 cordis.patch.yml 里不唯一（id 或 serverName 重复）。'
+      + "请用原文按 id 逐条修正，让每一行的 id 和 config.serverName 都唯一"
+    );
+  }
+  return hits[0];
+}
+
+function duplicateCounts(raw: string): { ids: Map<string, number>; names: Map<string, number> } {
+  const rows = listMcpPatchRows(raw);
+  const ids = new Map<string, number>();
+  const names = new Map<string, number>();
+  for (const row of rows) {
+    if (typeof row.id === "string" && row.id !== "") ids.set(row.id, (ids.get(row.id) ?? 0) + 1);
+    const name = typeof row.config?.serverName === "string" ? row.config.serverName : undefined;
+    if (name !== undefined && name !== "") names.set(name, (names.get(name) ?? 0) + 1);
+  }
+  return { ids, names };
+}
+
+/**
+ * 写回一条时不许**新增**重复的 id / serverName。
+ *
+ * 文件里可能本来就有重名（手写配置），面板的职责是能帮用户一条条改掉，
+ * 所以基线里已有的重复不算错；只有比写之前更多才拒绝。
+ */
+function assertNoNewDuplicates(before: string, after: string): void {
+  const old = duplicateCounts(before);
+  const next = duplicateCounts(after);
+  for (const [id, count] of next.ids) {
+    if (count > 1 && count > (old.ids.get(id) ?? 0)) throw new Error('id "' + id + '" 在 cordis.patch.yml 里重复');
+  }
+  for (const [name, count] of next.names) {
+    if (count > 1 && count > (old.names.get(name) ?? 0)) throw new Error('serverName "' + name + '" 在 cordis.patch.yml 里重复');
+  }
+}
+
+/**
+ * 删光 MCP 行后，空的受管块连同 begin/end 标记一起收掉，避免留下
+ * 「只有一半标记」的文件（那会让后续所有写操作都被标记校验挡住）。
+ * 块内的注释不丢：挪到原来的位置，作为普通注释留在文件里。
+ */
+function stripEmptyManagedBlock(raw: string): string {
+  const begin = raw.indexOf(PANEL_MCP_BLOCK_BEGIN);
+  const end = raw.indexOf(PANEL_MCP_BLOCK_END);
+  if (begin < 0 || end < 0 || end < begin) return raw;
+  const bodyStart = raw.indexOf("\n", begin);
+  if (bodyStart < 0 || bodyStart > end) return raw;
+  const body = raw.slice(bodyStart + 1, lineStartOf(raw, end));
+  const meaningful = body.split(/\r?\n/).map((line) => line.trim()).filter((line) => line !== "" && !line.startsWith("#"));
+  if (meaningful.length > 0) return raw;
+  const eol = eolOf(raw);
+  const comments = body.split(/\r?\n/).filter((line) => line.trim().startsWith("#"));
+  const blockStart = lineStartOf(raw, begin);
+  const blockEnd = lineEndAfter(raw, end);
+  const kept = comments.length === 0 ? "" : comments.join(eol) + eol;
+  return raw.slice(0, blockStart) + kept + raw.slice(blockEnd);
+}
+
+/** 删除后若文件不再是数组、又只剩注释，补回 `[]`。 */
+function ensurePatchArray(raw: string): string {
+  try {
+    assertPatchText(raw);
+    return raw;
+  } catch (error) {
+    const meaningful = raw.split(/\r?\n/).map((line) => line.trim()).filter((line) => line !== "" && !line.startsWith("#"));
+    if (meaningful.length === 0) return raw.replace(/\s*$/, "") + "\n[]\n";
+    throw error;
+  }
+}
+
+/**
+ * 就地翻转单个 entry 的 `disabled` 键，返回新文本；已是目标状态时原样返回。
+ *
+ *   停用：无键 → 在这一条最后一个键的下一行按同缩进插入 `disabled: true`；
+ *         有键且值为 false → 原位把值改成 true；
+ *   启用：有键且独占一行 → 整行删除；与别的内容同行 → 原位把值改成 false；
+ *   disabled 值是 !!js 表达式 → 抛错让用户手动处理（绝不在表达式上动刀）。
+ *
+ * 没有 `id` 的行也能开关（插入位置按这一条自己的缩进算），不再要求补 id。
+ * 只接受 @deepseek-ai/dsh-mcp-client 行，避免把别人的插件行关掉。
+ */
+export function setEntryDisabledInText(raw: string, locator: McpEntryLocator, disabled: boolean): string {
+  const found = findMcpEntry(raw, locator);
+  const map = found.node;
+  const label = String(locator.id ?? locator.serverName ?? "");
+  const namePair = scalarPairOf(map, "name");
+  const pluginName = namePair !== undefined && isScalar(namePair.value) ? namePair.value.value : undefined;
+  if (pluginName !== MCP_PLUGIN_NAME) {
+    throw new Error('entry "' + label + '" 不是 ' + MCP_PLUGIN_NAME + " 行，面板只能开关 MCP 服务器");
+  }
+  const eol = eolOf(raw);
+  const pair = scalarPairOf(map, "disabled");
+  const valueNode = pair?.value;
+  const valueStart = isScalar(valueNode) && typeof valueNode.range?.[0] === "number" ? valueNode.range[0] : undefined;
+  const valueEnd = isScalar(valueNode) && typeof valueNode.range?.[1] === "number" ? valueNode.range[1] : undefined;
+  const valueSource = valueStart !== undefined && valueEnd !== undefined
+    ? raw.slice(valueStart, valueEnd).trim()
+    : "";
+  // `!!js` 的标签在标量 range 之外（range 只覆盖表达式本身），所以既看节点标签，
+  // 也看 range 前紧挨着的原文。表达式绝不能被改写成 true/false。
+  const tagPrefix = valueStart !== undefined ? raw.slice(Math.max(0, valueStart - 80), valueStart) : "";
+  const jsExpr = isJsExprValue(isScalar(valueNode) ? valueNode.value : undefined)
+    || (isScalar(valueNode) && valueNode.tag === JS_EXPR_TAG)
+    || /(?:!!\S+|!<[^>\n]+>)\s*$/.test(tagPrefix);
+  if (jsExpr || valueSource.startsWith("!!")) {
+    throw new Error('entry "' + label + '" 的 disabled 是 !!js 表达式，请用原文编辑修改（面板不会改写表达式）');
+  }
+  if (disabled) {
+    if (pair !== undefined && valueSource === "true") return raw;
+    if (pair !== undefined) {
+      if (valueStart === undefined || valueEnd === undefined) {
+        throw new Error('entry "' + label + '" 的 disabled 写法不支持就地开关，请用原文编辑');
+      }
+      return raw.slice(0, valueStart) + "true" + raw.slice(valueEnd);
+    }
+    const pairs = (map.items ?? []).filter((item: any) => isPair(item));
+    const anchor = pairs.length > 0 ? pairs[pairs.length - 1] : undefined;
+    const anchorStart = anchor !== undefined ? pairStartOf(anchor) : undefined;
+    const anchorEnd = anchor !== undefined ? pairContentEndOf(anchor) : undefined;
+    if (anchorStart === undefined || anchorEnd === undefined) {
+      throw new Error('entry "' + label + '" 没有可插入 disabled 的位置，请用原文编辑');
+    }
+    const indent = " ".repeat(Math.max(0, anchorStart - lineStartOf(raw, anchorStart)));
+    const insertion = indent + "disabled: true" + eol;
+    const position = lineEndAfter(raw, anchorEnd);
+    if (position >= raw.length) return raw + (raw.endsWith("\n") ? "" : eol) + insertion;
+    return raw.slice(0, position) + insertion + raw.slice(position);
+  }
+  if (pair === undefined || valueSource === "false") return raw;
+  const pairStart = pairStartOf(pair);
+  const pairEnd = pairContentEndOf(pair);
+  if (pairStart === undefined || pairEnd === undefined) {
+    throw new Error('entry "' + label + '" 的 disabled 写法不支持就地开关，请用原文编辑');
+  }
+  const pairLineStart = lineStartOf(raw, pairStart);
+  const pairLineEnd = lineEndAfter(raw, pairEnd);
+  const before = raw.slice(pairLineStart, pairStart);
+  const newlineAt = raw.indexOf("\n", pairEnd);
+  const after = raw.slice(pairEnd, newlineAt < 0 ? raw.length : newlineAt);
+  if (/^[ \t\r]*$/.test(before) && /^[ \t\r]*$/.test(after)) return raw.slice(0, pairLineStart) + raw.slice(pairLineEnd);
+  if (valueStart === undefined || valueEnd === undefined) {
+    throw new Error('entry "' + label + '" 的 disabled 写法不支持就地开关，请用原文编辑');
+  }
+  return raw.slice(0, valueStart) + "false" + raw.slice(valueEnd);
+}
+
+/**
+ * 就地开关单条 MCP entry：读文件、翻转 `disabled`、校验、加锁原子写回。
+ * 返回写回后的完整文本与是否真的改动（已是目标状态时不写盘）。
+ */
+export async function setEntryDisabled(path: string, locator: McpEntryLocator, disabled: boolean): Promise<{ raw: string; changed: boolean }> {
+  return withPatchLock(path, async () => {
+    const raw = await readPatchFile(path);
+    const next = setEntryDisabledInText(raw, locator, disabled);
+    if (next === raw) return { raw, changed: false };
+    await validatePatchText(next);
+    await writeFileAtomic(path, next);
+    return { raw: next, changed: true };
+  });
+}
+
+/** 读出一条 MCP entry 的原文（含缩进与 `- `，字节与文件中一致）。 */
+export function readMcpEntryText(raw: string, locator: McpEntryLocator): string {
+  const found = findMcpEntry(raw, locator);
+  const span = itemSpan(raw, found.item);
+  return raw.slice(span.start, span.end);
+}
+
+/** 把用户提交的原文解析成一条 MCP 行；接受「一条序列」或「一个映射」。 */
+function rowFromEntrySnippet(text: string): PatchRow {
+  const doc = parseDocument(text, { logLevel: "silent", customTags: YAML_CUSTOM_TAGS });
+  if (doc.errors.length > 0) {
+    throw new Error("原文解析失败：" + String(doc.errors[0]?.message ?? doc.errors[0]));
+  }
+  let value = doc.toJS();
+  if (Array.isArray(value)) {
+    if (value.length !== 1) throw new Error("原文只能包含一条 MCP 配置");
+    value = value[0];
+  }
+  const row = rowFromValue(value);
+  if (row === undefined || row.name !== MCP_PLUGIN_NAME) {
+    throw new Error("原文必须仍是一条 " + MCP_PLUGIN_NAME + " 配置");
+  }
+  // id 可以不写（手写行本来就可能没有 id）；写了就必须是非空字符串。
+  if (row.id !== undefined && (typeof row.id !== "string" || row.id.trim() === "")) {
+    throw new Error("原文里的 id 必须是非空字符串（不想写就整行删掉）");
+  }
+  const serverName = row.config?.serverName;
+  if (typeof serverName !== "string" || !SERVER_NAME_RE.test(serverName)) {
+    throw new Error("config.serverName 必须是 1-32 位字母、数字、下划线或连字符");
+  }
+  return row;
+}
+
+/**
+ * 用用户提交的原文替换一条 MCP entry。跨度之外的字节不动。
+ * 替换后整份文件仍须是合法 patch，且不能引出重复的 id / serverName；
+ * 也不许借缩进把这一条搬出/搬进 `- insert:` 列表（append ↔ override 的语义会变）。
+ */
+export function replaceMcpEntryTextInText(raw: string, locator: McpEntryLocator, text: string): { raw: string; row: PatchRow } {
+  const found = findMcpEntry(raw, locator);
+  const span = itemSpan(raw, found.item);
+  const originalIndent = indentOfItem(raw, span.start);
+  const normalized = text.replace(/\r\n/g, "\n");
+  const replacement = normalized.endsWith("\n") ? normalized : normalized + "\n";
+  const row = rowFromEntrySnippet(replacement);
+  const before = listMcpPatchRows(raw).length;
+  const eol = eolOf(raw);
+  const fileText = eol === "\n" ? replacement : replacement.replace(/\n/g, eol);
+  const next = raw.slice(0, span.start) + fileText + raw.slice(span.end);
+  assertPatchText(next);
+  const afterRows = listMcpPatchRows(next);
+  if (afterRows.length !== before) throw new Error("原文只能改这一条 MCP 行，不能增删别的 entry");
+  assertNoNewDuplicates(raw, next);
+  const serverName = typeof row.config?.serverName === "string" ? row.config.serverName : undefined;
+  const afterLocator: McpEntryLocator = typeof row.id === "string" ? { id: row.id, serverName } : { serverName };
+  let afterFound: FoundMcpEntry | undefined;
+  try {
+    afterFound = findMcpEntry(next, afterLocator);
+  } catch {
+    afterFound = undefined;
+  }
+  if (afterFound === undefined) {
+    throw new Error("原文写回后定位不到这一条 MCP 行：id 必须保留（或改成唯一值），且 serverName 不能与别的行重复");
+  }
+  const afterIndent = indentOfItem(next, itemSpan(next, afterFound.item).start);
+  if (afterFound.inInsert !== found.inInsert || afterIndent !== originalIndent) {
+    throw new Error(
+      "原文不能改变这一行的位置：请保留原来的缩进（" + (originalIndent === "" ? "顶层" : "「" + originalIndent + "」")
+      + "）和所在的列表（" + (found.inInsert ? "受管块 insert 成员" : "顶层条目") + "）"
+    );
+  }
+  return { raw: next, row };
+}
+
+/** 读文件、替换一条 MCP entry 的原文、校验、加锁原子写回。 */
+export async function replaceMcpEntryText(path: string, locator: McpEntryLocator, text: string): Promise<{ raw: string; row: PatchRow }> {
+  return withPatchLock(path, async () => {
+    const raw = await readPatchFile(path);
+    const next = replaceMcpEntryTextInText(raw, locator, text);
+    await writeFileAtomic(path, next.raw);
+    return next;
+  });
+}
+
+/** 序列条目所在行、`-` 之前的缩进。 */
+function indentOfItem(raw: string, start: number): string {
+  const lineEnd = raw.indexOf("\n", start);
+  const line = raw.slice(start, lineEnd < 0 ? raw.length : lineEnd);
+  return /^([ \t]*)-/.exec(line)?.[1] ?? "";
+}
+
+/** 把一行 patch 序列化成与原条目同缩进、同换行符的列表项文本。 */
+function stringifyEntry(row: PatchRow, indent: string, eol = "\n"): string {
+  const body = stringify([row], { indent: 2, lineWidth: 0, customTags: YAML_CUSTOM_TAGS });
+  const text = body.endsWith("\n") ? body : body + "\n";
+  const normalized = eol === "\n" ? text : text.replace(/\n/g, eol);
+  if (indent === "") return normalized;
+  return normalized
+    .split(eol)
+    .map((line, index, all) => (line === "" && index === all.length - 1 ? "" : line === "" ? line : indent + line))
+    .join(eol);
+}
+
+/**
+ * 用结构化行替换一条 MCP entry（表单保存、OAuth 写 Authorization）。
+ * 只重写这一条；未知字段由调用方放进行对象后一起写回。跨度之外的字节不动。
+ */
+export function replaceMcpEntryWithRowInText(raw: string, locator: McpEntryLocator, row: PatchRow): string {
+  const found = findMcpEntry(raw, locator);
+  const span = itemSpan(raw, found.item);
+  const replacement = stringifyEntry(row, indentOfItem(raw, span.start), eolOf(raw));
+  const next = raw.slice(0, span.start) + replacement + raw.slice(span.end);
+  assertPatchText(next);
+  assertNoNewDuplicates(raw, next);
+  return next;
+}
+
+/** 读文件、用结构化行替换一条 MCP entry、校验、加锁原子写回。 */
+export async function replaceMcpEntryWithRow(path: string, locator: McpEntryLocator, row: PatchRow): Promise<string> {
+  return withPatchLock(path, async () => {
+    const raw = await readPatchFile(path);
+    const next = replaceMcpEntryWithRowInText(raw, locator, row);
+    await writeFileAtomic(path, next);
+    return next;
+  });
+}
+
+/**
+ * 就地删除一条 MCP entry。insert 列表里只剩它时，连同 `- insert:` 一起删除，
+ * 避免留下空列表；受管块因此变空时收掉标记，让文件仍是合法顶层数组。
+ */
+export function removeMcpEntryInText(raw: string, locator: McpEntryLocator): string {
+  const found = findMcpEntry(raw, locator);
+  const target = found.soleInsertItem ?? found.item;
+  const span = itemSpan(raw, target);
+  const next = ensurePatchArray(stripEmptyManagedBlock(raw.slice(0, span.start) + raw.slice(span.end)));
+  assertPatchText(next);
+  return next;
+}
+
+/** 读文件、删除一条 MCP entry、校验、加锁原子写回。 */
+export async function removeMcpEntry(path: string, locator: McpEntryLocator): Promise<string> {
+  return withPatchLock(path, async () => {
+    const raw = await readPatchFile(path);
+    const next = removeMcpEntryInText(raw, locator);
     await writeFileAtomic(path, next);
     return next;
   });

@@ -29,6 +29,8 @@ export const mcpServerViewSchema = z.object({
   serverName: z.string(),
   transport: z.enum(["stdio", "streamable-http", "unknown"]),
   enabled: z.boolean(),
+  /** `disabled` 是 !!js 表达式：开关由宿主求值，界面应禁用开关并说明原因。 */
+  disabledExpr: z.boolean().default(false),
   entryId: z.string().optional(),
   command: z.string().optional(),
   args: z.array(z.string()).optional(),
@@ -41,8 +43,8 @@ export const mcpServerViewSchema = z.object({
   reconnect: reconnectViewSchema,
   managed: z.boolean().default(true),
   /**
-   * 面板自己的行（id 前缀 `panel-mcp-`）却落在受管块之外：行级操作按 id 认它，
-   * 但改写只会写受管块，所以这里只读。界面上单独标出，避免误以为它是别人的行。
+   * 历史字段。面板现在接管每一条 mcp-client 行，不再把块外行标成只读。
+   * 保留可选字段，避免旧客户端解析失败。
    */
   orphan: z.boolean().optional(),
   fiberPhase: fiberPhaseSchema,
@@ -51,6 +53,7 @@ export const mcpServerViewSchema = z.object({
 
 export const mcpListResultSchema = z.object({
   servers: z.array(mcpServerViewSchema),
+  /** 历史字段。全部 MCP 行都在 servers 里，这里始终是空数组。 */
   externalServers: z.array(mcpServerViewSchema),
   patch: z.object({
     path: z.string(),
@@ -78,6 +81,8 @@ export const mcpEvacuateResultSchema = z.object({
 export const mcpSavePayloadSchema = z.object({
   input: mcpServerInputSchema,
   previousServerName: z.string().optional(),
+  /** 被编辑行的 entryId：serverName 重复时用它唯一定位（手写行可能没有 id）。 */
+  previousEntryId: z.string().optional(),
   enabled: z.boolean().default(true)
 });
 
@@ -86,8 +91,29 @@ export const mcpSaveResultSchema = z.object({
   reconciled: z.boolean()
 });
 
+/** 读出一条 MCP 行的原文（字节与 cordis.patch.yml 中该 entry 一致）。 */
+export const mcpRawReadPayloadSchema = z.object({
+  serverName: z.string(),
+  /** 精确指定某一行（serverName 重复或手写行没有 id 时用）。 */
+  entryId: z.string().optional()
+});
+
+export const mcpRawReadResultSchema = z.object({
+  serverName: z.string(),
+  entryId: z.string().optional(),
+  text: z.string()
+});
+
+/** 用原文替换同一条 MCP 行。text 是这一条的 YAML（含缩进与 `- `）。 */
+export const mcpRawWritePayloadSchema = z.object({
+  serverName: z.string(),
+  entryId: z.string().optional(),
+  text: z.string()
+});
+
 export const mcpRemovePayloadSchema = z.object({
-  serverName: z.string()
+  serverName: z.string(),
+  entryId: z.string().optional()
 });
 
 export const mcpRemoveResultSchema = z.object({
@@ -96,6 +122,7 @@ export const mcpRemoveResultSchema = z.object({
 
 export const mcpSetEnabledPayloadSchema = z.object({
   serverName: z.string(),
+  entryId: z.string().optional(),
   enabled: z.boolean()
 });
 
@@ -220,6 +247,28 @@ export const MCP_MANIFEST = {
       invocation: { kind: "direct" },
       parameters: [
         { name: "payload", wire: "payload", source: "json", codec: strictCodec("dsh-skill-mcp-panel#McpSetEnabledPayload", boundaryPayloadSchema) }
+      ],
+      result: strictCodec("dsh-skill-mcp-panel#McpSaveResult", mcpSaveResultSchema)
+    },
+    {
+      id: "dsh-skill-mcp-panel#mcpManager/readRaw",
+      service: "mcpManager",
+      namespace: "mcpManager",
+      method: "readRaw",
+      invocation: { kind: "direct" },
+      parameters: [
+        { name: "payload", wire: "payload", source: "json", codec: strictCodec("dsh-skill-mcp-panel#McpRawReadPayload", boundaryPayloadSchema) }
+      ],
+      result: strictCodec("dsh-skill-mcp-panel#McpRawReadResult", mcpRawReadResultSchema)
+    },
+    {
+      id: "dsh-skill-mcp-panel#mcpManager/writeRaw",
+      service: "mcpManager",
+      namespace: "mcpManager",
+      method: "writeRaw",
+      invocation: { kind: "direct" },
+      parameters: [
+        { name: "payload", wire: "payload", source: "json", codec: strictCodec("dsh-skill-mcp-panel#McpRawWritePayload", boundaryPayloadSchema) }
       ],
       result: strictCodec("dsh-skill-mcp-panel#McpSaveResult", mcpSaveResultSchema)
     },

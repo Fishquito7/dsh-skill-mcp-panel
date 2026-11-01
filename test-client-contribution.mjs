@@ -145,7 +145,7 @@ check("no duplicate endpoint in the contribution", () => {
 
 // 点名 Issue #51 的 6 个方法（客户端真的会调用它们；oauthStatus 只给 CLI 用）
 check("Issue #51: tools panel and OAuth buttons have mounted methods", () => {
-  const required = ["listTools", "getToolFilter", "setToolFilter", "oauthStart", "oauthPoll", "oauthDisconnect"];
+  const required = ["listTools", "getToolFilter", "setToolFilter", "oauthStart", "oauthPoll", "oauthDisconnect", "readRaw", "writeRaw"];
   const missing = required.filter((method) => !clientSignatures.has(method + "@mcpManager"));
   assert.deepEqual(missing, [], "missing mounted methods: " + missing.join(", "));
 });

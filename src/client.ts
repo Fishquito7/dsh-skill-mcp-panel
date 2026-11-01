@@ -894,6 +894,28 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					result: codec("dsh-skill-mcp-panel#McpSaveResult")
 				},
 				{
+					id: "dsh-skill-mcp-panel#mcpManager/readRaw",
+					service: "mcpManager",
+					namespace: "mcpManager",
+					method: "readRaw",
+					invocation: { kind: "direct" },
+					parameters: [
+						{ name: "payload", wire: "payload", source: "json", codec: codec("dsh-skill-mcp-panel#McpRawReadPayload") }
+					],
+					result: codec("dsh-skill-mcp-panel#McpRawReadResult")
+				},
+				{
+					id: "dsh-skill-mcp-panel#mcpManager/writeRaw",
+					service: "mcpManager",
+					namespace: "mcpManager",
+					method: "writeRaw",
+					invocation: { kind: "direct" },
+					parameters: [
+						{ name: "payload", wire: "payload", source: "json", codec: codec("dsh-skill-mcp-panel#McpRawWritePayload") }
+					],
+					result: codec("dsh-skill-mcp-panel#McpSaveResult")
+				},
+				{
 					id: "dsh-skill-mcp-panel#mcpManager/test",
 					service: "mcpManager",
 					namespace: "mcpManager",
@@ -913,7 +935,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					parameters: [],
 					result: codec("dsh-skill-mcp-panel#McpListResult")
 				},
-				// 下面 7 条必须与 src/mcp/wire.ts 的 MCP_MANIFEST 一一对应：客户端只认得
+				// 下面这些必须与 src/mcp/wire.ts 的 MCP_MANIFEST 一一对应：客户端只认得
 				// 自己 $mount 过的描述符，漏一条就是运行期 "remote[method] is not a function"
 				// （Issue #51：单工具禁用面板与卡片上的 OAuth 按钮都因此点不动）。
 				// 守卫：test-client-contribution.mjs 做全量比对。
@@ -3161,11 +3183,11 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         nav: "MCP",
                         back: "返回会话",
                         title: "MCP 服务器",
-                        subtitle: "在 profile cordis.patch.yml 的受管块中维护 MCP 服务器，保存后由 DSH HMR 热加载。",
+                        subtitle: "profile 的 cordis.patch.yml 里每一条 MCP 服务器都能在这里启停、编辑和删除。常规项用表单，手写或尚未做成表单的字段用「原文」。保存后由 DSH HMR 热加载。",
                         docButton: "注册机制",
                         docTitle: "DSH 的 MCP 注册机制",
                         docLead: "DSH 的 MCP 能力来自官方插件 @deepseek-ai/dsh-mcp-client：它读的不是单独的 MCP 配置文件，而是所在 profile 的 cordis.patch.yml 里的一条 loader entry ——",
-                        docWhere: "本面板就是那条 entry 的可视化编辑器：受管 entry 写在 BEGIN / END 两条标记之间，块外内容逐字节保留；保存即写文件，DSH 的 loader 监听到变化后热加载，不需要重启。",
+                        docWhere: "本面板接管文件里所有 @deepseek-ai/dsh-mcp-client 行，不再区分受管块内外。表单改常规配置，没做成表单的字段（例如 maxInstructionBytes）会保留；「原文」按字节改这一条的 YAML。不属于 MCP 的行仍然原样保留。保存即写文件，DSH 的 loader 监听到变化后热加载，不需要重启。",
                         docTools: "注册成功后，工具在模型侧叫 mcp__<serverName>__<原工具名>；serverName 只能 1-32 位字母、数字、下划线或连字符。",
                         docEnv: "环境变量：DSH 的配置层没有 ${VAR} 字符串插值，唯一的机制是 YAML 的 !!js 表达式（宿主装载时求值）。所以这里直接写 ${NAME} 就行，保存时自动格式化成 !!js 模板：",
                         docEnvCode: "Authorization=Bearer ${MCP_TOKEN}\n        ↓ 保存后写入 cordis.patch.yml\nAuthorization: !!js '`Bearer ${process.env.MCP_TOKEN}`'",
@@ -3193,9 +3215,13 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         stateDisabled: "已停用",
                         delete: "删除",
                         confirmDelete: "确认删除？",
-                        external: "外部管理",
-                        orphan: "受管块外",
-                        orphanHint: "该行的 id 属于面板（panel-mcp-*），但不在 begin/end 受管块内，面板只改写受管块，所以这里只读。把这些 MCP 行用 begin/end 标记包住即可在这里启停。",
+                        rawEdit: "原文",
+                        rawEditTitle: "编辑原文",
+                        rawEditHint: "按字节编辑这一条的 YAML。适合手写内容，或面板表单还没覆盖的字段（例如 maxInstructionBytes）。",
+                        rawEditLoading: "正在读取原文…",
+                        rawEditLead: "只替换这一条，文件其余字节不动。name 必须仍是 @deepseek-ai/dsh-mcp-client，并保留 id 与 serverName。",
+                        disabledExprBadge: "由表达式控制",
+                        disabledExprHint: "这一行的 disabled 是 !!js 表达式，由宿主求值；面板不能直接开关，请用「原文」修改。",
                         patchBroken: "cordis.patch.yml 不可用：",
                         reconciled: "已写入，等待 HMR 生效…",
                         reconcileTimeout: "配置已写入，但 HMR 确认超时，请稍后刷新。",
@@ -3251,7 +3277,7 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         foreignDocWhat: "面板在 profile 的 cordis.patch.yml 里用两行注释（begin / end）圈出自己管理的一段，每次保存只重写这一段，圈外的内容一个字节都不碰。",
                         foreignDocWhy: "圈里可能出现不属于面板的行：DSH 自己的配置编辑器给某个插件首次写配置时会往文件末尾追加一行，而 end 注释正好是最后一行，序列化后这行就落在圈内了（例如「权限预设」的 permission 行）。",
                         foreignDocEffect: "留在块里没有任何功能影响：DSH 是整份列表读取的，行的位置不改变语义。「移出受管块」只是把那条行原样搬到 begin 之前，内容一字不改，权限预设照常生效。",
-                        foreignDocKeep: "面板不会自动搬动它们：改写别人的行曾经把 dsh-market 的更新整体回滚（Issue #46），所以现在的规矩是「只碰 panel-mcp-*，其余原样保留，并且让你看得见」。",
+                        foreignDocKeep: "这些行不是 MCP 服务器，面板不会改写它们：改写别人的行曾经把 dsh-market 的更新整体回滚（Issue #46）。每一条 @deepseek-ai/dsh-mcp-client 则可以直接在卡片上启停、编辑、删除或改原文，不论它写在受管块里还是外面。",
 oauthLogin: "OAuth 登录",
 oauthRelogin: "重新登录",
 oauthWorking: "登录中…",
@@ -3288,11 +3314,11 @@ authStdioHint: "stdio 服务器的令牌没有单独的认证项——写在这�
                         nav: "MCP",
                         back: "Back to session",
                         title: "MCP Servers",
-                        subtitle: "MCP servers are maintained in the managed block of profile cordis.patch.yml and hot-applied by DSH HMR.",
+                        subtitle: "Every MCP server in the profile's cordis.patch.yml can be toggled, edited and deleted here. Use the form for ordinary fields, and Raw for hand-written text or fields the form does not model yet. Saves are hot-applied by DSH HMR.",
                         docButton: "How it works",
                         docTitle: "How DSH registers MCP servers",
                         docLead: "DSH's MCP support comes from the official @deepseek-ai/dsh-mcp-client plugin: it reads no separate MCP config file, only a loader entry inside the profile's cordis.patch.yml —",
-                        docWhere: "This panel is the visual editor for those entries. Managed entries live between the BEGIN / END markers and everything outside them is preserved byte for byte; saving writes the file, the DSH loader notices and hot-reloads — no restart.",
+                        docWhere: "This panel owns every @deepseek-ai/dsh-mcp-client row, inside or outside the managed block. The form edits ordinary fields and keeps unmodeled ones (such as maxInstructionBytes); Raw replaces that one entry's YAML byte for byte. Rows that are not MCP servers stay untouched. Saving writes the file and the DSH loader hot-reloads it — no restart.",
                         docTools: "Once registered, the model sees tools as mcp__<serverName>__<original name>; serverName allows 1-32 letters, digits, underscore or hyphen.",
                         docEnv: "Environment variables: the DSH config layer has no ${VAR} string interpolation — the only mechanism is a YAML !!js expression, evaluated by the host at load time. So just write ${NAME} here and the panel formats it for you:",
                         docEnvCode: "Authorization=Bearer ${MCP_TOKEN}\n        ↓ written to cordis.patch.yml on save\nAuthorization: !!js '`Bearer ${process.env.MCP_TOKEN}`'",
@@ -3320,9 +3346,13 @@ authStdioHint: "stdio 服务器的令牌没有单独的认证项——写在这�
                         stateDisabled: "Disabled",
                         delete: "Delete",
                         confirmDelete: "Confirm delete?",
-                        external: "External",
-                        orphan: "Outside block",
-                        orphanHint: "This row carries a panel id (panel-mcp-*) but sits outside the managed block, and the panel only rewrites that block, so it stays read-only here. Wrap those MCP rows with the begin/end markers to manage it from this page.",
+                        rawEdit: "Raw",
+                        rawEditTitle: "Edit raw YAML",
+                        rawEditHint: "Edit this entry's YAML byte for byte. Use it for hand-written text, or for schema fields the form does not model yet (for example maxInstructionBytes).",
+                        rawEditLoading: "Loading YAML…",
+                        rawEditLead: "Only this entry is replaced; every other byte in the file stays put. name must remain @deepseek-ai/dsh-mcp-client, and id plus serverName must stay valid.",
+                        disabledExprBadge: "By expression",
+                        disabledExprHint: "This row's disabled is a !!js expression evaluated by the host; the panel cannot toggle it. Edit it with Raw.",
                         patchBroken: "cordis.patch.yml is unavailable:",
                         reconciled: "Written, waiting for HMR…",
                         reconcileTimeout: "Config written, but HMR confirmation timed out. Refresh later.",
@@ -3378,7 +3408,7 @@ authStdioHint: "stdio 服务器的令牌没有单独的认证项——写在这�
                         foreignDocWhat: "The panel fences off its own slice of the profile's cordis.patch.yml with two comment lines (begin / end) and only ever rewrites that slice; bytes outside the fence are never touched.",
                         foreignDocWhy: "Rows that are not the panel's can end up inside the fence: when DSH's own config editor writes an entry for a plugin the first time, it appends to the YAML list, and since our end comment is the last line of the file the appended row is serialized before it (that is where the permission-presets row came from).",
                         foreignDocEffect: "Leaving it inside changes nothing: DSH reads the whole list, so a row's position does not alter its meaning. “Move out of block” only copies that row verbatim to just before the begin marker — the permission presets keep working.",
-                        foreignDocKeep: "The panel never moves them automatically: rewriting someone else's rows once rolled back every dsh-market update (issue #46), so the rule is “only touch panel-mcp-*, keep everything else as-is, and show it to you”.",
+                        foreignDocKeep: "These rows are not MCP servers, so the panel does not rewrite them: doing that once rolled back every dsh-market update (issue #46). Every @deepseek-ai/dsh-mcp-client row can be toggled, edited, deleted or raw-edited from its card, whether it lives inside the managed block or not.",
 oauthLogin: "OAuth sign-in",
 oauthRelogin: "Sign in again",
 oauthWorking: "Signing in…",
@@ -3413,7 +3443,7 @@ authStdioHint: "stdio servers have no separate auth field — put the token in t
                 };
 
                 const cssMcpEffects = "@keyframes skvFadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}@keyframes skvFadeOnly{from{opacity:0}to{opacity:1}}.MCP_card{transition:border-color .18s cubic-bezier(.22,.61,.36,1),box-shadow .18s ease}.MCP_card:hover{border-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-shadow-lv1)}.MCP_dot{transition:background-color .2s ease}.MCP_input,.MCP_textarea{transition:border-color .15s ease,box-shadow .15s ease}.MCP_transportBtn{transition:background-color .15s ease,border-color .15s ease,color .15s ease}.MCP_actionBtn,.MCP_dangerBtn,.MCP_iconBtn,.MCP_add,.MCP_advancedToggle{transition:background-color .15s ease,border-color .15s ease,transform .1s ease}.MCP_actionBtn:active:not(:disabled),.MCP_dangerBtn:active:not(:disabled),.MCP_iconBtn:active,.MCP_add:active{transform:scale(.96)}.MCP_actionBtn:focus-visible,.MCP_dangerBtn:focus-visible,.MCP_iconBtn:focus-visible,.MCP_add:focus-visible,.MCP_transportBtn:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}.MCP_cards{animation:skvFadeOnly .2s ease}.MCP_result{animation:skvFadeIn .18s ease}@media (prefers-reduced-motion: reduce){.MCP_section *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}.MCP_doc{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;animation:skvFadeIn .18s ease}.MCP_doc h4{font-size:13px;font-weight:600;line-height:20px;margin:0}.MCP_doc p{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:19px}.MCP_docCode{margin:0;background:var(--dsw-alias-bg-layer-3);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;line-height:17px;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-all;overflow-x:auto}";
-const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:14px}.MCP_head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.MCP_head h3{font-size:14px;font-weight:600;line-height:20px;margin:0}.MCP_sub{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:0}.MCP_toolbar{display:flex;align-items:center;gap:8px}.MCP_add{font:inherit;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:0 0;border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;padding:7px 16px;font-size:13px;line-height:20px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}.MCP_add:hover{background:var(--dsw-alias-interactive-bg-hover)}.MCP_cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.MCP_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}.MCP_cardTop{display:flex;align-items:center;gap:8px;min-width:0}.MCP_name{font-size:13px;font-weight:600;line-height:20px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.MCP_badges{display:inline-flex;align-items:center;gap:6px;flex:none}.MCP_badge{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);border-radius:5px;padding:1px 6px;font-size:11px;line-height:16px}.MCP_meta{display:flex;align-items:center;gap:8px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}.MCP_dot{width:7px;height:7px;border-radius:999px;background:var(--dsw-alias-label-tertiary);flex:none}.MCP_dot[data-on=true]{background:var(--dsw-alias-state-success-primary)}.MCP_dot[data-err=true]{background:var(--dsw-alias-state-error-primary)}.MCP_actions{display:flex;align-items:center;gap:8px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:8px;flex-wrap:wrap}.MCP_spacer{flex:1}.MCP_form{display:grid;grid-template-columns:1fr 1fr;gap:10px}.MCP_field{display:flex;flex-direction:column;gap:5px}.MCP_field[data-wide=true]{grid-column:1 / -1}.MCP_label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);margin:0}.MCP_input{box-sizing:border-box;width:100%;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 8px}.MCP_input:focus-visible,.MCP_textarea:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);outline:none}.MCP_textarea{box-sizing:border-box;width:100%;min-height:64px;font:inherit;font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:6px 8px;resize:vertical}.MCP_transportRow{display:flex;gap:8px}.MCP_transportBtn{font:inherit;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:4px 14px}.MCP_transportBtn[data-active=true]{color:var(--dsw-alias-state-business-primary);border-color:var(--dsw-alias-state-business-primary);background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent)}.MCP_secretKeys{display:flex;flex-wrap:wrap;gap:6px}.MCP_key{display:inline-flex;align-items:center;gap:6px;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 8px;font-size:11px;line-height:16px}.MCP_key button{font:inherit;color:var(--dsw-alias-state-error-primary);cursor:pointer;background:0 0;border:none;padding:0}.MCP_checkRow{display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.MCP_result{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px;font-size:12px;line-height:18px;max-height:160px;overflow:auto}.MCP_actionBtn{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;padding:0 12px;font-size:12px;line-height:26px;height:28px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;box-sizing:border-box}.MCP_actionBtn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.MCP_actionBtn:disabled{cursor:default;opacity:.6}.MCP_dangerBtn{font:inherit;color:var(--dsw-alias-state-error-primary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;padding:0 12px;font-size:12px;line-height:26px;height:28px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;box-sizing:border-box}.MCP_dangerBtn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.MCP_iconBtn{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:0;flex:none}.MCP_iconBtn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.MCP_advancedToggle{font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;padding:6px 12px;font-size:13px;line-height:20px}.MCP_advancedToggle:hover{background:var(--dsw-alias-interactive-bg-hover)}.MCP_result[data-ok=true]{border-color:color-mix(in srgb, var(--dsw-alias-state-success-primary) 40%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 8%, transparent)}.MCP_result[data-ok=false]{border-color:color-mix(in srgb, var(--dsw-alias-state-error-primary) 40%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent)}.MCP_hint{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary);margin:0}.MCP_hint[data-error=true]{color:var(--dsw-alias-state-error-primary)}.MCP_authBox{display:flex;flex-direction:column;gap:6px}.MCP_toolsPanel{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:8px}.MCP_toolsList{display:flex;flex-direction:column;gap:2px;max-height:200px;overflow-y:auto;scrollbar-width:thin;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:4px 8px}.MCP_toolRow{display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;padding:3px 0;cursor:pointer;min-width:0}.MCP_toolRow input{margin:0;accent-color:var(--dsw-alias-state-business-primary);flex:none}.MCP_toolName{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;font-size:11.5px}.MCP_toolsActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}" + cssMcpEffects;
+const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:14px}.MCP_head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.MCP_head h3{font-size:14px;font-weight:600;line-height:20px;margin:0}.MCP_sub{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:0}.MCP_toolbar{display:flex;align-items:center;gap:8px}.MCP_add{font:inherit;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:0 0;border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;padding:7px 16px;font-size:13px;line-height:20px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}.MCP_add:hover{background:var(--dsw-alias-interactive-bg-hover)}.MCP_cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.MCP_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}.MCP_cardTop{display:flex;align-items:center;gap:8px;min-width:0}.MCP_name{font-size:13px;font-weight:600;line-height:20px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.MCP_badges{display:inline-flex;align-items:center;gap:6px;flex:none}.MCP_badge{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);border-radius:5px;padding:1px 6px;font-size:11px;line-height:16px}.MCP_meta{display:flex;align-items:center;gap:8px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}.MCP_dot{width:7px;height:7px;border-radius:999px;background:var(--dsw-alias-label-tertiary);flex:none}.MCP_dot[data-on=true]{background:var(--dsw-alias-state-success-primary)}.MCP_dot[data-err=true]{background:var(--dsw-alias-state-error-primary)}.MCP_actions{display:flex;align-items:center;gap:8px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:8px;flex-wrap:wrap}.MCP_spacer{flex:1}.MCP_form{display:grid;grid-template-columns:1fr 1fr;gap:10px}.MCP_field{display:flex;flex-direction:column;gap:5px}.MCP_field[data-wide=true]{grid-column:1 / -1}.MCP_label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);margin:0}.MCP_input{box-sizing:border-box;width:100%;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 8px}.MCP_input:focus-visible,.MCP_textarea:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);outline:none}.MCP_textarea{box-sizing:border-box;width:100%;min-height:64px;font:inherit;font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:6px 8px;resize:vertical}.MCP_transportRow{display:flex;gap:8px}.MCP_transportBtn{font:inherit;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:4px 14px}.MCP_transportBtn[data-active=true]{color:var(--dsw-alias-state-business-primary);border-color:var(--dsw-alias-state-business-primary);background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent)}.MCP_secretKeys{display:flex;flex-wrap:wrap;gap:6px}.MCP_key{display:inline-flex;align-items:center;gap:6px;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 8px;font-size:11px;line-height:16px}.MCP_key button{font:inherit;color:var(--dsw-alias-state-error-primary);cursor:pointer;background:0 0;border:none;padding:0}.MCP_checkRow{display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.MCP_result{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px;font-size:12px;line-height:18px;max-height:160px;overflow:auto}.MCP_actionBtn{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;padding:0 12px;font-size:12px;line-height:26px;height:28px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;box-sizing:border-box}.MCP_actionBtn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.MCP_actionBtn:disabled{cursor:default;opacity:.6}.MCP_dangerBtn{font:inherit;color:var(--dsw-alias-state-error-primary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;padding:0 12px;font-size:12px;line-height:26px;height:28px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;box-sizing:border-box}.MCP_dangerBtn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.MCP_iconBtn{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:0;flex:none}.MCP_iconBtn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.MCP_advancedToggle{font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;padding:6px 12px;font-size:13px;line-height:20px}.MCP_advancedToggle:hover{background:var(--dsw-alias-interactive-bg-hover)}.MCP_result[data-ok=true]{border-color:color-mix(in srgb, var(--dsw-alias-state-success-primary) 40%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 8%, transparent)}.MCP_result[data-ok=false]{border-color:color-mix(in srgb, var(--dsw-alias-state-error-primary) 40%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent)}.MCP_hint{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary);margin:0}.MCP_hint[data-error=true]{color:var(--dsw-alias-state-error-primary)}.MCP_authBox{display:flex;flex-direction:column;gap:6px}.MCP_toolsPanel{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:8px}.MCP_toolsList{display:flex;flex-direction:column;gap:2px;max-height:200px;overflow-y:auto;scrollbar-width:thin;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:4px 8px}.MCP_toolRow{display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;padding:3px 0;cursor:pointer;min-width:0}.MCP_toolRow input{margin:0;accent-color:var(--dsw-alias-state-business-primary);flex:none}.MCP_toolName{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;font-size:11.5px}.MCP_toolsActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.MCP_rawText{box-sizing:border-box;width:100%;min-height:240px;font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;font-size:12px;line-height:18px;white-space:pre;tab-size:2}" + cssMcpEffects;
                 const mcpTagId = "dsh-skill-mcp-panel/McpSection.module.css";
                 if (typeof document !== "undefined") {
                         let mcpTag = document.querySelector("style[data-plugin-css=" + JSON.stringify(mcpTagId) + "]") as HTMLElement | null;
@@ -3446,6 +3476,7 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
                         label: "MCP_label",
                         input: "MCP_input",
                         textarea: "MCP_textarea",
+                        rawText: "MCP_textarea MCP_rawText",
                         transportRow: "MCP_transportRow",
                         transportBtn: "MCP_transportBtn",
                         secretKeys: "MCP_secretKeys",
@@ -3613,7 +3644,7 @@ function mcpWireScalar(text) {
                         			.filter((line) => line.trim() !== "" && !/^\s*Authorization\s*[=:]/i.test(line));
                         		toSave = { ...form, headersText: [...kept, "Authorization=Bearer " + token].join("\n") };
                         	}
-                        	onSave(buildMcpInput(toSave, deletedEnv, deletedHeaders), editing ? initial.serverName : undefined);
+                        	onSave(buildMcpInput(toSave, deletedEnv, deletedHeaders), editing ? initial.serverName : undefined, editing ? initial.entryId : undefined);
                         };
                         const label = (text) => (0, react_jsx_runtime.jsx)("span", { className: m.label, children: text });
                         const field = (text, node, wide, hint: any = null) => (0, react_jsx_runtime.jsxs)("label", {
@@ -3791,7 +3822,7 @@ function mcpWireScalar(text) {
                                 })
                         });
                 }
-                function McpSection({ t, listMcp, saveMcp, removeMcp, setEnabledMcp, testMcp, reloadMcp, checkUpdateRemote, oauthStart, oauthPoll, oauthDisconnect, listMcpTools, getToolFilter, setToolFilter, evacuateForeign }) {
+                function McpSection({ t, listMcp, saveMcp, removeMcp, setEnabledMcp, testMcp, reloadMcp, checkUpdateRemote, oauthStart, oauthPoll, oauthDisconnect, listMcpTools, getToolFilter, setToolFilter, evacuateForeign, readRawMcp, writeRawMcp }) {
                         const [loadState, setLoadState] = react.useState({ kind: "loading" } as any);
                         const [data, setData] = react.useState(null);
                         const [request, setRequest] = react.useState(0);
@@ -3814,6 +3845,8 @@ function mcpWireScalar(text) {
                         const [foreignDocOpen, setForeignDocOpen] = react.useState(false);
                         const [evacNotice, setEvacNotice] = react.useState(null);
                         const [evacBusy, setEvacBusy] = react.useState(false);
+                        // 原文编辑：表单没覆盖的字段（maxInstructionBytes 等）和手写 YAML 走这里。
+                        const [rawEdit, setRawEdit] = react.useState(null);
                         react.useEffect(() => {
                                 let cancelled = false;
                                 listMcp().then((value) => {
@@ -3843,7 +3876,6 @@ function mcpWireScalar(text) {
                                 return () => { current = false; };
                         }, [checkUpdateRemote, t]);
                         const servers = data?.servers ?? [];
-                        const external = data?.externalServers ?? [];
                         const patch = data?.patch ?? {};
                         /**
                          * #46 受管块里的外来行可见化。
@@ -3885,11 +3917,11 @@ function mcpWireScalar(text) {
                                 if (phase === "pending") return "statePending";
                                 return "stateUnknown";
                         };
-                        const applySave = async (input, previousServerName) => {
+                        const applySave = async (input, previousServerName, previousEntryId) => {
                                 setDialogBusy(true);
                                 setDialogError(null);
                                 try {
-                                        const result = await saveMcp(input, previousServerName);
+                                        const result = await saveMcp(input, previousServerName, previousEntryId);
                                         setEditing(null);
                                         setTimeout(() => refresh(true), 500);
                                 } catch (error: any) {
@@ -3898,27 +3930,54 @@ function mcpWireScalar(text) {
                                         setDialogBusy(false);
                                 }
                         };
+                        // 卡片身份：有 entryId 用 entryId（serverName 可能重复），没有就用名字。
+                        const cardKey = (server) => (server.entryId !== undefined && server.entryId !== null && server.entryId !== "" ? String(server.entryId) : String(server.serverName));
+                        const openRaw = (server) => {
+                                const key = cardKey(server);
+                                setRawEdit({ key, serverName: server.serverName, entryId: server.entryId, text: "", error: null, busy: false, loading: true });
+                                Promise.resolve().then(() => readRawMcp({ serverName: server.serverName, entryId: server.entryId })).then((result) => {
+                                        setRawEdit((prev) => prev !== null && prev.key === key ? { ...prev, text: String(result?.text ?? ""), loading: false } : prev);
+                                }, (error) => {
+                                        setRawEdit((prev) => prev !== null && prev.key === key ? { ...prev, loading: false, error: cleanMcpError(error) } : prev);
+                                });
+                        };
+                        const applyRaw = async () => {
+                                const current = rawEdit;
+                                if (current === null || current.loading || current.busy) return;
+                                setRawEdit({ ...current, busy: true, error: null });
+                                try {
+                                        await writeRawMcp({ serverName: current.serverName, entryId: current.entryId, text: current.text });
+                                        setRawEdit(null);
+                                        setTimeout(() => refresh(true), 500);
+                                } catch (error: any) {
+                                        setRawEdit((prev) => prev === null ? prev : { ...prev, busy: false, error: cleanMcpError(error) });
+                                }
+                        };
                         const applyToggle = async (server) => {
                                 const previous = server.enabled;
                                 const wanted = !previous;
-                                setData((prev) => prev === null ? prev : { ...prev, servers: prev.servers.map((item) => item.serverName === server.serverName ? { ...item, enabled: wanted } : item) });
+                                const key = cardKey(server);
+                                const mapSaving = (prev, next) => prev === null ? prev : { ...prev, servers: prev.servers.map((item) => cardKey(item) === key ? { ...item, enabled: next } : item) };
+                                const mapReplace = (prev, next) => prev === null ? prev : { ...prev, servers: prev.servers.map((item) => cardKey(item) === key ? next : item) };
+                                setData((prev) => mapSaving(prev, wanted));
                                 try {
-                                        const next = await setEnabledMcp(server.serverName, wanted);
-                                        setData((prev) => prev === null ? prev : { ...prev, servers: prev.servers.map((item) => item.serverName === next.serverName ? next : item) });
+                                        const next = await setEnabledMcp(server.serverName, wanted, server.entryId);
+                                        setData((prev) => mapReplace(prev, next));
                                 } catch (error: any) {
-                                        setData((prev) => prev === null ? prev : { ...prev, servers: prev.servers.map((item) => item.serverName === server.serverName ? { ...item, enabled: previous } : item) });
+                                        setData((prev) => mapSaving(prev, previous));
                                         setLoadState({ kind: "error", message: String(error?.message ?? error) });
                                 }
                         };
                         const applyRemove = async (server) => {
-                                if (confirming !== server.serverName) {
-                                        setConfirming(server.serverName);
+                                const key = cardKey(server);
+                                if (confirming !== key) {
+                                        setConfirming(key);
                                         return;
                                 }
                                 setConfirming(null);
                                 try {
-                                        await removeMcp(server.serverName);
-                                        setData((prev) => prev === null ? prev : { ...prev, servers: prev.servers.filter((item) => item.serverName !== server.serverName) });
+                                        await removeMcp(server.serverName, server.entryId);
+                                        setData((prev) => prev === null ? prev : { ...prev, servers: prev.servers.filter((item) => cardKey(item) !== key) });
                                 } catch (error: any) {
                                         setLoadState({ kind: "error", message: String(error?.message ?? error) });
                                 }
@@ -3927,7 +3986,7 @@ function mcpWireScalar(text) {
                                 setTesting(server.serverName);
                                 setTestResult(null);
                                 try {
-                                        const result = await testMcp({ serverName: server.serverName });
+                                        const result = await testMcp({ serverName: server.serverName, entryId: server.entryId });
                                         setTestResult({ serverName: server.serverName, result });
                                 } catch (error: any) {
                                         setTestResult({ serverName: server.serverName, result: { ok: false, error: String(error?.message ?? error), tools: [] } });
@@ -4085,7 +4144,7 @@ function mcpWireScalar(text) {
                                         (0, react_jsx_runtime.jsx)("path", { d: "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" })
                                 ]
                         });
-                        const serverCard = (server, isExternal) => {
+                        const serverCard = (server) => {
                                 const state = stateLabel(server);
                                 const dotOn = server.enabled && server.fiberPhase === "active";
                                 const dotErr = server.fiberPhase === "failed";
@@ -4095,12 +4154,8 @@ function mcpWireScalar(text) {
                                                 className: m.cardTop,
                                                 children: [(0, react_jsx_runtime.jsx)("span", { className: m.name, children: server.serverName }), (0, react_jsx_runtime.jsxs)("span", {
                                                         className: m.badges,
-                                                        children: [(0, react_jsx_runtime.jsx)("span", { className: m.badge, children: server.transport === "streamable-http" ? "HTTP" : "STDIO" }), server.transport === "streamable-http" && (server.headerKeys ?? []).includes("Authorization") ? (0, react_jsx_runtime.jsx)("span", { className: m.badge, title: t("authBadgeHint"), children: t("authBadge") }) : null, isExternal ? (0, react_jsx_runtime.jsx)("span", {
-                                                                className: m.badge,
-                                                                title: server.orphan ? t("orphanHint") : void 0,
-                                                                children: server.orphan ? t("orphan") : t("external")
-                                                        }) : null]
-                                                }), (0, react_jsx_runtime.jsx)("span", { className: m.spacer }), isExternal ? null : (0, react_jsx_runtime.jsx)("button", {
+                                                        children: [(0, react_jsx_runtime.jsx)("span", { className: m.badge, children: server.transport === "streamable-http" ? "HTTP" : "STDIO" }), server.disabledExpr === true ? (0, react_jsx_runtime.jsx)("span", { className: m.badge, title: t("disabledExprHint"), children: t("disabledExprBadge") }) : null, server.transport === "streamable-http" && (server.headerKeys ?? []).includes("Authorization") ? (0, react_jsx_runtime.jsx)("span", { className: m.badge, title: t("authBadgeHint"), children: t("authBadge") }) : null]
+                                                }), (0, react_jsx_runtime.jsx)("span", { className: m.spacer }), (0, react_jsx_runtime.jsx)("button", {
                                                         type: "button",
                                                         className: m.iconBtn,
                                                         "aria-label": t("editTitle"),
@@ -4114,7 +4169,7 @@ function mcpWireScalar(text) {
                                                         "data-on": server.enabled ? "true" : "false",
                                                         "data-err": server.fiberPhase === "failed" ? "true" : "false"
                                                 }), (0, react_jsx_runtime.jsx)("span", { children: t !== null ? t("toolCount").replace("{count}", String(server.toolCount ?? 0)) : "" })]
-                                        }), isExternal ? null : (0, react_jsx_runtime.jsxs)("div", {
+                                        }), (0, react_jsx_runtime.jsxs)("div", {
                                                 className: m.actions,
                                                 children: [(0, react_jsx_runtime.jsxs)("span", {
                                                         className: c.switchRow,
@@ -4125,6 +4180,8 @@ function mcpWireScalar(text) {
                                                                 "data-on": server.enabled ? "true" : void 0,
                                                                 "aria-checked": server.enabled,
                                                                 "aria-label": server.enabled ? t("disable") : t("enable"),
+                                                                disabled: server.disabledExpr === true,
+                                                                title: server.disabledExpr === true ? t("disabledExprHint") : void 0,
                                                                 onClick: () => applyToggle(server),
                                                                 children: (0, react_jsx_runtime.jsx)("span", { className: c.switchThumb })
                                                         }), (0, react_jsx_runtime.jsx)("span", { className: c.switchText, children: t !== null ? (server.enabled ? t("stateEnabled") : t("stateDisabled")) : "" })]
@@ -4144,6 +4201,12 @@ function mcpWireScalar(text) {
                                                 }) : null, (0, react_jsx_runtime.jsx)("button", {
                                                         type: "button",
                                                         className: m.actionBtn,
+                                                        title: t !== null ? t("rawEditHint") : "",
+                                                        onClick: () => openRaw(server),
+                                                        children: t !== null ? t("rawEdit") : ""
+                                                }), (0, react_jsx_runtime.jsx)("button", {
+                                                        type: "button",
+                                                        className: m.actionBtn,
                                                         disabled: testing === server.serverName,
                                                         onClick: () => applyTest(server),
                                                         children: testing === server.serverName ? t !== null ? t("testing") : "" : t !== null ? t("test") : ""
@@ -4154,7 +4217,7 @@ function mcpWireScalar(text) {
                                                 	title: t("toolsButtonHint"),
                                                 	onClick: () => { openTools(server); },
                                                 	children: t("toolsButton")
-                                                }), confirming === server.serverName ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
+                                                }), confirming === cardKey(server) ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
                                                         children: [
                                                                 (0, react_jsx_runtime.jsx)("button", {
                                                                         type: "button",
@@ -4185,7 +4248,7 @@ function mcpWireScalar(text) {
                                                 "data-ok": testResult.result.ok ? "true" : "false",
                                                 children: [testResult.result.ok ? t !== null ? t("testOk").replace("{count}", String(testResult.result.tools?.length ?? 0)) : "" : t !== null ? t("testFailed") + " " + (testResult.result.error ?? "") : "", testResult.result.ok && Array.isArray(testResult.result.tools) ? (0, react_jsx_runtime.jsx)("div", { children: testResult.result.tools.map((tool) => tool.name).join(", ") }) : null]
                                         }) : null]
-                                }, server.serverName + (isExternal ? ":external" : ""));
+                                }, server.serverName);
                         };
                         return (0, react_jsx_runtime.jsxs)("div", {
                                 className: m.section,
@@ -4286,9 +4349,9 @@ function mcpWireScalar(text) {
                                                 onClick: () => { setDialogError(null); setEditing({ server: null }); },
                                                 children: t !== null ? t("add") : ""
                                         })
-                                }), loadState.kind === "loading" && servers.length === 0 ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("loading") : "" }) : null, servers.length === 0 && external.length === 0 && loadState.kind === "ready" ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("empty") : "" }) : null, (0, react_jsx_runtime.jsxs)("div", {
+                                }), loadState.kind === "loading" && servers.length === 0 ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("loading") : "" }) : null, servers.length === 0 && loadState.kind === "ready" ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("empty") : "" }) : null, (0, react_jsx_runtime.jsx)("div", {
                                         className: m.cards,
-                                        children: [...servers.map((server) => serverCard(server, false)), ...external.map((server) => serverCard(server, true))]
+                                        children: servers.map((server) => serverCard(server))
                                 }), editing !== null ? (0, react_jsx_runtime.jsx)(McpFormDialog, {
                                         t: t !== null ? t : (key) => key,
                                         initial: editing.server,
@@ -4296,6 +4359,50 @@ function mcpWireScalar(text) {
                                         onCancel: () => setEditing(null),
                                         busy: dialogBusy,
                                         error: dialogError
+                                }) : null, rawEdit !== null ? (0, react_jsx_runtime.jsx)("div", {
+                                        className: c.scopeOverlay,
+                                        role: "dialog",
+                                        "aria-modal": "true",
+                                        children: (0, react_jsx_runtime.jsxs)("div", {
+                                                className: c.scopeBox,
+                                                children: [
+                                                        (0, react_jsx_runtime.jsx)("h4", { children: t !== null ? t("rawEditTitle") + " · " + rawEdit.serverName : rawEdit.serverName }),
+                                                        (0, react_jsx_runtime.jsx)("p", { className: m.hint, children: t !== null ? t("rawEditLead") : "" }),
+                                                        rawEdit.loading ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("rawEditLoading") : "" }) : (0, react_jsx_runtime.jsx)("textarea", {
+                                                                className: m.rawText,
+                                                                value: rawEdit.text,
+                                                                spellCheck: false,
+                                                                onChange: (event) => {
+                                                                        const value = event.target.value;
+                                                                        setRawEdit((prev) => prev === null ? prev : { ...prev, text: value });
+                                                                }
+                                                        }),
+                                                        rawEdit.error !== undefined && rawEdit.error !== null ? (0, react_jsx_runtime.jsx)("div", {
+                                                                className: c.notice,
+                                                                "data-kind": "error",
+                                                                children: (0, react_jsx_runtime.jsx)("span", { className: c.noticeText, children: String(rawEdit.error) })
+                                                        }) : null,
+                                                        (0, react_jsx_runtime.jsxs)("div", {
+                                                                className: c.scopeActions,
+                                                                children: [
+                                                                        (0, react_jsx_runtime.jsx)("button", {
+                                                                                type: "button",
+                                                                                className: c.scopeAction + " " + c.scopeCancel,
+                                                                                disabled: rawEdit.busy,
+                                                                                onClick: () => setRawEdit(null),
+                                                                                children: t !== null ? t("cancel") : ""
+                                                                        }),
+                                                                        (0, react_jsx_runtime.jsx)("button", {
+                                                                                type: "button",
+                                                                                className: c.scopeAction + " " + c.scopeConfirm,
+                                                                                disabled: rawEdit.busy || rawEdit.loading,
+                                                                                onClick: () => { applyRaw(); },
+                                                                                children: t !== null ? t("save") : ""
+                                                                        })
+                                                                ]
+                                                        })
+                                                ]
+                                        })
                                 }) : null]
                         });
                 }
@@ -4502,9 +4609,11 @@ function mcpWireScalar(text) {
 			const mcpSectionFace = () => ({
 				backToConversation,
 				listMcp: () => callMcp("list"),
-				saveMcp: (input, previousServerName) => callMcp("save", { input, previousServerName }),
-				removeMcp: (serverName) => callMcp("removeServer", { serverName }),
-				setEnabledMcp: (serverName, enabled) => callMcp("setEnabled", { serverName, enabled }),
+				saveMcp: (input, previousServerName, previousEntryId) => callMcp("save", { input, previousServerName, previousEntryId }),
+				removeMcp: (serverName, entryId) => callMcp("removeServer", { serverName, entryId }),
+				setEnabledMcp: (serverName, enabled, entryId) => callMcp("setEnabled", { serverName, enabled, entryId }),
+				readRawMcp: (payload) => callMcp("readRaw", payload),
+				writeRawMcp: (payload) => callMcp("writeRaw", payload),
 				testMcp: (payload) => callMcp("test", payload),
 				reloadMcp: () => callMcp("reload"),
 				oauthStart: (payload) => callMcp("oauthStart", payload),

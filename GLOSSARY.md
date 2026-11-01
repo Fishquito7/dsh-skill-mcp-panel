@@ -33,15 +33,15 @@ _Avoid_: 上传方式、导入通道
 _Avoid_: 位置、来源、profile
 
 **受管块（managed block）**：
-profile 的 `cordis.patch.yml` 里被 `dsh-skill-mcp-panel:mcp:begin` / `:end` 两条标记夹住的那一段，是面板唯一读写的区域。
+profile 的 `cordis.patch.yml` 里被 `dsh-skill-mcp-panel:mcp:begin` / `:end` 两条标记夹住的那一段。面板**新建**的 MCP 行追加在这里；已有的 MCP 行不论在不在块里都能就地改。它不是「能不能操作」的边界。
 _Avoid_: 面板块、MCP 区块、标记区
 
-**受管行（managed row）**：
-面板自己写进受管块的 MCP 行，`id` 以 `panel-mcp-` 开头——这是「面板拥有它」的唯一判据。
-_Avoid_: 面板行、内部行、我们的行
+**MCP 行（mcp-client row）**：
+`name` 为 `@deepseek-ai/dsh-mcp-client` 的 patch 条目。面板对每一条都能启停、表单编辑、删除和原文编辑，不看 id 前缀、也不看它在不在受管块里（ADR-0006）。
+_Avoid_: 受管行、外部行、外部管理
 
 **外来行（foreign row）**：
-受管块内不属于面板的条目（用户手写、或其他工具/旧版本写进去的）。面板必须**按读到的形状原样保留**：顶层条目仍是顶层条目（按 id 定向覆盖），`insert` 成员仍留在 insert 列表里（追加）。
+受管块内**不是** MCP 客户端的条目（用户手写的别的插件、或其他工具写进去的）。面板必须**按读到的形状原样保留**：顶层条目仍是顶层条目（按 id 定向覆盖），`insert` 成员仍留在 insert 列表里（追加）。见 ADR-0003。
 _Avoid_: 外部行、别人家的行、杂项条目
 
 **预设（agent preset）**：

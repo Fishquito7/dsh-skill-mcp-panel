@@ -173,6 +173,17 @@ export function serverNameFromRowId(id: string | undefined): string | undefined 
   return SERVER_NAME_RE.test(name) ? name : undefined;
 }
 
+/**
+ * 一条 MCP 行的 serverName。CLI、网关、面板用同一顺序：
+ * 非空的 `config.serverName` 优先，没有时才退回 `panel-mcp-*` 的 id 后缀。
+ * 反过来会让 list 印出的名字和 enable/disable/remove 对不上。
+ */
+export function serverNameOfRow(row: { id?: string; config?: { serverName?: unknown } } | undefined): string | undefined {
+  const name = row?.config?.serverName;
+  if (typeof name === "string" && name !== "") return name;
+  return serverNameFromRowId(row?.id);
+}
+
 /** null = 删除，string = 覆盖；缺省 key 保留旧值。 */
 export function mergeSecretPatch(previous: Record<string, WireScalar> | undefined, patch: SecretPatch): Record<string, WireScalar> {
   const merged: Record<string, WireScalar> = { ...(previous ?? {}) };
@@ -239,6 +250,8 @@ export interface McpServerView {
   serverName: string;
   transport: McpTransport | "unknown";
   enabled: boolean;
+  /** `disabled` 是 `!!js` 表达式：开关由宿主求值，面板不能直接改，界面也不该给可点的开关。 */
+  disabledExpr: boolean;
   entryId: string | undefined;
   // stdio
   command?: string;
@@ -274,6 +287,18 @@ function secretKeys(value: unknown): string[] {
   return Object.keys(value as Record<string, unknown>).filter((key) => typeof (value as Record<string, unknown>)[key] === "string" || isJsExprValue((value as Record<string, unknown>)[key]));
 }
 
+/**
+ * 这一行在面板上算不算启用。
+ * 缺省和 `disabled: false` 是启用；其它任何值都按停用展示：
+ *   - `!!js` 由宿主求值，面板不知道结果，不能当成已启用；
+ *   - `"true"` / `1` 这类手写值宿主多半也按真值处理，面板同样按停用显示，
+ *     但绝不改写它们（表单保存原样保留）。
+ */
+export function rowEnabled(row: { disabled?: unknown } | undefined): boolean {
+  const value = row?.disabled;
+  return value === undefined || value === false;
+}
+
 /** patch 行 → 脱敏 view。密钥值不返回。 */
 export function patchRowToView(row: PatchRow): McpServerView | undefined {
   const config = configFromPatchRow(row);
@@ -285,7 +310,8 @@ export function patchRowToView(row: PatchRow): McpServerView | undefined {
   return {
     serverName,
     transport,
-    enabled: row.disabled !== true,
+    enabled: rowEnabled(row),
+    disabledExpr: isJsExprValue(row.disabled),
     entryId: row.id,
     command: transport === "stdio" ? formatWireScalar(config.command) : undefined,
     args: transport === "stdio" ? asStringArray(config.args).map((item) => formatWireScalar(item)) : undefined,
@@ -355,7 +381,28 @@ export function inputFromPatchRow(row: PatchRow): McpServerInput {
   });
 }
 
-/** 把编辑输入合并到旧 patch 行上（保留输入中未出现的 secret key）。 */
+/** 表单会写回的 config 键。其余键（如 maxInstructionBytes）在编辑时原样保留。 */
+const MODELED_CONFIG_KEYS = new Set([
+  "serverName",
+  "transport",
+  "command",
+  "args",
+  "env",
+  "cwd",
+  "url",
+  "headers",
+  "toolCallTimeoutMs",
+  "failOnStartupError",
+  "reconnect"
+]);
+
+/**
+ * 把编辑输入合并到旧 patch 行上。
+ *
+ * 保留输入中未出现的 secret key，也保留表单还没建模的 config / 顶层字段。
+ * 手写 id（不是 `panel-mcp-<旧 serverName>`）保持不变，避免一次表单保存把行改名。
+ * 面板自己按 serverName 生成的 id 仍随改名更新。
+ */
 export function applyServerEdit(previous: PatchRow | undefined, input: McpServerInput, enabled = true): PatchRow {
   if (previous === undefined) return toPatchRow(input, enabled);
   const oldConfig = configFromPatchRow(previous) ?? {};
@@ -365,5 +412,23 @@ export function applyServerEdit(previous: PatchRow | undefined, input: McpServer
   if (next.transport === "stdio") next.env = mergeSecretPatch(oldEnv, next.env);
   if (next.transport === "streamable-http") next.headers = mergeSecretPatch(oldHeaders, next.headers);
   const normalized = mcpServerInputSchema.parse(next);
-  return toPatchRow(normalized, enabled);
+  const row = toPatchRow(normalized, enabled);
+  // disabled 不是表单字段：已有值（布尔 / !!js / 手写标量）一律原样保留。
+  // 丢掉它会让这条服务器在表单保存后变回启用；!!js 表达式更会直接丢失。
+  if (previous.disabled !== undefined) row.disabled = previous.disabled;
+  const previousName = typeof oldConfig.serverName === "string" ? oldConfig.serverName : serverNameFromRowId(previous.id);
+  if (typeof previous.id === "string" && previous.id !== rowIdForServerName(previousName ?? "")) row.id = previous.id;
+  // 手写行可能本来就没有 id：不要借一次表单保存给它补一个 panel-mcp-* 的 id
+  // （补了就从「用户自己的行」变成面板 id 的行，语义变了）。
+  if (typeof previous.id !== "string") delete row.id;
+  const config: Record<string, unknown> = { ...(row.config as Record<string, unknown>) };
+  for (const [key, value] of Object.entries(oldConfig)) {
+    if (!MODELED_CONFIG_KEYS.has(key)) config[key] = value;
+  }
+  row.config = config;
+  for (const [key, value] of Object.entries(previous)) {
+    if (key === "id" || key === "name" || key === "disabled" || key === "config") continue;
+    if (!(key in row)) row[key] = value;
+  }
+  return row;
 }

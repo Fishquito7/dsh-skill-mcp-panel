@@ -10,7 +10,8 @@ import {
   authorizationHeader,
   buildAuthorizationUrl,
   createPkce,
-  discoverMetadata,
+  discoverMetadataDetailed,
+  discoveryFailureMessage,
   exchangeCode,
   isExpired,
   loadOAuthStore,
@@ -22,10 +23,16 @@ import {
 } from "../oauth.js";
 import {
   MCP_PLUGIN_NAME,
+  isJsExprValue,
   isManagedRow,
   listMcpPatchRows,
   readManagedBlock,
+  readMcpEntryText,
   readPatchFile,
+  removeMcpEntry,
+  replaceMcpEntryText,
+  replaceMcpEntryWithRow,
+  setEntryDisabled,
   writeManagedRows,
   writeEvacuatedForeign,
   type PatchRow
@@ -36,14 +43,17 @@ import {
   inputFromPatchRow,
   mcpServerInputSchema,
   patchRowToView,
+  rowEnabled,
   rowIdForServerName,
-  serverNameFromRowId,
+  serverNameOfRow,
   type McpServerInput
 } from "./model.js";
 import {
   mcpOAuthPollPayloadSchema,
   mcpOAuthServerPayloadSchema,
   mcpOAuthStartPayloadSchema,
+  mcpRawReadPayloadSchema,
+  mcpRawWritePayloadSchema,
   mcpRemovePayloadSchema,
   mcpSavePayloadSchema,
   mcpSetEnabledPayloadSchema,
@@ -69,6 +79,19 @@ function stripUndefined(value: any): any {
 }
 
 const MANAGED_ROW_IDS = new Set<string>();
+
+/**
+ * 布尔 `disabled` 等 loader 跟上。`!!js` 由宿主求值，结果可以不是 true，
+ * 再等 `disabled === true` 或等它变成启用都会空转到超时。
+ * 这种行写完即结束，卡片仍按停用展示，表达式留在文件里。
+ */
+async function reconcileToggle(ctx: any, id: string | undefined, disabled: unknown): Promise<boolean> {
+  if (typeof id !== "string" || id === "") return false;
+  if (isJsExprValue(disabled)) return true;
+  return disabled === true
+    ? await waitForLoaderState(ctx, id, (entry) => entry !== undefined && entry.disabled === true)
+    : await waitForLoaderState(ctx, id, (entry) => entry !== undefined && entry.disabled !== true);
+}
 
 /**
  * handler 内校验 payload：失败抛「字段：原因」的中文错误。
@@ -113,12 +136,55 @@ export class McpManagerGateway extends TypertRemoteService {
   async readRows() {
     const path = this.patchPath();
     const raw = await readPatchFile(path);
-    // managed 只含面板自己的行；块内其余条目（外来行）原样保留、面板永不改写。
+    // managed 仍是「受管块重写器认领的行」，只用于新建时追加。
+    // 启停 / 编辑 / 删除看 all：每一条 mcp-client 行，不论在不在块里。
     const { managed, foreign } = readManagedBlock(raw);
-    const allMcp = listMcpPatchRows(raw);
-    const managedIds = new Set(managed.map((row) => row.id).filter((id): id is string => typeof id === "string"));
-    const external = allMcp.filter((row) => typeof row.id === "string" && !managedIds.has(row.id));
-    return { path, raw, managed, external, foreign };
+    const all = listMcpPatchRows(raw);
+    return { path, raw, managed, all, foreign };
+  }
+
+  serverNameOf(row: PatchRow): string | undefined {
+    return serverNameOfRow(row);
+  }
+
+  /**
+   * 按 payload 里的 serverName + entryId 定位唯一的 MCP 行。
+   *
+   * 同时给两个字段时按「都对上」匹配：文件里 id 重复（不同 serverName）或
+   * serverName 重复（不同 id）都能唯一定位到用户点的那一条；手写行没有 id
+   * 时只用 serverName。缺一个字段时退回单字段匹配，命中多条就报错。
+   */
+  resolveRow(rows: PatchRow[], ref: { serverName?: string; entryId?: string }): PatchRow {
+    const name = typeof ref.serverName === "string" && ref.serverName !== "" ? ref.serverName : undefined;
+    const entryId = typeof ref.entryId === "string" && ref.entryId !== "" ? ref.entryId : undefined;
+    const both = rows.filter(
+      (row) => (name === undefined || this.serverNameOf(row) === name) && (entryId === undefined || row.id === entryId)
+    );
+    if (both.length === 1) return both[0];
+    const label = name ?? entryId ?? "";
+    if (both.length > 1) {
+      throw new Error('MCP 行 "' + label + '" 在 cordis.patch.yml 里不唯一（id 或 serverName 重复）。'
+        + "请用原文按 id 逐条修正，让每一行的 id 和 config.serverName 都唯一");
+    }
+    if (name !== undefined) {
+      const byName = rows.filter((row) => this.serverNameOf(row) === name);
+      if (byName.length === 1) return byName[0];
+      if (byName.length > 1) {
+        throw new Error('serverName "' + name + '" 对应多条 MCP 行：请从卡片进入（面板会带上 entryId），'
+          + "或在 CLI 里加 --id <entryId>；也可以直接改 cordis.patch.yml 消掉重名");
+      }
+    }
+    if (entryId !== undefined) {
+      const byId = rows.filter((row) => row.id === entryId);
+      if (byId.length === 1) return byId[0];
+      if (byId.length > 1) throw new Error('id "' + entryId + '" 对应多条 MCP 行，请用原文按 id 逐条修正');
+    }
+    throw new Error('MCP 行 "' + label + '" 不存在');
+  }
+
+  /** 这一行的 patch-editor 定位器（id + serverName，缺 id 时只给 serverName）。 */
+  locatorOf(row: PatchRow): { id?: string; serverName?: string } {
+    return { id: typeof row.id === "string" ? row.id : undefined, serverName: this.serverNameOf(row) };
   }
 
   decorate(row: PatchRow, managed: boolean, entry: any, enabled: boolean) {
@@ -130,38 +196,32 @@ export class McpManagerGateway extends TypertRemoteService {
       enabled,
       managed,
       fiberPhase,
-      toolCount: enabled ? mcpToolCount(this.C, view.serverName) : 0
+      // 不按 enabled 归零：!!js 的 disabled 由宿主求值，行可能正在跑，显示真实工具数。
+      toolCount: mcpToolCount(this.C, view.serverName)
     });
   }
 
   async list() {
     let patch = { path: this.patchPath(), ok: false, error: null as string | null, foreign: [] as { id?: string; name?: string; managed: boolean }[] };
     try {
-      const { path, managed, external, foreign } = await this.readRows();
-      patch = { path, ok: true, error: null, foreign: foreign.entries };
+      const { path, all, foreign } = await this.readRows();
+      // 非 MCP 的外来行仍要报给界面（ADR-0003）。MCP 行已经在 servers 里，不再当成「未管理」。
+      const foreignEntries = foreign.entries.filter((entry) => entry.name !== MCP_PLUGIN_NAME);
+      patch = { path, ok: true, error: null, foreign: foreignEntries };
       const servers: any[] = [];
-      for (const row of managed) {
+      for (const row of all) {
         const entry = typeof row.id === "string" ? getLoaderEntry(this.C, row.id) : undefined;
-        const view = this.decorate(row, true, entry, row.disabled !== true);
+        const view = this.decorate(row, true, entry, rowEnabled(row));
         if (view !== undefined) servers.push(view);
       }
-      const externalServers: any[] = [];
-      for (const row of external) {
-        const entry = typeof row.id === "string" ? getLoaderEntry(this.C, row.id) : undefined;
-        const view = this.decorate(row, false, entry, row.disabled !== true);
-        // 面板自己的行落在受管块之外时，行级操作仍然认它（findRowByServerName 用
-        // isManagedRow），但改写只发生在受管块里，所以它在这里只读。标 orphan 让界面
-        // 能说清"这行是面板的，只是不在块内"，而不是笼统的"外部管理"。
-        if (view !== undefined) externalServers.push(isManagedRow(row) ? { ...view, orphan: true } : view);
-      }
-      return { servers, externalServers, patch };
+      return { servers, externalServers: [], patch };
     } catch (error) {
       return { servers: [], externalServers: [], patch: { ...patch, error: error instanceof Error ? error.message : String(error) } };
     }
   }
 
   findRowByServerName(rows: PatchRow[], serverName: string): PatchRow | undefined {
-    return rows.find((row) => serverNameFromRowId(row.id) === serverName || (row.config?.serverName === serverName && isManagedRow(row)));
+    return rows.find((row) => this.serverNameOf(row) === serverName);
   }
 
   configInputFromRow(row: PatchRow): McpServerInput {
@@ -171,76 +231,105 @@ export class McpManagerGateway extends TypertRemoteService {
   async save(rawPayload: unknown) {
     const payload = parseWirePayload(mcpSavePayloadSchema, rawPayload, "MCP 配置无效");
     const input = payload.input;
-    const previousName = payload.previousServerName ?? input.serverName;
-    const { managed, external } = await this.readRows();
-
-    for (const row of external) {
-      const name = row.config?.serverName;
-      if (name === input.serverName) throw new Error('serverName "' + input.serverName + '" 已被 cordis.patch.yml 中的外部 MCP 行占用，请在文件中手动处理');
-    }
-    for (const row of managed) {
-      const name = row.config?.serverName;
-      if (name === input.serverName && serverNameFromRowId(row.id) !== previousName) {
-        throw new Error('serverName "' + input.serverName + '" 已存在（受管行 ' + String(row.id) + "）");
+    const { managed, all } = await this.readRows();
+    let previous: PatchRow | undefined;
+    if (payload.previousServerName !== undefined || payload.previousEntryId !== undefined) {
+      previous = this.resolveRow(all, { serverName: payload.previousServerName, entryId: payload.previousEntryId });
+    } else {
+      const same = all.filter((row) => this.serverNameOf(row) === input.serverName);
+      if (same.length > 1) {
+        throw new Error('serverName "' + input.serverName + '" 对应多条 MCP 行，可编辑的卡片带 entryId，请从卡片进入');
       }
+      previous = same[0];
     }
-
-    const previous = managed.find((row) => serverNameFromRowId(row.id) === previousName || row.config?.serverName === previousName);
-    if (payload.previousServerName !== undefined && previous === undefined) {
-      throw new Error('要编辑的 MCP 行不存在："' + previousName + '"');
+    const previousName = previous !== undefined ? this.serverNameOf(previous) : undefined;
+    for (const row of all) {
+      if (row === previous) continue;
+      if (this.serverNameOf(row) !== input.serverName) continue;
+      // 编辑且没改名：文件里可能本来就有重名，允许保存（用 entryId 精确定位那一条）。
+      if (previous !== undefined && previousName === input.serverName) continue;
+      throw new Error('serverName "' + input.serverName + '" 已存在（' + String(row.id ?? "未命名行") + "）");
     }
-    const enabled = previous !== undefined ? previous.disabled !== true : payload.enabled;
+    // !!js disabled 不是「未禁用」。卡片按停用展示，也不要等 loader 给出某个布尔值。
+    const enabled = previous !== undefined ? rowEnabled(previous) : payload.enabled;
     const nextRow = applyServerEdit(previous, input, enabled);
-    const nextRows = managed.filter((row) => serverNameFromRowId(row.id) !== previousName && row.config?.serverName !== previousName);
-    nextRows.push(nextRow);
-    nextRows.sort((a, b) => String(a.config?.serverName ?? "").localeCompare(String(b.config?.serverName ?? "")));
-    await writeManagedRows(this.patchPath(), nextRows);
+    const shownEnabled = rowEnabled(nextRow);
+    if (previous === undefined) {
+      if (all.some((row) => row.id === nextRow.id)) throw new Error('id "' + String(nextRow.id) + '" 已存在');
+      const nextRows = [...managed, nextRow];
+      nextRows.sort((a, b) => String(a.config?.serverName ?? "").localeCompare(String(b.config?.serverName ?? "")));
+      await writeManagedRows(this.patchPath(), nextRows);
+    } else {
+      await replaceMcpEntryWithRow(this.patchPath(), this.locatorOf(previous), nextRow);
+    }
 
-    const reconciled = enabled
-      ? await waitForLoaderState(this.C, nextRow.id!, (entry) => entry !== undefined && entry.disabled !== true)
-      : await waitForLoaderState(this.C, nextRow.id!, (entry) => entry !== undefined && entry.disabled === true);
+    const reconciled = await reconcileToggle(this.C, nextRow.id, nextRow.disabled);
 
-    const entry = getLoaderEntry(this.C, nextRow.id!);
-    const server = this.decorate(nextRow, true, entry, enabled);
+    const entry = typeof nextRow.id === "string" ? getLoaderEntry(this.C, nextRow.id) : undefined;
+    const server = this.decorate(nextRow, true, entry, shownEnabled);
     if (server === undefined) throw new Error("写入成功但生成的 MCP 行无效");
     return { server, reconciled };
   }
 
   async removeServer(rawPayload: unknown) {
     const payload = parseWirePayload(mcpRemovePayloadSchema, rawPayload, "删除参数无效");
-    const { managed } = await this.readRows();
-    const row = managed.find((candidate) => serverNameFromRowId(candidate.id) === payload.serverName || candidate.config?.serverName === payload.serverName);
-    if (row === undefined) {
-      throw new Error('MCP 行 "' + payload.serverName + '" 不存在或不是面板受管行（外部行请在 cordis.patch.yml 中手动删除）');
-    }
-    const nextRows = managed.filter((candidate) => candidate !== row);
-    await writeManagedRows(this.patchPath(), nextRows);
-    const reconciled = await waitForLoaderState(this.C, row.id!, (entry) => entry === undefined);
+    const { all } = await this.readRows();
+    const row = this.resolveRow(all, { serverName: payload.serverName, entryId: payload.entryId });
+    await removeMcpEntry(this.patchPath(), this.locatorOf(row));
+    const reconciled = typeof row.id === "string"
+      ? await waitForLoaderState(this.C, row.id, (entry) => entry === undefined)
+      : false;
     return { ok: true, reconciled };
   }
 
   async setEnabled(rawPayload: unknown) {
     const payload = parseWirePayload(mcpSetEnabledPayloadSchema, rawPayload, "启用参数无效");
-    const { managed } = await this.readRows();
-    const row = managed.find((candidate) => serverNameFromRowId(candidate.id) === payload.serverName || candidate.config?.serverName === payload.serverName);
-    if (row === undefined) throw new Error('MCP 行 "' + payload.serverName + '" 不存在或不是面板受管行');
-    row.disabled = !payload.enabled;
-    await writeManagedRows(this.patchPath(), managed);
-    const reconciled = payload.enabled
-      ? await waitForLoaderState(this.C, row.id!, (entry) => entry !== undefined && entry.disabled !== true)
-      : await waitForLoaderState(this.C, row.id!, (entry) => entry !== undefined && entry.disabled === true);
-    const entry = getLoaderEntry(this.C, row.id!);
-    const server = this.decorate(row, true, entry, payload.enabled);
+    const { all } = await this.readRows();
+    const row = this.resolveRow(all, { serverName: payload.serverName, entryId: payload.entryId });
+    // 没有 id 的手写行也能开关：disabled 键按这一条自己的缩进插入/删除。
+    await setEntryDisabled(this.patchPath(), this.locatorOf(row), !payload.enabled);
+    const nextRow: PatchRow = { ...row };
+    if (payload.enabled) delete nextRow.disabled;
+    else nextRow.disabled = true;
+    const reconciled = await reconcileToggle(this.C, row.id, nextRow.disabled);
+    const entry = typeof row.id === "string" ? getLoaderEntry(this.C, row.id) : undefined;
+    const server = this.decorate(nextRow, true, entry, payload.enabled);
     if (server === undefined) throw new Error("写入成功但生成的 MCP 行无效");
+    return { server, reconciled };
+  }
+
+  /** 读出一条 MCP 行的原文，供面板的原文编辑框回填。 */
+  async readRaw(rawPayload: unknown) {
+    const payload = parseWirePayload(mcpRawReadPayloadSchema, rawPayload, "原文参数无效");
+    const { raw, all } = await this.readRows();
+    const row = this.resolveRow(all, { serverName: payload.serverName, entryId: payload.entryId });
+    return {
+      serverName: this.serverNameOf(row) ?? payload.serverName,
+      ...(typeof row.id === "string" ? { entryId: row.id } : {}),
+      text: readMcpEntryText(raw, this.locatorOf(row))
+    };
+  }
+
+  /** 用原文替换一条 MCP 行。表单未建模的字段就走这里。 */
+  async writeRaw(rawPayload: unknown) {
+    const payload = parseWirePayload(mcpRawWritePayloadSchema, rawPayload, "原文参数无效");
+    const { all } = await this.readRows();
+    const previous = this.resolveRow(all, { serverName: payload.serverName, entryId: payload.entryId });
+    const written = await replaceMcpEntryText(this.patchPath(), this.locatorOf(previous), payload.text);
+    const enabled = rowEnabled(written.row);
+    const reconciled = await reconcileToggle(this.C, written.row.id, written.row.disabled);
+    const entry = typeof written.row.id === "string" ? getLoaderEntry(this.C, written.row.id) : undefined;
+    const server = this.decorate(written.row, true, entry, enabled);
+    if (server === undefined) throw new Error("原文已写入，但生成的 MCP 行无效");
     return { server, reconciled };
   }
 
   async test(rawPayload: unknown) {
     const payload = parseWirePayload(mcpTestPayloadSchema, rawPayload, "测试参数无效");
     if (payload !== null && typeof payload === "object" && !("transport" in payload) && "serverName" in payload) {
-      const { managed, external } = await this.readRows();
-      const row = [...managed, ...external].find((candidate) => candidate.config?.serverName === payload.serverName || serverNameFromRowId(candidate.id) === payload.serverName);
-      if (row === undefined) throw new Error('MCP 行 "' + String(payload.serverName) + '" 不存在');
+      const { all } = await this.readRows();
+      const entryId = typeof (payload as any).entryId === "string" ? String((payload as any).entryId) : undefined;
+      const row = this.resolveRow(all, { serverName: String(payload.serverName), entryId });
       return probeMcpServer(this.configInputFromRow(row));
     }
     return probeMcpServer(payload);
@@ -320,22 +409,23 @@ export class McpManagerGateway extends TypertRemoteService {
     return this.toolFilter !== undefined && typeof this.toolFilter.activeCount === "function" ? this.toolFilter.activeCount() : 0;
   }
 
-  /** 找到某个服务器的受管行（OAuth 要读写它的 headers）。 */
+  /** 找到某个服务器的 MCP 行（OAuth 要读写它的 headers）。 */
   managedRow(rows: PatchRow[], serverName: string): PatchRow | undefined {
-    return rows.find((row) => serverNameFromRowId(row.id) === serverName || row.config?.serverName === serverName);
+    return rows.find((row) => this.serverNameOf(row) === serverName);
   }
 
-  /** 把 Authorization 头写进那一行（其它 header 原样保留）。 */
+  /** 把 Authorization 头写进那一行（其它 header、未建模字段、所在位置都保留）。 */
   async writeAuthHeader(serverName: string, value: string | undefined) {
-    const { managed } = await this.readRows();
-    const row = this.managedRow(managed, serverName);
-    if (row === undefined) throw new Error('MCP 行 "' + serverName + '" 不存在或不是面板受管行');
-    const config: any = row.config ?? {};
+    const { all } = await this.readRows();
+    const row = this.resolveRow(all, { serverName });
+    const config: any = { ...(row.config ?? {}) };
     const headers = config.headers !== null && typeof config.headers === "object" && !Array.isArray(config.headers) ? { ...config.headers } : {};
     if (value === undefined) delete headers.Authorization;
     else headers.Authorization = value;
-    const next = managed.map((candidate) => (candidate === row ? { ...row, config: { ...config, headers } } : candidate));
-    await writeManagedRows(this.patchPath(), next);
+    const nextConfig = { ...config };
+    if (Object.keys(headers).length === 0) delete nextConfig.headers;
+    else nextConfig.headers = headers;
+    await replaceMcpEntryWithRow(this.patchPath(), this.locatorOf(row), { ...row, config: nextConfig });
   }
 
   /**
@@ -344,15 +434,19 @@ export class McpManagerGateway extends TypertRemoteService {
    */
   async oauthStart(rawPayload: unknown) {
     const payload = parseWirePayload(mcpOAuthStartPayloadSchema, rawPayload, "OAuth 参数无效");
-    const { managed, external } = await this.readRows();
-    const row = this.managedRow([...managed, ...external], payload.serverName);
+    const { all } = await this.readRows();
+    const row = this.resolveRow(all, { serverName: payload.serverName });
     if (row === undefined) throw new Error('MCP 行 "' + payload.serverName + '" 不存在');
     const config: any = row.config ?? {};
     if (config.transport !== "streamable-http" || typeof config.url !== "string" || config.url === "") {
       throw new Error("只有 streamable-http 的服务器能用 OAuth 登录（stdio 由本地进程自己管凭据）");
     }
-    const metadata = await discoverMetadata(config.url);
-    if (metadata === undefined) throw new Error("这个地址没有暴露 OAuth 发现文档（/.well-known/oauth-authorization-server），无法自动登录");
+    const discovery: any = await discoverMetadataDetailed(config.url);
+    const metadata = discovery.metadata;
+    if (metadata === undefined) throw new Error(discoveryFailureMessage(discovery.attempts));
+    const configuredUrl = normalizeServerUrl(config.url);
+    // PRM 声明的 resource 优先（同源才被 oauth.ts 接受）；没有就用配置里的 endpoint。
+    const serverUrl = typeof discovery.resource === "string" && discovery.resource !== "" ? discovery.resource : configuredUrl;
     const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     const { verifier, challenge } = createPkce();
     const timeoutMs = Math.max(30, Math.min(900, Number(payload.timeoutSeconds ?? 300))) * 1000;
@@ -363,7 +457,7 @@ export class McpManagerGateway extends TypertRemoteService {
       await loopback.close();
       throw new Error("拿不到 client_id：服务器既不支持动态注册，也没有指定 clientId");
     }
-    const authUrl = buildAuthorizationUrl(metadata, clientId, loopback.redirectUri, challenge, state, payload.scope);
+    const authUrl = buildAuthorizationUrl(metadata, clientId, loopback.redirectUri, challenge, state, payload.scope, serverUrl);
     const flowId = Math.random().toString(36).slice(2) + Date.now().toString(36);
     const flow: any = {
       flowId,
@@ -373,7 +467,7 @@ export class McpManagerGateway extends TypertRemoteService {
       metadata,
       redirectUri: loopback.redirectUri,
       verifier,
-      url: normalizeServerUrl(config.url),
+      url: serverUrl,
       status: "pending",
       error: undefined,
       startedAt: Date.now(),
@@ -409,7 +503,7 @@ export class McpManagerGateway extends TypertRemoteService {
     }
     flow.status = "exchanging";
     try {
-      const tokens = await exchangeCode(flow.metadata, flow.clientId, flow.code, flow.verifier, flow.redirectUri);
+      const tokens = await exchangeCode(flow.metadata, flow.clientId, flow.code, flow.verifier, flow.redirectUri, flow.url);
       await saveOAuthRecord(this.dshHomeOf(), flow.serverName, {
         ...tokens,
         clientId: flow.clientId,
@@ -422,7 +516,7 @@ export class McpManagerGateway extends TypertRemoteService {
       flow.expiresAt = tokens.expiresAt;
       flow.header = header;
       await flow.loopback.close();
-      const row = this.managedRow((await this.readRows()).managed, flow.serverName);
+      const row = this.managedRow((await this.readRows()).all, flow.serverName);
       if (row !== undefined && typeof row.id === "string") await waitForLoaderState(this.C, row.id, (entry: any) => entry !== undefined);
       return { status: "done", serverName: flow.serverName, expiresAt: flow.expiresAt ?? null, header };
     } catch (error) {
@@ -440,8 +534,8 @@ export class McpManagerGateway extends TypertRemoteService {
     const store = await loadOAuthStore(this.dshHomeOf());
     const record = store[payload.serverName];
     if (record === undefined) return { connected: false, headerReady: false, expiresAt: null, expired: false };
-    const { managed, external } = await this.readRows();
-    const row = this.managedRow([...managed, ...external], payload.serverName);
+    const { all } = await this.readRows();
+    const row = this.managedRow(all, payload.serverName);
     const config: any = row?.config ?? {};
     const headers = config.headers !== null && typeof config.headers === "object" && !Array.isArray(config.headers) ? config.headers : {};
     return {
@@ -457,7 +551,7 @@ export class McpManagerGateway extends TypertRemoteService {
     const payload = parseWirePayload(mcpOAuthServerPayloadSchema, rawPayload, "OAuth 参数无效");
     await this.writeAuthHeader(payload.serverName, undefined);
     await removeOAuthRecord(this.dshHomeOf(), payload.serverName);
-    const row = this.managedRow((await this.readRows()).managed, payload.serverName);
+    const row = this.managedRow((await this.readRows()).all, payload.serverName);
     if (row !== undefined && typeof row.id === "string") await waitForLoaderState(this.C, row.id, (entry: any) => entry !== undefined);
     return { disconnected: true, serverName: payload.serverName };
   }
