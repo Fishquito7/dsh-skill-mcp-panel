@@ -8,13 +8,13 @@
  * `Authorization` header 上——本文件负责前半段（拿令牌），落盘与热加载由调用方做。
  *
  * 支持的路径（按 RFC 顺序，能用哪步用哪步）：
- *   1. 发现：`<url>/.well-known/oauth-authorization-server`（失败再退
- *      `/.well-known/openid-configuration`；再失败就用传入的端点兜底）；
+ *   1. 发现：origin 根 RFC 8414 / OIDC，PRM 二次发现，带路径的旧位置兜底
+ *      （详见 docs/adr/0006-oauth-discovery.md）；
  *   2. 注册客户端：有 `registration_endpoint` 就走动态注册（RFC 7591），
  *      否则用调用方提供的 client_id（很多服务器允许公共客户端 + PKCE）；
- *   3. 授权码 + PKCE：把用户送进浏览器，回调落到**本进程监听的 127.0.0.1 端口**上
- *      （免去用户手抄 code，也不依赖任何外部回调服务）；
- *   4. 换令牌：`grant_type=authorization_code`，记下 `expires_at`；
+ *   3. 授权码 + PKCE + RFC 8707 resource：把用户送进浏览器，回调落到**本进程
+ *      监听的 127.0.0.1 端口**上（免去用户手抄 code，也不依赖外部回调服务）；
+ *   4. 换令牌：`grant_type=authorization_code`（同样带 resource），记下 `expires_at`；
  *   5. 刷新：`grant_type=refresh_token`，过期前由调用方触发。
  *
  * 令牌存在 `<dshHome>/skills/.system/skill-viewer/oauth.json`（按服务器名索引）。
@@ -83,20 +83,220 @@ export function normalizeServerUrl(url: string): string {
   return value.replace(/\/+$/, "");
 }
 
-/** 依次尝试两个标准发现路径；都失败返回 undefined。 */
-export async function discoverMetadata(serverUrl: string, fetchImpl: any = fetch): Promise<any | undefined> {
+const WELL_KNOWN_AS = "/.well-known/oauth-authorization-server";
+const WELL_KNOWN_OIDC = "/.well-known/openid-configuration";
+const WELL_KNOWN_PRM = "/.well-known/oauth-protected-resource";
+const DISCOVERY_TIMEOUT_MS = 8000;
+const DISCOVERY_BUDGET_MS = 20000;
+
+export interface DiscoveryAttempt {
+  url: string;
+  status?: number;
+  reason?: string;
+}
+
+export interface DiscoveryResult {
+  metadata?: any;
+  attempts: DiscoveryAttempt[];
+}
+
+export interface DiscoveryOptions {
+  timeoutMs?: number;
+  budgetMs?: number;
+}
+
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, "");
+}
+
+function isHttpUrl(url: URL): boolean {
+  return url.protocol === "https:" || url.protocol === "http:";
+}
+
+/**
+ * 某个 issuer 的 AS 元数据候选。
+ *
+ * RFC 8414 §3.1：把 well-known 插在 host 与 path 之间；
+ * OIDC Discovery：把 well-known 追加在 issuer 之后。
+ * 两种都试，最后再兜一个「追加式 AS」兼容少数实现。
+ */
+export function authorizationServerCandidates(issuer: string): string[] {
+  const parsed = new URL(issuer);
+  const origin = parsed.origin;
+  const path = trimTrailingSlash(parsed.pathname);
+  const base = trimTrailingSlash(issuer);
+  const out: string[] = [];
+  const add = (value: string) => {
+    if (!out.includes(value)) out.push(value);
+  };
+  add(origin + WELL_KNOWN_AS + path);
+  add(base + WELL_KNOWN_OIDC);
+  add(origin + WELL_KNOWN_OIDC + path);
+  add(base + WELL_KNOWN_AS);
+  return out;
+}
+
+/** 一个 MCP 端点 URL 的发现候选，按「先标准、后兼容」排序。 */
+export function discoveryCandidates(serverUrl: string): string[] {
   const base = normalizeServerUrl(serverUrl);
-  for (const suffix of ["/.well-known/oauth-authorization-server", "/.well-known/openid-configuration"]) {
+  const parsed = new URL(base);
+  const origin = parsed.origin;
+  const path = trimTrailingSlash(parsed.pathname);
+  const out: string[] = [];
+  const add = (value: string) => {
+    if (!out.includes(value)) out.push(value);
+  };
+  add(origin + WELL_KNOWN_AS);
+  add(origin + WELL_KNOWN_OIDC);
+  add(origin + WELL_KNOWN_PRM);
+  if (path !== "") add(origin + WELL_KNOWN_PRM + path);
+  add(base + WELL_KNOWN_AS);
+  add(base + WELL_KNOWN_OIDC);
+  return out;
+}
+
+function validateAuthorizationServerMetadata(body: any, target: string): { metadata?: any; reason?: string } {
+  if (body === null || typeof body !== "object") return { reason: "响应不是 JSON 对象" };
+  if (typeof body.token_endpoint !== "string" || body.token_endpoint === "") return { reason: "缺少 token_endpoint" };
+  if (typeof body.issuer === "string" && body.issuer !== "") {
+    let issuer: URL;
     try {
-      const response = await fetchImpl(base + suffix, { headers: { accept: "application/json" } });
-      if (response === null || typeof response !== "object" || response.ok !== true) continue;
-      const body = await response.json();
-      if (body !== null && typeof body === "object" && typeof body.token_endpoint === "string") return body;
+      issuer = new URL(body.issuer);
     } catch {
-      // 试下一个路径
+      return { reason: "issuer 不是合法 URL" };
     }
+    if (issuer.origin !== new URL(target).origin) return { reason: "issuer 与发现地址不一致" };
   }
-  return undefined;
+  return { metadata: body };
+}
+
+function resolveIssuer(value: unknown, base: string): string | undefined {
+  if (typeof value !== "string" || value.trim() === "") return undefined;
+  let url: URL;
+  try {
+    url = new URL(value, base);
+  } catch {
+    return undefined;
+  }
+  if (!isHttpUrl(url)) return undefined;
+  return trimTrailingSlash(url.toString());
+}
+
+/**
+ * 发现 AS 元数据，并返回逐个候选的诊断信息。
+ * `options` 只给测试与排障用，生产调用保持两个参数。
+ */
+export async function discoverMetadataDetailed(serverUrl: string, fetchImpl: any = fetch, options: DiscoveryOptions = {}): Promise<DiscoveryResult> {
+  const timeoutMs = options.timeoutMs ?? DISCOVERY_TIMEOUT_MS;
+  const budgetMs = options.budgetMs ?? DISCOVERY_BUDGET_MS;
+  let candidates: string[];
+  try {
+    candidates = discoveryCandidates(serverUrl);
+  } catch (error: any) {
+    if (error?.message === "缺少服务器 URL") throw error; // 保持原行为：空 URL 仍抛错
+    return { attempts: [{ url: String(serverUrl), reason: "URL 无效" }] };
+  }
+  const attempts: DiscoveryAttempt[] = [];
+  const tried = new Set<string>();
+  const deadline = Date.now() + budgetMs;
+
+  const mark = (target: string, reason: string) => {
+    for (let index = attempts.length - 1; index >= 0; index -= 1) {
+      if (attempts[index].url === target && attempts[index].reason === undefined) {
+        attempts[index].reason = reason;
+        return;
+      }
+    }
+  };
+
+  const fetchJson = async (target: string): Promise<any | undefined> => {
+    if (tried.has(target)) return undefined;
+    tried.add(target);
+    const attempt: DiscoveryAttempt = { url: target };
+    let parsed: URL;
+    try {
+      parsed = new URL(target);
+    } catch {
+      attempt.reason = "URL 无效";
+      attempts.push(attempt);
+      return undefined;
+    }
+    if (!isHttpUrl(parsed)) {
+      attempt.reason = "不支持的协议";
+      attempts.push(attempt);
+      return undefined;
+    }
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      attempt.reason = "超出发现总时长";
+      attempts.push(attempt);
+      return undefined;
+    }
+    try {
+      const response = await fetchImpl(target, {
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(Math.max(1, Math.min(timeoutMs, remaining)))
+      });
+      attempt.status = typeof response?.status === "number" ? response.status : undefined;
+      if (response?.ok !== true) {
+        attempt.reason = "HTTP " + String(attempt.status ?? "?");
+        attempts.push(attempt);
+        return undefined;
+      }
+      const body = await response.json();
+      if (body === null || typeof body !== "object") {
+        attempt.reason = "响应不是 JSON 对象";
+        attempts.push(attempt);
+        return undefined;
+      }
+      attempts.push(attempt);
+      return body;
+    } catch (error: any) {
+      attempt.reason = error?.name === "TimeoutError" ? "请求超时" : "请求失败或响应不是 JSON";
+      attempts.push(attempt);
+      return undefined;
+    }
+  };
+
+  for (const target of candidates) {
+    const body = await fetchJson(target);
+    if (body === undefined) continue;
+    const verdict = validateAuthorizationServerMetadata(body, target);
+    if (verdict.metadata !== undefined) return { metadata: verdict.metadata, attempts };
+    if (Array.isArray(body.authorization_servers)) {
+      mark(target, "是 PRM（authorization_servers）");
+      for (const rawIssuer of body.authorization_servers) {
+        const issuer = resolveIssuer(rawIssuer, target);
+        if (issuer === undefined) continue;
+        for (const asTarget of authorizationServerCandidates(issuer)) {
+          const asBody = await fetchJson(asTarget);
+          if (asBody === undefined) continue;
+          const asVerdict = validateAuthorizationServerMetadata(asBody, asTarget);
+          if (asVerdict.metadata !== undefined) return { metadata: asVerdict.metadata, attempts };
+          mark(asTarget, asVerdict.reason ?? "不是有效的 AS 元数据");
+        }
+      }
+      continue;
+    }
+    mark(target, verdict.reason ?? "不是有效的 AS 元数据");
+  }
+
+  return { attempts };
+}
+
+/** 兼容入口：签名不变，仍只返回元数据。 */
+export async function discoverMetadata(serverUrl: string, fetchImpl: any = fetch): Promise<any | undefined> {
+  return (await discoverMetadataDetailed(serverUrl, fetchImpl)).metadata;
+}
+
+/** 失败时给用户看的诊断文案：保留原句前缀，附已尝试的 URL。 */
+export function discoveryFailureMessage(attempts: DiscoveryAttempt[]): string {
+  const head = "这个地址没有暴露 OAuth 发现文档（/.well-known/oauth-authorization-server），无法自动登录";
+  if (attempts.length === 0) return head;
+  const shown = attempts.slice(0, 10);
+  const lines = shown.map((attempt) => "- " + attempt.url + (attempt.reason === undefined ? "" : "（" + attempt.reason + "）"));
+  if (attempts.length > shown.length) lines.push("- …还有 " + (attempts.length - shown.length) + " 次尝试");
+  return head + "。已尝试：\n" + lines.join("\n");
 }
 
 /** PKCE 的 verifier / challenge（S256）。 */
@@ -127,8 +327,8 @@ export async function registerClient(metadata: any, redirectUri: string, fetchIm
   return body;
 }
 
-/** 拼授权 URL。 */
-export function buildAuthorizationUrl(metadata: any, clientId: string, redirectUri: string, challenge: string, state: string, scope?: string): string {
+/** 拼授权 URL。resource 是 RFC 8707 资源指示器；Ardot 缺它会返回 invalid_target。 */
+export function buildAuthorizationUrl(metadata: any, clientId: string, redirectUri: string, challenge: string, state: string, scope?: string, resource?: string): string {
   const endpoint = metadata?.authorization_endpoint;
   if (typeof endpoint !== "string" || endpoint === "") throw new Error("授权端点缺失（发现文档里没有 authorization_endpoint）");
   const url = new URL(endpoint);
@@ -140,6 +340,7 @@ export function buildAuthorizationUrl(metadata: any, clientId: string, redirectU
   url.searchParams.set("code_challenge_method", "S256");
   const effectiveScope = scope ?? (Array.isArray(metadata?.scopes_supported) ? metadata.scopes_supported.join(" ") : undefined);
   if (typeof effectiveScope === "string" && effectiveScope !== "") url.searchParams.set("scope", effectiveScope);
+  if (typeof resource === "string" && resource !== "") url.searchParams.set("resource", resource);
   return url.toString();
 }
 
@@ -216,8 +417,13 @@ export function normalizeTokenResponse(body: any, previous?: any): any {
   };
 }
 
-/** 授权码换令牌。 */
-export async function exchangeCode(metadata: any, clientId: string, code: string, verifier: string, redirectUri: string, fetchImpl: any = fetch): Promise<any> {
+/**
+ * 授权码换令牌。
+ * 第 6 个参数兼容旧的 fetchImpl 调用；传 string 时视为 RFC 8707 resource。
+ */
+export async function exchangeCode(metadata: any, clientId: string, code: string, verifier: string, redirectUri: string, resourceOrFetch?: any, fetchImpl: any = fetch): Promise<any> {
+  const resource = typeof resourceOrFetch === "string" ? resourceOrFetch : undefined;
+  const fetchFn = typeof resourceOrFetch === "function" ? resourceOrFetch : fetchImpl;
   const body = new URLSearchParams({
     grant_type: "authorization_code",
     code,
@@ -225,7 +431,8 @@ export async function exchangeCode(metadata: any, clientId: string, code: string
     redirect_uri: redirectUri,
     code_verifier: verifier
   });
-  const response = await fetchImpl(metadata.token_endpoint, {
+  if (resource !== undefined && resource !== "") body.set("resource", resource);
+  const response = await fetchFn(metadata.token_endpoint, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
     body: body.toString()
@@ -234,10 +441,13 @@ export async function exchangeCode(metadata: any, clientId: string, code: string
   return normalizeTokenResponse(await response.json());
 }
 
-/** 刷新令牌。 */
-export async function refreshTokens(metadata: any, clientId: string, refreshToken: string, fetchImpl: any = fetch): Promise<any> {
+/** 刷新令牌；resource 与授权/换令牌时保持一致。 */
+export async function refreshTokens(metadata: any, clientId: string, refreshToken: string, resourceOrFetch?: any, fetchImpl: any = fetch): Promise<any> {
+  const resource = typeof resourceOrFetch === "string" ? resourceOrFetch : undefined;
+  const fetchFn = typeof resourceOrFetch === "function" ? resourceOrFetch : fetchImpl;
   const body = new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken, client_id: clientId });
-  const response = await fetchImpl(metadata.token_endpoint, {
+  if (resource !== undefined && resource !== "") body.set("resource", resource);
+  const response = await fetchFn(metadata.token_endpoint, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
     body: body.toString()

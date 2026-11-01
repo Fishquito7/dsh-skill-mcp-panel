@@ -18,9 +18,11 @@ import {
   authorizationHeader,
   buildAuthorizationUrl,
   createPkce,
-  discoverMetadata,
+  discoverMetadataDetailed,
+  discoveryFailureMessage,
   exchangeCode,
   loadOAuthStore,
+  normalizeServerUrl,
   registerClient,
   removeOAuthRecord,
   saveOAuthRecord,
@@ -272,8 +274,9 @@ export async function runMcpCli(args: string[]): Promise<number> {
       throw new Error("只有 streamable-http 的服务器能用 OAuth 登录（stdio 由本地进程自己管凭据）");
     }
     const timeoutMs = Number(flagValue("--timeout") ?? 300) * 1000;
-    const metadata = await discoverMetadata(config.url);
-    if (metadata === undefined) throw new Error("这个地址没有暴露 OAuth 发现文档（/.well-known/oauth-authorization-server），无法自动登录");
+    const serverUrl = normalizeServerUrl(config.url);
+    const { metadata, attempts } = await discoverMetadataDetailed(config.url);
+    if (metadata === undefined) throw new Error(discoveryFailureMessage(attempts));
     const state = randomBytes(16).toString("base64url");
     const { verifier, challenge } = createPkce();
     const loopback = await startLoopbackServer(state, timeoutMs);
@@ -281,7 +284,7 @@ export async function runMcpCli(args: string[]): Promise<number> {
       const previous = (await loadOAuthStore(dshHome))[name];
       const clientId = flagValue("--client-id") ?? previous?.clientId ?? (await registerClient(metadata, loopback.redirectUri))?.client_id;
       if (typeof clientId !== "string" || clientId === "") throw new Error("拿不到 client_id：服务器既不支持动态注册，也没有用 --client-id 指定");
-      const authUrl = buildAuthorizationUrl(metadata, clientId, loopback.redirectUri, challenge, state, flagValue("--scope"));
+      const authUrl = buildAuthorizationUrl(metadata, clientId, loopback.redirectUri, challenge, state, flagValue("--scope"), serverUrl);
       console.log("在浏览器里完成授权：" + authUrl);
       console.log("（回调地址 " + loopback.redirectUri + " 由本次命令监听，授权完成后自动继续；" + Math.round(timeoutMs / 1000) + " 秒内没完成就超时）");
       if (!args.includes("--no-open")) {
@@ -295,8 +298,8 @@ export async function runMcpCli(args: string[]): Promise<number> {
         }
       }
       const { code } = await loopback.waitForCode();
-      const tokens = await exchangeCode(metadata, clientId, code, verifier, loopback.redirectUri);
-      await saveOAuthRecord(dshHome, name, { ...tokens, clientId, serverUrl: config.url, tokenEndpoint: metadata.token_endpoint });
+      const tokens = await exchangeCode(metadata, clientId, code, verifier, loopback.redirectUri, serverUrl);
+      await saveOAuthRecord(dshHome, name, { ...tokens, clientId, serverUrl, tokenEndpoint: metadata.token_endpoint });
       const headers = config.headers !== null && typeof config.headers === "object" && !Array.isArray(config.headers) ? { ...config.headers } : {};
       headers.Authorization = authorizationHeader(tokens);
       await writeManagedRows(profilePatchPath(profile.name), managed.map((candidate) => (candidate === row ? { ...row, config: { ...config, headers } } : candidate)));

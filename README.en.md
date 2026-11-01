@@ -122,7 +122,7 @@ The panel works exactly like the host's built-in Plugins page: a single **Skill 
 - **Server management** — **Stdio** and **HTTP** transports: add, edit, enable/disable, delete and test connections; saving is hot-reloaded by DSH HMR, no gateway restart. Only the panel's own managed block is edited — everything else in `cordis.patch.yml` (including rows inside the block that are not ours) is preserved byte for byte
 - **Secrets** — `env` / `headers` are redacted in the UI and in RPC, an omitted key keeps its old value, and `${NAME}` in a value reads that environment variable
 - **Disable individual tools** — turn tools off by name; a disabled tool disappears from the model-facing tool list instead of being merely refused at call time, so the context saving is real
-- **OAuth sign-in** — one click for a remote `streamable-http` server that supports it (authorization-server discovery, dynamic client registration, authorization code + PKCE); the token is written back into that row and hot-reloaded, and it can be disconnected at any time
+- **OAuth sign-in** — one click for a remote `streamable-http` server that supports it (RFC 8414 / OIDC / RFC 9728 discovery, dynamic client registration, authorization code + PKCE + RFC 8707 resource); the token is written back into that row and hot-reloaded, and it can be disconnected at any time
 
 ### DSH version compatibility
 
