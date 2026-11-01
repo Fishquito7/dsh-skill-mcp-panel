@@ -3220,6 +3220,8 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         rawEditHint: "按字节编辑这一条的 YAML。适合手写内容，或面板表单还没覆盖的字段（例如 maxInstructionBytes）。",
                         rawEditLoading: "正在读取原文…",
                         rawEditLead: "只替换这一条，文件其余字节不动。name 必须仍是 @deepseek-ai/dsh-mcp-client，并保留 id 与 serverName。",
+                        disabledExprBadge: "由表达式控制",
+                        disabledExprHint: "这一行的 disabled 是 !!js 表达式，由宿主求值；面板不能直接开关，请用「原文」修改。",
                         patchBroken: "cordis.patch.yml 不可用：",
                         reconciled: "已写入，等待 HMR 生效…",
                         reconcileTimeout: "配置已写入，但 HMR 确认超时，请稍后刷新。",
@@ -3349,6 +3351,8 @@ authStdioHint: "stdio 服务器的令牌没有单独的认证项——写在这�
                         rawEditHint: "Edit this entry's YAML byte for byte. Use it for hand-written text, or for schema fields the form does not model yet (for example maxInstructionBytes).",
                         rawEditLoading: "Loading YAML…",
                         rawEditLead: "Only this entry is replaced; every other byte in the file stays put. name must remain @deepseek-ai/dsh-mcp-client, and id plus serverName must stay valid.",
+                        disabledExprBadge: "By expression",
+                        disabledExprHint: "This row's disabled is a !!js expression evaluated by the host; the panel cannot toggle it. Edit it with Raw.",
                         patchBroken: "cordis.patch.yml is unavailable:",
                         reconciled: "Written, waiting for HMR…",
                         reconcileTimeout: "Config written, but HMR confirmation timed out. Refresh later.",
@@ -3640,7 +3644,7 @@ function mcpWireScalar(text) {
                         			.filter((line) => line.trim() !== "" && !/^\s*Authorization\s*[=:]/i.test(line));
                         		toSave = { ...form, headersText: [...kept, "Authorization=Bearer " + token].join("\n") };
                         	}
-                        	onSave(buildMcpInput(toSave, deletedEnv, deletedHeaders), editing ? initial.serverName : undefined);
+                        	onSave(buildMcpInput(toSave, deletedEnv, deletedHeaders), editing ? initial.serverName : undefined, editing ? initial.entryId : undefined);
                         };
                         const label = (text) => (0, react_jsx_runtime.jsx)("span", { className: m.label, children: text });
                         const field = (text, node, wide, hint: any = null) => (0, react_jsx_runtime.jsxs)("label", {
@@ -3913,11 +3917,11 @@ function mcpWireScalar(text) {
                                 if (phase === "pending") return "statePending";
                                 return "stateUnknown";
                         };
-                        const applySave = async (input, previousServerName) => {
+                        const applySave = async (input, previousServerName, previousEntryId) => {
                                 setDialogBusy(true);
                                 setDialogError(null);
                                 try {
-                                        const result = await saveMcp(input, previousServerName);
+                                        const result = await saveMcp(input, previousServerName, previousEntryId);
                                         setEditing(null);
                                         setTimeout(() => refresh(true), 500);
                                 } catch (error: any) {
@@ -3926,12 +3930,15 @@ function mcpWireScalar(text) {
                                         setDialogBusy(false);
                                 }
                         };
+                        // 卡片身份：有 entryId 用 entryId（serverName 可能重复），没有就用名字。
+                        const cardKey = (server) => (server.entryId !== undefined && server.entryId !== null && server.entryId !== "" ? String(server.entryId) : String(server.serverName));
                         const openRaw = (server) => {
-                                setRawEdit({ serverName: server.serverName, text: "", error: null, busy: false, loading: true });
-                                Promise.resolve().then(() => readRawMcp({ serverName: server.serverName })).then((result) => {
-                                        setRawEdit((prev) => prev !== null && prev.serverName === server.serverName ? { ...prev, text: String(result?.text ?? ""), loading: false } : prev);
+                                const key = cardKey(server);
+                                setRawEdit({ key, serverName: server.serverName, entryId: server.entryId, text: "", error: null, busy: false, loading: true });
+                                Promise.resolve().then(() => readRawMcp({ serverName: server.serverName, entryId: server.entryId })).then((result) => {
+                                        setRawEdit((prev) => prev !== null && prev.key === key ? { ...prev, text: String(result?.text ?? ""), loading: false } : prev);
                                 }, (error) => {
-                                        setRawEdit((prev) => prev !== null && prev.serverName === server.serverName ? { ...prev, loading: false, error: cleanMcpError(error) } : prev);
+                                        setRawEdit((prev) => prev !== null && prev.key === key ? { ...prev, loading: false, error: cleanMcpError(error) } : prev);
                                 });
                         };
                         const applyRaw = async () => {
@@ -3939,7 +3946,7 @@ function mcpWireScalar(text) {
                                 if (current === null || current.loading || current.busy) return;
                                 setRawEdit({ ...current, busy: true, error: null });
                                 try {
-                                        await writeRawMcp({ serverName: current.serverName, text: current.text });
+                                        await writeRawMcp({ serverName: current.serverName, entryId: current.entryId, text: current.text });
                                         setRawEdit(null);
                                         setTimeout(() => refresh(true), 500);
                                 } catch (error: any) {
@@ -3949,24 +3956,28 @@ function mcpWireScalar(text) {
                         const applyToggle = async (server) => {
                                 const previous = server.enabled;
                                 const wanted = !previous;
-                                setData((prev) => prev === null ? prev : { ...prev, servers: prev.servers.map((item) => item.serverName === server.serverName ? { ...item, enabled: wanted } : item) });
+                                const key = cardKey(server);
+                                const mapSaving = (prev, next) => prev === null ? prev : { ...prev, servers: prev.servers.map((item) => cardKey(item) === key ? { ...item, enabled: next } : item) };
+                                const mapReplace = (prev, next) => prev === null ? prev : { ...prev, servers: prev.servers.map((item) => cardKey(item) === key ? next : item) };
+                                setData((prev) => mapSaving(prev, wanted));
                                 try {
-                                        const next = await setEnabledMcp(server.serverName, wanted);
-                                        setData((prev) => prev === null ? prev : { ...prev, servers: prev.servers.map((item) => item.serverName === next.serverName ? next : item) });
+                                        const next = await setEnabledMcp(server.serverName, wanted, server.entryId);
+                                        setData((prev) => mapReplace(prev, next));
                                 } catch (error: any) {
-                                        setData((prev) => prev === null ? prev : { ...prev, servers: prev.servers.map((item) => item.serverName === server.serverName ? { ...item, enabled: previous } : item) });
+                                        setData((prev) => mapSaving(prev, previous));
                                         setLoadState({ kind: "error", message: String(error?.message ?? error) });
                                 }
                         };
                         const applyRemove = async (server) => {
-                                if (confirming !== server.serverName) {
-                                        setConfirming(server.serverName);
+                                const key = cardKey(server);
+                                if (confirming !== key) {
+                                        setConfirming(key);
                                         return;
                                 }
                                 setConfirming(null);
                                 try {
-                                        await removeMcp(server.serverName);
-                                        setData((prev) => prev === null ? prev : { ...prev, servers: prev.servers.filter((item) => item.serverName !== server.serverName) });
+                                        await removeMcp(server.serverName, server.entryId);
+                                        setData((prev) => prev === null ? prev : { ...prev, servers: prev.servers.filter((item) => cardKey(item) !== key) });
                                 } catch (error: any) {
                                         setLoadState({ kind: "error", message: String(error?.message ?? error) });
                                 }
@@ -3975,7 +3986,7 @@ function mcpWireScalar(text) {
                                 setTesting(server.serverName);
                                 setTestResult(null);
                                 try {
-                                        const result = await testMcp({ serverName: server.serverName });
+                                        const result = await testMcp({ serverName: server.serverName, entryId: server.entryId });
                                         setTestResult({ serverName: server.serverName, result });
                                 } catch (error: any) {
                                         setTestResult({ serverName: server.serverName, result: { ok: false, error: String(error?.message ?? error), tools: [] } });
@@ -4143,7 +4154,7 @@ function mcpWireScalar(text) {
                                                 className: m.cardTop,
                                                 children: [(0, react_jsx_runtime.jsx)("span", { className: m.name, children: server.serverName }), (0, react_jsx_runtime.jsxs)("span", {
                                                         className: m.badges,
-                                                        children: [(0, react_jsx_runtime.jsx)("span", { className: m.badge, children: server.transport === "streamable-http" ? "HTTP" : "STDIO" }), server.transport === "streamable-http" && (server.headerKeys ?? []).includes("Authorization") ? (0, react_jsx_runtime.jsx)("span", { className: m.badge, title: t("authBadgeHint"), children: t("authBadge") }) : null]
+                                                        children: [(0, react_jsx_runtime.jsx)("span", { className: m.badge, children: server.transport === "streamable-http" ? "HTTP" : "STDIO" }), server.disabledExpr === true ? (0, react_jsx_runtime.jsx)("span", { className: m.badge, title: t("disabledExprHint"), children: t("disabledExprBadge") }) : null, server.transport === "streamable-http" && (server.headerKeys ?? []).includes("Authorization") ? (0, react_jsx_runtime.jsx)("span", { className: m.badge, title: t("authBadgeHint"), children: t("authBadge") }) : null]
                                                 }), (0, react_jsx_runtime.jsx)("span", { className: m.spacer }), (0, react_jsx_runtime.jsx)("button", {
                                                         type: "button",
                                                         className: m.iconBtn,
@@ -4169,6 +4180,8 @@ function mcpWireScalar(text) {
                                                                 "data-on": server.enabled ? "true" : void 0,
                                                                 "aria-checked": server.enabled,
                                                                 "aria-label": server.enabled ? t("disable") : t("enable"),
+                                                                disabled: server.disabledExpr === true,
+                                                                title: server.disabledExpr === true ? t("disabledExprHint") : void 0,
                                                                 onClick: () => applyToggle(server),
                                                                 children: (0, react_jsx_runtime.jsx)("span", { className: c.switchThumb })
                                                         }), (0, react_jsx_runtime.jsx)("span", { className: c.switchText, children: t !== null ? (server.enabled ? t("stateEnabled") : t("stateDisabled")) : "" })]
@@ -4204,7 +4217,7 @@ function mcpWireScalar(text) {
                                                 	title: t("toolsButtonHint"),
                                                 	onClick: () => { openTools(server); },
                                                 	children: t("toolsButton")
-                                                }), confirming === server.serverName ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
+                                                }), confirming === cardKey(server) ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
                                                         children: [
                                                                 (0, react_jsx_runtime.jsx)("button", {
                                                                         type: "button",
@@ -4596,9 +4609,9 @@ function mcpWireScalar(text) {
 			const mcpSectionFace = () => ({
 				backToConversation,
 				listMcp: () => callMcp("list"),
-				saveMcp: (input, previousServerName) => callMcp("save", { input, previousServerName }),
-				removeMcp: (serverName) => callMcp("removeServer", { serverName }),
-				setEnabledMcp: (serverName, enabled) => callMcp("setEnabled", { serverName, enabled }),
+				saveMcp: (input, previousServerName, previousEntryId) => callMcp("save", { input, previousServerName, previousEntryId }),
+				removeMcp: (serverName, entryId) => callMcp("removeServer", { serverName, entryId }),
+				setEnabledMcp: (serverName, enabled, entryId) => callMcp("setEnabled", { serverName, enabled, entryId }),
 				readRawMcp: (payload) => callMcp("readRaw", payload),
 				writeRawMcp: (payload) => callMcp("writeRaw", payload),
 				testMcp: (payload) => callMcp("test", payload),

@@ -260,6 +260,92 @@ assert.equal(exprOnDisk.includes("\"`Bearer"), false, "expression must not degra
   assert.match(afterRawJs, /disabled: !!js /);
   assert.match(afterRawJs, /process\.env\.OFF/);
   pass("gateway does not HMR-wait on a !!js disabled expression");
+
+  // 11. 没有 id 的手写行：能开关，且只在文件里插/删 disabled，不补 id
+  const handPatch = [
+    "# hand written",
+    "- name: '@deepseek-ai/dsh-mcp-client'",
+    "  config:",
+    "    serverName: hand",
+    "    transport: stdio",
+    "    command: node",
+    ""
+  ].join("\n");
+  await writeFile(join(dir, "cordis.patch.yml"), handPatch);
+  const handList = await gateway.list();
+  assert.equal(handList.servers.length, 1);
+  assert.equal(handList.servers[0].serverName, "hand");
+  assert.equal(handList.servers[0].entryId, undefined);
+  const handOff = await gateway.setEnabled({ serverName: "hand", enabled: false });
+  assert.equal(handOff.server.enabled, false);
+  const handText = await readFile(join(dir, "cordis.patch.yml"), "utf8");
+  assert.match(handText, /command: node\n {2}disabled: true\n/);
+  assert.equal(/^\s*id:/m.test(handText), false, "不得给手写行补 id");
+  await gateway.setEnabled({ serverName: "hand", enabled: true });
+  assert.equal(await readFile(join(dir, "cordis.patch.yml"), "utf8"), handPatch, "开关往返必须逐字节还原");
+  pass("gateway toggles a row without an id");
+
+  // 12. 重复 serverName：payload 带 entryId 时只动对应那一行；表单保存也按 entryId 定位
+  const dupText = [
+    "- id: mcp-first",
+    "  name: '@deepseek-ai/dsh-mcp-client'",
+    "  config:",
+    "    serverName: same",
+    "    transport: stdio",
+    "    command: node",
+    "- id: mcp-second",
+    "  name: '@deepseek-ai/dsh-mcp-client'",
+    "  config:",
+    "    serverName: same",
+    "    transport: stdio",
+    "    command: node",
+    ""
+  ].join("\n");
+  await writeFile(join(dir, "cordis.patch.yml"), dupText);
+  const dupList = await gateway.list();
+  assert.equal(dupList.servers.length, 2);
+  const dupWithoutId = await gateway.setEnabled({ serverName: "same", enabled: false }).then(() => null, (error) => error);
+  assert.ok(dupWithoutId !== null, "重复 serverName 不带 entryId 必须拒绝");
+  assert.match(String(dupWithoutId.message), /entryId|--id|不唯一|多条/);
+  const dupToggled = await gateway.setEnabled({ serverName: "same", entryId: "mcp-second", enabled: false });
+  assert.equal(dupToggled.server.entryId, "mcp-second");
+  const dupOnDisk = await readFile(join(dir, "cordis.patch.yml"), "utf8");
+  const dupParts = dupOnDisk.split("- id: mcp-second");
+  assert.equal(dupParts[0].includes("disabled: true"), false, "不能改到另一行");
+  assert.equal(dupParts[1].includes("disabled: true"), true);
+  const dupSaved = await gateway.save({
+    input: { serverName: "same", transport: "stdio", command: "node2" },
+    previousServerName: "same",
+    previousEntryId: "mcp-second",
+    enabled: false
+  });
+  assert.equal(dupSaved.server.entryId, "mcp-second");
+  const dupAfterSave = await readFile(join(dir, "cordis.patch.yml"), "utf8");
+  const dupAfterParts = dupAfterSave.split("- id: mcp-second");
+  assert.equal(dupAfterParts[0].includes("command: node2"), false, "只改 entryId 指定的那一行");
+  assert.equal(dupAfterParts[1].includes("command: node2"), true);
+  assert.equal(dupAfterParts[1].includes("disabled: true"), true, "表单保存要保留原来的 disabled");
+  pass("gateway addresses duplicated serverNames by entryId");
+
+  // 13. !!js disabled：视图带 disabledExpr，界面据此禁用开关
+  const jsExprPatch = [
+    "- id: mcp-js",
+    "  name: '@deepseek-ai/dsh-mcp-client'",
+    "  disabled: !!js process.env.OFF === '1'",
+    "  config:",
+    "    serverName: jsexpr",
+    "    transport: stdio",
+    "    command: node",
+    ""
+  ].join("\n");
+  await writeFile(join(dir, "cordis.patch.yml"), jsExprPatch);
+  const jsExprList = await gateway.list();
+  assert.equal(jsExprList.servers.length, 1);
+  assert.equal(jsExprList.servers[0].enabled, false);
+  assert.equal(jsExprList.servers[0].disabledExpr, true, "!!js disabled 必须标记给界面");
+  assert.equal(mcpListResultSchema.parse(jsExprList).servers[0].disabledExpr, true);
+  pass("gateway exposes disabledExpr for !!js rows");
+
 } finally {
   await rm(dir, { recursive: true, force: true });
 }

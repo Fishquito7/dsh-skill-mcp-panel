@@ -167,6 +167,59 @@ try {
   assert.match(listedJs.stdout, /停用\s+exprcli/);
   assert.equal(/启用\s+exprcli/.test(listedJs.stdout), false);
   pass("dsh-panel mcp list does not show a !!js disabled row as enabled");
+  // 没有 id 的手写行：能启停，且开关往返逐字节还原
+  const noIdPatch = [
+    "# hand written",
+    "- name: '@deepseek-ai/dsh-mcp-client'",
+    "  config:",
+    "    serverName: hand",
+    "    transport: stdio",
+    "    command: node",
+    ""
+  ].join("\n");
+  await writeFile(patchPath, noIdPatch);
+  const disableNoId = run(["mcp", "disable", "hand", "--profile", "test"]);
+  assert.equal(disableNoId.status, 0, disableNoId.stderr);
+  const noIdOff = await readFile(patchPath, "utf8");
+  assert.match(noIdOff, /command: node\n {2}disabled: true\n/);
+  assert.equal(noIdOff.includes("id:"), false, "不得偷偷补 id");
+  const enableNoId = run(["mcp", "enable", "hand", "--profile", "test"]);
+  assert.equal(enableNoId.status, 0, enableNoId.stderr);
+  assert.equal(await readFile(patchPath, "utf8"), noIdPatch, "没有 id 的行开关往返必须逐字节还原");
+  pass("dsh-panel mcp enable/disable works for a row without an id");
+
+  // 重复 serverName：不加 --id 会被拒绝并提示；加 --id 能精确操作某一行；list --ids 能看到 entryId
+  const dupPatch = [
+    "- id: mcp-first",
+    "  name: '@deepseek-ai/dsh-mcp-client'",
+    "  config:",
+    "    serverName: same",
+    "    transport: stdio",
+    "    command: node",
+    "- id: mcp-second",
+    "  name: '@deepseek-ai/dsh-mcp-client'",
+    "  config:",
+    "    serverName: same",
+    "    transport: stdio",
+    "    command: node",
+    ""
+  ].join("\n");
+  await writeFile(patchPath, dupPatch);
+  const dupList = run(["mcp", "list", "--ids", "--profile", "test"]);
+  assert.equal(dupList.status, 0, dupList.stderr);
+  assert.match(dupList.stdout, /same.*mcp-first/);
+  assert.match(dupList.stdout, /same.*mcp-second/);
+  const dupDisable = run(["mcp", "disable", "same", "--profile", "test"]);
+  assert.notEqual(dupDisable.status, 0, "重复 serverName 不带 --id 必须拒绝");
+  assert.match(dupDisable.stderr, /--id/);
+  const dupDisableOne = run(["mcp", "disable", "same", "--id", "mcp-second", "--profile", "test"]);
+  assert.equal(dupDisableOne.status, 0, dupDisableOne.stderr);
+  const afterDup = await readFile(patchPath, "utf8");
+  const dupParts = afterDup.split("- id: mcp-second");
+  assert.equal(dupParts[0].includes("disabled: true"), false, "不能改到另一行");
+  assert.equal(dupParts[1].includes("disabled: true"), true, "要改到 --id 指定的那一行");
+  pass("dsh-panel mcp --id addresses rows when serverName is duplicated");
+
   const version = run(["--version"]);
   assert.equal(version.status, 0, version.stderr);
   // 版本号从 package.json 读，避免每次发版都要改测试（旧写法硬编码 2.0.x）。

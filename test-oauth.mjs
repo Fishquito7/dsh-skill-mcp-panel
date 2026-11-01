@@ -44,8 +44,10 @@ async function test(name, fn) {
 /** 发现顺序用例的轻量 fixture：按 pathname 路由，404 返回 HTML，便于覆盖 JSON 解析失败。 */
 async function startDiscoveryFixture(routes) {
   let origin;
+  const requests = [];
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
+    requests.push(url.pathname);
     const handler = routes[url.pathname];
     if (handler === undefined) {
       response.writeHead(404, { "content-type": "text/html; charset=utf-8" });
@@ -61,6 +63,7 @@ async function startDiscoveryFixture(routes) {
   origin = "http://127.0.0.1:" + server.address().port;
   return {
     origin,
+    requests,
     close: () =>
       new Promise((resolve) => {
         server.closeAllConnections?.();
@@ -215,7 +218,7 @@ try {
   await new Promise((resolve) => idp.close(resolve));
 }
 
-// ── 发现顺序：带路径端点与 RFC 9728 PRM（Phase 1 先行红用例） ─────────────
+// ── 发现顺序：路径形态 PRM 优先，兼容根形态与旧行为 ───────────────────────
 await test("discovers root AS metadata for a pathed endpoint", async () => {
   const fx = await startDiscoveryFixture({
     "/.well-known/oauth-authorization-server": (_url, origin) => ({
@@ -243,8 +246,56 @@ await test("discovers AS metadata through RFC 9728 PRM", async () => {
     })
   });
   try {
-    const metadata = await discoverMetadata(fx.origin + "/sse");
-    assert.equal(metadata?.token_endpoint, fx.origin + "/as/token");
+    const result = await discoverMetadataDetailed(fx.origin + "/sse");
+    assert.equal(result.metadata?.token_endpoint, fx.origin + "/as/token");
+    assert.equal(result.resource, fx.origin + "/sse");
+  } finally {
+    await fx.close();
+  }
+});
+
+await test("hits the RFC 9728 path-form PRM first for a pathed endpoint", async () => {
+  const fx = await startDiscoveryFixture({
+    "/.well-known/oauth-protected-resource/mcp": (_url, origin) => ({
+      resource: origin + "/mcp",
+      authorization_servers: [origin]
+    }),
+    "/.well-known/oauth-authorization-server": (_url, origin) => ({
+      issuer: origin,
+      token_endpoint: origin + "/token"
+    })
+  });
+  try {
+    const result = await discoverMetadataDetailed(fx.origin + "/mcp");
+    assert.equal(fx.requests[0], "/.well-known/oauth-protected-resource/mcp", "第一个请求必须是路径形态 PRM");
+    assert.equal(result.metadata?.token_endpoint, fx.origin + "/token");
+    assert.equal(result.resource, fx.origin + "/mcp");
+    const prm = result.attempts.find((attempt) => attempt.url === fx.origin + "/.well-known/oauth-protected-resource/mcp");
+    assert.equal(prm?.kind, "prm", "PRM 用 kind 记录，不占用 reason");
+    assert.equal(prm?.reason, undefined, "成功的 PRM 不能写 reason");
+    assert.match(prm?.note ?? "", /采用 PRM 的 resource/);
+  } finally {
+    await fx.close();
+  }
+});
+
+await test("still discovers an origin-root AS for a pathed endpoint", async () => {
+  const fx = await startDiscoveryFixture({
+    "/.well-known/oauth-authorization-server": (_url, origin) => ({
+      issuer: origin,
+      token_endpoint: origin + "/token"
+    })
+  });
+  try {
+    const result = await discoverMetadataDetailed(fx.origin + "/mcp");
+    assert.equal(result.metadata?.token_endpoint, fx.origin + "/token");
+    assert.equal(result.resource, undefined, "没有 PRM 时 resource 交给调用方兜底");
+    assert.deepEqual(fx.requests, [
+      "/.well-known/oauth-protected-resource/mcp",
+      "/.well-known/oauth-protected-resource",
+      "/.well-known/oauth-authorization-server/mcp",
+      "/.well-known/oauth-authorization-server"
+    ]);
   } finally {
     await fx.close();
   }
@@ -260,9 +311,35 @@ await test("falls back to the legacy well-known path", async () => {
   try {
     const result = await discoverMetadataDetailed(fx.origin + "/mcp");
     assert.equal(result.metadata?.token_endpoint, fx.origin + "/token");
-    assert.equal(result.attempts.length, 5);
-    assert.equal(result.attempts[4].url, fx.origin + "/mcp/.well-known/oauth-authorization-server");
-    assert.equal(result.attempts[4].reason, undefined);
+    // 第 7 个候选命中即返回，所以只记录了 7 次尝试（候选总数为 8，见 dedupe 用例）。
+    assert.equal(result.attempts.length, 7);
+    assert.equal(result.attempts[6].url, fx.origin + "/mcp/.well-known/oauth-authorization-server");
+    assert.equal(result.attempts[6].status, 200);
+    assert.equal(result.attempts[6].reason, undefined);
+  } finally {
+    await fx.close();
+  }
+});
+
+await test("finds a legacy endpoint-path AS document when standard candidates 404", async () => {
+  const fx = await startDiscoveryFixture({
+    "/v1/mcp/.well-known/oauth-authorization-server": (_url, origin) => ({
+      issuer: origin,
+      token_endpoint: origin + "/token"
+    })
+  });
+  try {
+    const result = await discoverMetadataDetailed(fx.origin + "/v1/mcp");
+    const legacyUrl = fx.origin + "/v1/mcp/.well-known/oauth-authorization-server";
+    assert.equal(result.metadata?.token_endpoint, fx.origin + "/token");
+    assert.ok(
+      result.attempts.some((attempt) => attempt.url === legacyUrl),
+      "legacy URL 必须出现在 attempts 里"
+    );
+    const successes = result.attempts.filter((attempt) => attempt.status === 200);
+    assert.equal(successes.length, 1);
+    assert.equal(successes[0].url, legacyUrl, "成功的必须是 legacy URL");
+    assert.equal(successes[0].reason, undefined);
   } finally {
     await fx.close();
   }
@@ -273,11 +350,11 @@ await test("reports every attempted URL when all candidates 404", async () => {
   try {
     const result = await discoverMetadataDetailed(fx.origin + "/mcp");
     assert.equal(result.metadata, undefined);
-    assert.equal(result.attempts.length, 6);
+    assert.equal(result.attempts.length, 8);
     assert.ok(result.attempts.every((attempt) => attempt.status === 404 && attempt.reason === "HTTP 404"));
     const message = discoveryFailureMessage(result.attempts);
     assert.match(message, /已尝试：/);
-    assert.equal(message.split("\n").filter((line) => line.startsWith("- ")).length, 6);
+    assert.equal(message.split("\n").filter((line) => line.startsWith("- ")).length, 8);
     assert.match(message, /oauth-protected-resource\/mcp/);
   } finally {
     await fx.close();
@@ -291,9 +368,10 @@ await test("rejects metadata without token_endpoint", async () => {
   try {
     const result = await discoverMetadataDetailed(fx.origin);
     assert.equal(result.metadata, undefined);
-    assert.equal(result.attempts[0].url, fx.origin + "/.well-known/oauth-authorization-server");
-    assert.equal(result.attempts[0].status, 200);
-    assert.equal(result.attempts[0].reason, "缺少 token_endpoint");
+    assert.equal(result.attempts[0].url, fx.origin + "/.well-known/oauth-protected-resource");
+    assert.equal(result.attempts[1].url, fx.origin + "/.well-known/oauth-authorization-server");
+    assert.equal(result.attempts[1].status, 200);
+    assert.equal(result.attempts[1].reason, "缺少 token_endpoint");
   } finally {
     await fx.close();
   }
@@ -309,8 +387,9 @@ await test("rejects metadata whose issuer is on another origin", async () => {
   try {
     const result = await discoverMetadataDetailed(fx.origin + "/mcp");
     assert.equal(result.metadata, undefined);
-    assert.equal(result.attempts[4].status, 200);
-    assert.equal(result.attempts[4].reason, "issuer 与发现地址不一致");
+    const legacyAs = result.attempts.find((attempt) => attempt.url === fx.origin + "/mcp/.well-known/oauth-authorization-server");
+    assert.equal(legacyAs?.status, 200);
+    assert.equal(legacyAs?.reason, "issuer 与发现地址不一致");
   } finally {
     await fx.close();
   }
@@ -324,8 +403,9 @@ await test("records a per-request timeout", async () => {
   try {
     const result = await discoverMetadataDetailed(fx.origin, fetch, { timeoutMs: 50, budgetMs: 1000 });
     assert.equal(result.metadata, undefined);
-    assert.equal(result.attempts[0].status, undefined);
-    assert.equal(result.attempts[0].reason, "请求超时");
+    const timedOut = result.attempts.find((attempt) => attempt.url === fx.origin + "/.well-known/oauth-authorization-server");
+    assert.equal(timedOut?.status, undefined);
+    assert.equal(timedOut?.reason, "请求超时");
     assert.ok(Date.now() - startedAt < 2000);
   } finally {
     await fx.close();
@@ -342,13 +422,147 @@ await test("ignores non-http authorization_servers", async () => {
   try {
     const result = await discoverMetadataDetailed(fx.origin + "/sse");
     assert.equal(result.metadata, undefined);
+    assert.equal(result.resource, undefined);
     assert.ok(result.attempts.every((attempt) => !attempt.url.startsWith("file:")));
     const prm = result.attempts.find((attempt) => attempt.url.endsWith("/.well-known/oauth-protected-resource/sse"));
     assert.equal(prm?.status, 200);
-    assert.equal(prm?.reason, "是 PRM（authorization_servers）");
+    assert.equal(prm?.kind, "prm");
+    assert.equal(prm?.reason, "PRM 未找到可用的授权服务器元数据");
+    assert.match(prm?.note ?? "", /采用 PRM 的 resource/);
   } finally {
     await fx.close();
   }
+});
+
+await test("ignores a cross-origin PRM resource and records why", async () => {
+  const fx = await startDiscoveryFixture({
+    "/.well-known/oauth-protected-resource/mcp": (_url, origin) => ({
+      resource: "https://other.example/mcp",
+      authorization_servers: [origin]
+    }),
+    "/.well-known/oauth-authorization-server": (_url, origin) => ({
+      issuer: origin,
+      token_endpoint: origin + "/token"
+    })
+  });
+  try {
+    const result = await discoverMetadataDetailed(fx.origin + "/mcp");
+    assert.equal(result.metadata?.token_endpoint, fx.origin + "/token");
+    assert.equal(result.resource, undefined, "跨 origin 的 PRM resource 必须忽略");
+    const prm = result.attempts.find((attempt) => attempt.url === fx.origin + "/.well-known/oauth-protected-resource/mcp");
+    assert.equal(prm?.kind, "prm");
+    assert.match(prm?.note ?? "", /忽略 PRM 的 resource/);
+    assert.match(prm?.note ?? "", /不同源/);
+  } finally {
+    await fx.close();
+  }
+});
+
+await test("rejects PRM-driven AS metadata whose issuer path differs", async () => {
+  const fx = await startDiscoveryFixture({
+    "/.well-known/oauth-protected-resource/mcp": (_url, origin) => ({
+      authorization_servers: [origin + "/t1"]
+    }),
+    "/.well-known/oauth-authorization-server/t1": (_url, origin) => ({
+      issuer: origin + "/t2",
+      token_endpoint: origin + "/t2/token"
+    })
+  });
+  try {
+    const result = await discoverMetadataDetailed(fx.origin + "/mcp");
+    assert.equal(result.metadata, undefined);
+    const asAttempt = result.attempts.find((attempt) => attempt.url === fx.origin + "/.well-known/oauth-authorization-server/t1");
+    assert.equal(asAttempt?.status, 200);
+    assert.equal(asAttempt?.reason, "issuer 不匹配（期望 " + fx.origin + "/t1，实际 " + fx.origin + "/t2）");
+    const prm = result.attempts.find((attempt) => attempt.url === fx.origin + "/.well-known/oauth-protected-resource/mcp");
+    assert.equal(prm?.reason, "PRM 未找到可用的授权服务器元数据");
+  } finally {
+    await fx.close();
+  }
+});
+
+await test("accepts an exact issuer match ignoring a trailing slash", async () => {
+  const fx = await startDiscoveryFixture({
+    "/.well-known/oauth-protected-resource/mcp": (_url, origin) => ({
+      authorization_servers: [origin + "/t1/"]
+    }),
+    "/.well-known/oauth-authorization-server/t1": (_url, origin) => ({
+      issuer: origin + "/t1/",
+      token_endpoint: origin + "/token"
+    })
+  });
+  try {
+    const result = await discoverMetadataDetailed(fx.origin + "/mcp");
+    assert.equal(result.metadata?.token_endpoint, fx.origin + "/token");
+  } finally {
+    await fx.close();
+  }
+});
+
+await test("rejects metadata without issuer for PRM-driven discovery", async () => {
+  const fx = await startDiscoveryFixture({
+    "/.well-known/oauth-protected-resource/mcp": (_url, origin) => ({
+      authorization_servers: [origin + "/t1"]
+    }),
+    "/.well-known/oauth-authorization-server/t1": (_url, origin) => ({
+      token_endpoint: origin + "/token"
+    })
+  });
+  try {
+    const result = await discoverMetadataDetailed(fx.origin + "/mcp");
+    assert.equal(result.metadata, undefined);
+    const asAttempt = result.attempts.find((attempt) => attempt.url === fx.origin + "/.well-known/oauth-authorization-server/t1");
+    assert.equal(asAttempt?.status, 200);
+    assert.equal(asAttempt?.reason, "缺少 issuer（期望 " + fx.origin + "/t1）");
+  } finally {
+    await fx.close();
+  }
+});
+
+await test("accepts metadata without issuer for direct discovery", async () => {
+  const fx = await startDiscoveryFixture({
+    "/.well-known/oauth-authorization-server": (_url, origin) => ({
+      token_endpoint: origin + "/token"
+    })
+  });
+  try {
+    const result = await discoverMetadataDetailed(fx.origin);
+    assert.equal(result.metadata?.token_endpoint, fx.origin + "/token");
+    const asAttempt = result.attempts.find((attempt) => attempt.url === fx.origin + "/.well-known/oauth-authorization-server");
+    assert.equal(asAttempt?.status, 200);
+    assert.equal(asAttempt?.kind, "as");
+    assert.match(asAttempt?.note ?? "", /未声明 issuer/);
+  } finally {
+    await fx.close();
+  }
+});
+
+await test("never emits query-bearing discovery candidates", async () => {
+  const candidates = discoveryCandidates("https://h.example/mcp?tenant=a#frag");
+  assert.equal(candidates.length, 8);
+  assert.ok(candidates.every((url) => !url.includes("?") && !url.includes("#")));
+  assert.deepEqual(candidates, [
+    "https://h.example/.well-known/oauth-protected-resource/mcp",
+    "https://h.example/.well-known/oauth-protected-resource",
+    "https://h.example/.well-known/oauth-authorization-server/mcp",
+    "https://h.example/.well-known/oauth-authorization-server",
+    "https://h.example/.well-known/openid-configuration/mcp",
+    "https://h.example/.well-known/openid-configuration",
+    "https://h.example/mcp/.well-known/oauth-authorization-server",
+    "https://h.example/mcp/.well-known/openid-configuration"
+  ]);
+  const seen = [];
+  const result = await discoverMetadataDetailed(
+    "https://h.example/mcp?tenant=a",
+    async (url) => {
+      seen.push(url);
+      return { ok: false, status: 404, json: async () => ({}) };
+    },
+    { timeoutMs: 100, budgetMs: 2000 }
+  );
+  assert.equal(result.metadata, undefined);
+  assert.equal(seen.length, 8);
+  assert.ok(seen.every((url) => !url.includes("?")), "发出去的请求不能带配置里的 query");
 });
 
 await test("deduplicates candidates without a path", async () => {
@@ -357,13 +571,15 @@ await test("deduplicates candidates without a path", async () => {
   assert.equal(candidates.length, 3);
   assert.equal(new Set(candidates).size, 3);
   assert.deepEqual(candidates, [
+    origin + "/.well-known/oauth-protected-resource",
     origin + "/.well-known/oauth-authorization-server",
-    origin + "/.well-known/openid-configuration",
-    origin + "/.well-known/oauth-protected-resource"
+    origin + "/.well-known/openid-configuration"
   ]);
   const pathed = discoveryCandidates(origin + "/mcp");
-  assert.equal(pathed.length, 6);
-  assert.equal(new Set(pathed).size, 6);
+  assert.equal(pathed.length, 8);
+  assert.equal(new Set(pathed).size, 8);
+  assert.deepEqual(discoveryCandidates(origin + "/"), candidates, "path 为 / 时与空 path 一样去重");
+  assert.deepEqual(discoveryCandidates(origin + "/mcp/"), pathed, "结尾斜杠不影响候选");
 });
 
 await test("resolves a relative issuer from PRM", async () => {
@@ -380,6 +596,7 @@ await test("resolves a relative issuer from PRM", async () => {
   try {
     const result = await discoverMetadataDetailed(fx.origin + "/sse");
     assert.equal(result.metadata?.token_endpoint, fx.origin + "/as/token");
+    assert.equal(result.resource, fx.origin + "/sse");
   } finally {
     await fx.close();
   }

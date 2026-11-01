@@ -147,12 +147,44 @@ export class McpManagerGateway extends TypertRemoteService {
     return serverNameOfRow(row);
   }
 
-  /** 按 serverName 找唯一的 MCP 行。没有或多条都抛错。 */
-  findUnique(rows: PatchRow[], serverName: string): PatchRow {
-    const matches = rows.filter((row) => this.serverNameOf(row) === serverName);
-    if (matches.length === 0) throw new Error('MCP 行 "' + serverName + '" 不存在');
-    if (matches.length > 1) throw new Error('serverName "' + serverName + '" 对应多条 MCP 行，请先用原文编辑消掉重名');
-    return matches[0];
+  /**
+   * 按 payload 里的 serverName + entryId 定位唯一的 MCP 行。
+   *
+   * 同时给两个字段时按「都对上」匹配：文件里 id 重复（不同 serverName）或
+   * serverName 重复（不同 id）都能唯一定位到用户点的那一条；手写行没有 id
+   * 时只用 serverName。缺一个字段时退回单字段匹配，命中多条就报错。
+   */
+  resolveRow(rows: PatchRow[], ref: { serverName?: string; entryId?: string }): PatchRow {
+    const name = typeof ref.serverName === "string" && ref.serverName !== "" ? ref.serverName : undefined;
+    const entryId = typeof ref.entryId === "string" && ref.entryId !== "" ? ref.entryId : undefined;
+    const both = rows.filter(
+      (row) => (name === undefined || this.serverNameOf(row) === name) && (entryId === undefined || row.id === entryId)
+    );
+    if (both.length === 1) return both[0];
+    const label = name ?? entryId ?? "";
+    if (both.length > 1) {
+      throw new Error('MCP 行 "' + label + '" 在 cordis.patch.yml 里不唯一（id 或 serverName 重复）。'
+        + "请用原文按 id 逐条修正，让每一行的 id 和 config.serverName 都唯一");
+    }
+    if (name !== undefined) {
+      const byName = rows.filter((row) => this.serverNameOf(row) === name);
+      if (byName.length === 1) return byName[0];
+      if (byName.length > 1) {
+        throw new Error('serverName "' + name + '" 对应多条 MCP 行：请从卡片进入（面板会带上 entryId），'
+          + "或在 CLI 里加 --id <entryId>；也可以直接改 cordis.patch.yml 消掉重名");
+      }
+    }
+    if (entryId !== undefined) {
+      const byId = rows.filter((row) => row.id === entryId);
+      if (byId.length === 1) return byId[0];
+      if (byId.length > 1) throw new Error('id "' + entryId + '" 对应多条 MCP 行，请用原文按 id 逐条修正');
+    }
+    throw new Error('MCP 行 "' + label + '" 不存在');
+  }
+
+  /** 这一行的 patch-editor 定位器（id + serverName，缺 id 时只给 serverName）。 */
+  locatorOf(row: PatchRow): { id?: string; serverName?: string } {
+    return { id: typeof row.id === "string" ? row.id : undefined, serverName: this.serverNameOf(row) };
   }
 
   decorate(row: PatchRow, managed: boolean, entry: any, enabled: boolean) {
@@ -164,7 +196,8 @@ export class McpManagerGateway extends TypertRemoteService {
       enabled,
       managed,
       fiberPhase,
-      toolCount: enabled ? mcpToolCount(this.C, view.serverName) : 0
+      // 不按 enabled 归零：!!js 的 disabled 由宿主求值，行可能正在跑，显示真实工具数。
+      toolCount: mcpToolCount(this.C, view.serverName)
     });
   }
 
@@ -200,18 +233,22 @@ export class McpManagerGateway extends TypertRemoteService {
     const input = payload.input;
     const { managed, all } = await this.readRows();
     let previous: PatchRow | undefined;
-    if (payload.previousServerName !== undefined) {
-      previous = this.findUnique(all, payload.previousServerName);
+    if (payload.previousServerName !== undefined || payload.previousEntryId !== undefined) {
+      previous = this.resolveRow(all, { serverName: payload.previousServerName, entryId: payload.previousEntryId });
     } else {
       const same = all.filter((row) => this.serverNameOf(row) === input.serverName);
-      if (same.length > 1) throw new Error('serverName "' + input.serverName + '" 对应多条 MCP 行，请先用原文编辑消掉重名');
+      if (same.length > 1) {
+        throw new Error('serverName "' + input.serverName + '" 对应多条 MCP 行，可编辑的卡片带 entryId，请从卡片进入');
+      }
       previous = same[0];
     }
+    const previousName = previous !== undefined ? this.serverNameOf(previous) : undefined;
     for (const row of all) {
       if (row === previous) continue;
-      if (this.serverNameOf(row) === input.serverName) {
-        throw new Error('serverName "' + input.serverName + '" 已存在（' + String(row.id ?? "未命名行") + "）");
-      }
+      if (this.serverNameOf(row) !== input.serverName) continue;
+      // 编辑且没改名：文件里可能本来就有重名，允许保存（用 entryId 精确定位那一条）。
+      if (previous !== undefined && previousName === input.serverName) continue;
+      throw new Error('serverName "' + input.serverName + '" 已存在（' + String(row.id ?? "未命名行") + "）");
     }
     // !!js disabled 不是「未禁用」。卡片按停用展示，也不要等 loader 给出某个布尔值。
     const enabled = previous !== undefined ? rowEnabled(previous) : payload.enabled;
@@ -223,7 +260,7 @@ export class McpManagerGateway extends TypertRemoteService {
       nextRows.sort((a, b) => String(a.config?.serverName ?? "").localeCompare(String(b.config?.serverName ?? "")));
       await writeManagedRows(this.patchPath(), nextRows);
     } else {
-      await replaceMcpEntryWithRow(this.patchPath(), { id: previous.id, serverName: this.serverNameOf(previous) }, nextRow);
+      await replaceMcpEntryWithRow(this.patchPath(), this.locatorOf(previous), nextRow);
     }
 
     const reconciled = await reconcileToggle(this.C, nextRow.id, nextRow.disabled);
@@ -237,8 +274,8 @@ export class McpManagerGateway extends TypertRemoteService {
   async removeServer(rawPayload: unknown) {
     const payload = parseWirePayload(mcpRemovePayloadSchema, rawPayload, "删除参数无效");
     const { all } = await this.readRows();
-    const row = this.findUnique(all, payload.serverName);
-    await removeMcpEntry(this.patchPath(), { id: row.id, serverName: payload.serverName });
+    const row = this.resolveRow(all, { serverName: payload.serverName, entryId: payload.entryId });
+    await removeMcpEntry(this.patchPath(), this.locatorOf(row));
     const reconciled = typeof row.id === "string"
       ? await waitForLoaderState(this.C, row.id, (entry) => entry === undefined)
       : false;
@@ -248,16 +285,14 @@ export class McpManagerGateway extends TypertRemoteService {
   async setEnabled(rawPayload: unknown) {
     const payload = parseWirePayload(mcpSetEnabledPayloadSchema, rawPayload, "启用参数无效");
     const { all } = await this.readRows();
-    const row = this.findUnique(all, payload.serverName);
-    if (typeof row.id !== "string" || row.id === "") throw new Error('MCP 行 "' + payload.serverName + '" 没有 id，无法就地开关；请用原文编辑补上 id');
-    await setEntryDisabled(this.patchPath(), row.id, !payload.enabled);
-    const reconciled = payload.enabled
-      ? await waitForLoaderState(this.C, row.id, (entry) => entry !== undefined && entry.disabled !== true)
-      : await waitForLoaderState(this.C, row.id, (entry) => entry !== undefined && entry.disabled === true);
+    const row = this.resolveRow(all, { serverName: payload.serverName, entryId: payload.entryId });
+    // 没有 id 的手写行也能开关：disabled 键按这一条自己的缩进插入/删除。
+    await setEntryDisabled(this.patchPath(), this.locatorOf(row), !payload.enabled);
     const nextRow: PatchRow = { ...row };
     if (payload.enabled) delete nextRow.disabled;
     else nextRow.disabled = true;
-    const entry = getLoaderEntry(this.C, row.id);
+    const reconciled = await reconcileToggle(this.C, row.id, nextRow.disabled);
+    const entry = typeof row.id === "string" ? getLoaderEntry(this.C, row.id) : undefined;
     const server = this.decorate(nextRow, true, entry, payload.enabled);
     if (server === undefined) throw new Error("写入成功但生成的 MCP 行无效");
     return { server, reconciled };
@@ -267,11 +302,11 @@ export class McpManagerGateway extends TypertRemoteService {
   async readRaw(rawPayload: unknown) {
     const payload = parseWirePayload(mcpRawReadPayloadSchema, rawPayload, "原文参数无效");
     const { raw, all } = await this.readRows();
-    const row = this.findUnique(all, payload.serverName);
+    const row = this.resolveRow(all, { serverName: payload.serverName, entryId: payload.entryId });
     return {
-      serverName: payload.serverName,
-      entryId: typeof row.id === "string" ? row.id : "",
-      text: readMcpEntryText(raw, { id: row.id, serverName: payload.serverName })
+      serverName: this.serverNameOf(row) ?? payload.serverName,
+      ...(typeof row.id === "string" ? { entryId: row.id } : {}),
+      text: readMcpEntryText(raw, this.locatorOf(row))
     };
   }
 
@@ -279,8 +314,8 @@ export class McpManagerGateway extends TypertRemoteService {
   async writeRaw(rawPayload: unknown) {
     const payload = parseWirePayload(mcpRawWritePayloadSchema, rawPayload, "原文参数无效");
     const { all } = await this.readRows();
-    const previous = this.findUnique(all, payload.serverName);
-    const written = await replaceMcpEntryText(this.patchPath(), { id: previous.id, serverName: payload.serverName }, payload.text);
+    const previous = this.resolveRow(all, { serverName: payload.serverName, entryId: payload.entryId });
+    const written = await replaceMcpEntryText(this.patchPath(), this.locatorOf(previous), payload.text);
     const enabled = rowEnabled(written.row);
     const reconciled = await reconcileToggle(this.C, written.row.id, written.row.disabled);
     const entry = typeof written.row.id === "string" ? getLoaderEntry(this.C, written.row.id) : undefined;
@@ -293,7 +328,8 @@ export class McpManagerGateway extends TypertRemoteService {
     const payload = parseWirePayload(mcpTestPayloadSchema, rawPayload, "测试参数无效");
     if (payload !== null && typeof payload === "object" && !("transport" in payload) && "serverName" in payload) {
       const { all } = await this.readRows();
-      const row = this.findUnique(all, String(payload.serverName));
+      const entryId = typeof (payload as any).entryId === "string" ? String((payload as any).entryId) : undefined;
+      const row = this.resolveRow(all, { serverName: String(payload.serverName), entryId });
       return probeMcpServer(this.configInputFromRow(row));
     }
     return probeMcpServer(payload);
@@ -381,7 +417,7 @@ export class McpManagerGateway extends TypertRemoteService {
   /** 把 Authorization 头写进那一行（其它 header、未建模字段、所在位置都保留）。 */
   async writeAuthHeader(serverName: string, value: string | undefined) {
     const { all } = await this.readRows();
-    const row = this.findUnique(all, serverName);
+    const row = this.resolveRow(all, { serverName });
     const config: any = { ...(row.config ?? {}) };
     const headers = config.headers !== null && typeof config.headers === "object" && !Array.isArray(config.headers) ? { ...config.headers } : {};
     if (value === undefined) delete headers.Authorization;
@@ -389,7 +425,7 @@ export class McpManagerGateway extends TypertRemoteService {
     const nextConfig = { ...config };
     if (Object.keys(headers).length === 0) delete nextConfig.headers;
     else nextConfig.headers = headers;
-    await replaceMcpEntryWithRow(this.patchPath(), { id: row.id, serverName }, { ...row, config: nextConfig });
+    await replaceMcpEntryWithRow(this.patchPath(), this.locatorOf(row), { ...row, config: nextConfig });
   }
 
   /**
@@ -399,15 +435,18 @@ export class McpManagerGateway extends TypertRemoteService {
   async oauthStart(rawPayload: unknown) {
     const payload = parseWirePayload(mcpOAuthStartPayloadSchema, rawPayload, "OAuth 参数无效");
     const { all } = await this.readRows();
-    const row = this.managedRow(all, payload.serverName);
+    const row = this.resolveRow(all, { serverName: payload.serverName });
     if (row === undefined) throw new Error('MCP 行 "' + payload.serverName + '" 不存在');
     const config: any = row.config ?? {};
     if (config.transport !== "streamable-http" || typeof config.url !== "string" || config.url === "") {
       throw new Error("只有 streamable-http 的服务器能用 OAuth 登录（stdio 由本地进程自己管凭据）");
     }
-    const { metadata, attempts } = await discoverMetadataDetailed(config.url);
-    if (metadata === undefined) throw new Error(discoveryFailureMessage(attempts));
-    const serverUrl = normalizeServerUrl(config.url);
+    const discovery: any = await discoverMetadataDetailed(config.url);
+    const metadata = discovery.metadata;
+    if (metadata === undefined) throw new Error(discoveryFailureMessage(discovery.attempts));
+    const configuredUrl = normalizeServerUrl(config.url);
+    // PRM 声明的 resource 优先（同源才被 oauth.ts 接受）；没有就用配置里的 endpoint。
+    const serverUrl = typeof discovery.resource === "string" && discovery.resource !== "" ? discovery.resource : configuredUrl;
     const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     const { verifier, challenge } = createPkce();
     const timeoutMs = Math.max(30, Math.min(900, Number(payload.timeoutSeconds ?? 300))) * 1000;

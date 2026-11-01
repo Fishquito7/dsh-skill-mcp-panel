@@ -127,7 +127,7 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 确需在老宿主上使用，用宿主打印的精确版本豁免：
 
 ```bash
-dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.5 --dsh-version <宿主版本> --accept-risk
+dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.6 --dsh-version <宿主版本> --accept-risk
 ```
 
 ## 命令行
@@ -173,12 +173,13 @@ dsh-panel skill delete <name>                         # 删除（需确认）
 ### MCP 子命令
 
 ```bash
-dsh-panel mcp list --profile web
+dsh-panel mcp list [--ids] --profile web
 dsh-panel mcp add --name <serverName> --stdio --command <cmd> [--args <arg> ...] [--env KEY=VALUE ...] [--cwd <path>] --profile web
 dsh-panel mcp add --name <serverName> --http --url <url> [--header KEY=VALUE ...] --profile web
-dsh-panel mcp enable|disable <serverName> --profile web
-dsh-panel mcp remove <serverName> [--yes] --profile web
-dsh-panel mcp test <serverName> --profile web
+dsh-panel mcp enable|disable <serverName> [--id <entryId>] --profile web
+dsh-panel mcp remove <serverName> [--id <entryId>] [--yes] --profile web
+dsh-panel mcp raw <serverName> [--id <entryId>] [--set <file>] --profile web
+dsh-panel mcp test <serverName> [--id <entryId>] --profile web
 ```
 
 环境变量取值直接写 `${NAME}`（保存时格式化成 `cordis.patch.yml` 的 `!!js` 表达式，由 DSH 装载时求值）；以 `!!js` 开头的值按进阶写法原样透传：
@@ -204,8 +205,13 @@ dsh-panel mcp add --name web --http --url https://example.com/mcp \
 ```
 
 新建的 MCP 服务器写入目标 profile 的 `cordis.patch.yml` 受管块；已经写在文件里的每一条
-`@deepseek-ai/dsh-mcp-client`（含手写行）都能 `enable` / `disable` / `remove`，也能用
-`dsh-panel mcp raw` 打印或 `--set` 替换这一条的原文。网关在线时自动热加载。受管块由
+`@deepseek-ai/dsh-mcp-client`（含手写行，**有没有 `id` 都行**）都能 `enable` / `disable` / `remove`，也能用
+`dsh-panel mcp raw` 打印或 `--set` 替换这一条的原文。原文只能改这一条的内容，缩进和位置不能变
+（受管块 `insert` 成员不能改成顶层条目），条目后面属于别的行的注释也不会被带走。网关在线时自动热加载。
+
+同名的两条（`serverName` 重复）不能直接按名字操作：`dsh-panel mcp list --ids` 会打出每条的 `entryId`，
+加上 `--id <entryId>` 就能精确操作其中一条，再用 `raw --set` 把其中一个 `serverName` 改掉即可。
+文件里原本就有重名时面板不会拒绝保存，只拒绝**新增**重名。受管块由
 `# >>> dsh-skill-mcp-panel:mcp:begin` / `# <<< ...end` 标记；块里**不是** MCP 的行请勿手改语义。
 
 ### 更新插件
@@ -244,7 +250,7 @@ CLI 只扫描当前目录锚定的项目根与用户根；管理其他工作区�
 
 负责维护 profile 的 `cordis.patch.yml` 里每一条 `@deepseek-ai/dsh-mcp-client`；真正连接和注册工具的是 DSH 官方插件 @deepseek-ai/dsh-mcp-client，由 DSH 的 HMR 自动加载。
 
-OAuth 发现按「RFC 8414 → OIDC → RFC 9728 PRM（根 / 路径变体）→ 旧行为兜底」的顺序尝试；命中 PRM 后再解析 `authorization_servers[]`。授权 URL 与 token 请求都带 RFC 8707 的 `resource`（取 MCP 端点 URL），兼容 Ardot 的 `invalid_target` 校验。失败时错误会列出已尝试的 URL 与每条的原因（404 / 超时 / issuer 不匹配），不再是笼统的「没有暴露发现文档」。
+OAuth 发现按「RFC 9728 路径形态 PRM → 根 PRM → RFC 8414 插入式 AS → 根 AS → OIDC → 旧行为兜底」的顺序尝试，带路径的端点共 8 个候选（只有 origin 时去重为 3 个）；命中 PRM 后再解析 `authorization_servers[]`，并用 PRM 声明的 issuer 精确校验 AS 元数据。授权 URL 与 token 请求都带 RFC 8707 的 `resource`（优先 PRM 声明的同源值，否则取 MCP 端点 URL），兼容 Ardot 的 `invalid_target` 校验。失败时错误会列出已尝试的 URL 与每条的原因（404 / 超时 / issuer 不匹配），不再是笼统的「没有暴露发现文档」。
 
 ## 开发
 
@@ -262,7 +268,7 @@ dsh plugin --profile web remove dsh-skill-mcp-panel
 
 只列**会改变使用方式**的版本要点；完整改动见 [Releases](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)。
 
-- **未发布（#67）** —— MCP 页接管 `cordis.patch.yml` 里的**全部** `@deepseek-ai/dsh-mcp-client` 行：启停、表单编辑、删除、OAuth 不再区分受管块和 `panel-mcp-*`。表单继续管常规字段，并保留还没建模的键（例如 `maxInstructionBytes`）以及已有的 `!!js` `disabled`（这种行显示为停用，保存和原文写回不等待宿主把表达式收成布尔值）；卡片上的 **原文**（CLI：`dsh-panel mcp raw`）按字节改这一条。已有配置不用迁移。非 MCP 的外来行仍按 ADR-0003 原样保留。见 ADR-0006
+- **v2.3.6（未发布）** —— MCP 页接管 `cordis.patch.yml` 里的**全部** `@deepseek-ai/dsh-mcp-client` 行（#67 / PR #70）：启停、表单编辑、删除、OAuth 不再区分受管块和 `panel-mcp-*`。表单继续管常规字段，并保留还没建模的键（例如 `maxInstructionBytes`）以及已有的 `disabled`；卡片上的 **原文**（CLI：`dsh-panel mcp raw`）按字节改这一条。已有配置不用迁移，非 MCP 的外来行仍按 ADR-0003 原样保留。合并后实测又补了几处：**没有 `id` 的手写行也能启停**（按这一行自己的缩进插 `disabled`，表单保存也不会给它补 id）；`!!js` 的 `disabled` 由宿主求值，卡片标「由表达式控制」并禁用开关，不再给一个点了必然报错的开关；删掉受管块最后一行时 begin/end 标记会成对收掉、块外内容不再被卷进去；条目后面的注释不会被表单保存或删除吞掉；CRLF 文件不再被掺进 LF 行；**重复 `id` / 重复 `serverName` 不再改错行**——所有操作按 `serverName` + `entryId` 双键定位，CLI 新增 `--id <entryId>` 与 `list --ids`，重名文件可以用原文逐条改回来，面板只拒绝**新增**重名；原文编辑不许改缩进/位置（`insert` 成员不能变顶层条目）。OAuth 发现顺序（PR #72）改成 RFC 9728 路径形式优先、PRM 声明的 `resource` 同源才采用，PRM 驱动的 issuer 必须精确匹配；见 ADR-0007
 - **v2.3.5** —— 修 **禁用任一 MCP 工具后宿主卡死（#59 / #62）**。根因在我们自己的监听器：宿主的 `ScopedLayers.effect()` 在限制生效后**和撤销时**都会同步广播 `tools/change`，而插件既监听这个事件、又在回调里 `undo()` / `restrict()`，等于自己触发自己——同步无限递归，爆栈抛出的 `RangeError` 又被空 `catch` 吞掉，进程不崩、只是主线程持续 100% 烧 CPU。用宿主真实的 `@deepseek-ai/dsh-scope` 复现：一次事件放大成 **887 次 `restrict` / 1774 次 `view` / 递归 458 层**。现在 `tools/change` 只由控制器统一监听并带重入守卫，每个插件的 `sync()` 只在**禁用集合真的变化**时才撤销重施（集合没变就只多一次 `view`），挂载途中的 agent 用 `mounting` 挡住；原本静默的 `catch` 全部接上 logger，这类故障以后至少留得下日志；顺便修了同一 issue 里「显示插件技能」复选框不记忆的问题（现在勾选状态记在浏览器里）
 - **v2.3.4** —— 修「打开目录」只弹出「文档」的那个 bug（2.3.3 的回归）。Windows 的 `explorer.exe` 不认正斜杠：面板把技能根路径规范化成了 `C:/Users/.../.dsh/skills`，explorer 收到这种参数会当成无效目标、默默打开自己的默认位置，于是点哪个工作区都只看到「文档」。现在宿主先把路径换成本机分隔符再交给系统，提示条里显示的也是同一份路径，复制出来直接能粘进资源管理器；顺手修了两个边界：盘符根 `C:/` 不再被裁成 `C:`，末尾多余的 `\` 会收敛掉。界面预览换成新版截图（三栏 / 简洁两种布局各一张）
 - **v2.3.3** —— 技能页新增 **「三栏 / 简洁」布局开关**（#50）：简洁模式收起左右两栏，工作区变成折叠式下拉、分组变成横排 chip，技能一行两个，想回到旧版那种清爽的单栏就点工具栏最右那个按钮（选择记在浏览器里）。MCP 页那条「受管块里有外来行」的提醒现在能真正解决：**[移出受管块]** 把不属于面板的行原样搬到标记之外（语义不变），**[查看机制]** 说明它为什么会在块里、留在块里为什么没有影响；**「打开目录」修好了，而且真的会弹出资源管理器**（宿主侧调用系统文件管理器；技能根还不存在时会先建出来）。侧栏入口标签改为 `Skill / MCP`。另合并两条社区 PR：`@deepseek-ai/cordis` 移到 peerDependencies（dshmarket 不再报 shared-host-package-dependency）、落在受管块外的面板行标成「受管块外」

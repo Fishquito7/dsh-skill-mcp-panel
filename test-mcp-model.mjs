@@ -269,5 +269,40 @@ for (const text of ["Bearer ${MCP_TOKEN}", "${A}", "C:/projects/${NAME}/bin"]) {
   assert.equal(formatWireScalar(parseWireScalar(text)), text, "round-trip failed for " + text);
 }
 pass("${NAME} values survive a display round-trip");
+
+// 18. 非布尔 disabled：显示为停用，但表单保存必须原样保留（不能悄悄变回启用）
+const plainInput = (serverName, command) => mcpServerInputSchema.parse({ serverName, transport: "stdio", command });
+const stringDisabledRow = {
+  id: "mcp-x",
+  name: "@deepseek-ai/dsh-mcp-client",
+  disabled: "true",
+  config: { serverName: "x", transport: "stdio", command: "node" }
+};
+assert.equal(rowEnabled(stringDisabledRow), false, "手写 disabled 值按停用展示");
+assert.equal(patchRowToView(stringDisabledRow).disabledExpr, false, "只有 !!js 才标记为表达式");
+const stringEdited = applyServerEdit(stringDisabledRow, plainInput("x", "node2"), true);
+assert.equal(stringEdited.disabled, "true", "非布尔 disabled 不能被表单保存丢掉");
+pass("non-boolean disabled is shown as stopped but preserved");
+
+// 19. 手写行没有 id：表单保存不得凭空补 panel-mcp-* id
+const noIdRow = {
+  name: "@deepseek-ai/dsh-mcp-client",
+  config: { serverName: "hand", transport: "stdio", command: "node" }
+};
+const noIdEdited = applyServerEdit(noIdRow, plainInput("hand", "node2"), true);
+assert.equal(noIdEdited.id, undefined, "没有 id 的行保存后仍然没有 id");
+assert.equal(noIdEdited.config.command, "node2");
+pass("a row without an id does not gain one on form save");
+
+// 20. !!js disabled 在视图里标记出来，界面据此禁用开关
+const jsFlag = patchRowToView({
+  id: "r",
+  name: "@deepseek-ai/dsh-mcp-client",
+  disabled: { __jsExpr: "process.env.OFF === '1'" },
+  config: { serverName: "r", transport: "stdio", command: "node" }
+});
+assert.equal(jsFlag.disabledExpr, true);
+assert.equal(jsFlag.enabled, false);
+pass("!!js disabled is exposed as disabledExpr for the UI");
 console.log("\n" + passed + " passed, 0 failed");
 console.log("ALL MCP MODEL TESTS PASSED");

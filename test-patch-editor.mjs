@@ -350,17 +350,19 @@ pass("mixed insert entries stay untouched and are reported");
     "      TOKEN: !!js '`${process.env.TOKEN}`'",
     ""
   ].join("\n");
-  const disabled = setEntryDisabledInText(original, "mcp-memory", true);
+  const disabled = setEntryDisabledInText(original, { id: "mcp-memory" }, true);
   assert.notEqual(disabled, original);
-  assert.match(disabled, /id: mcp-memory\n {2}disabled: true\n/);
+  // 启停不改写别的键，disabled 落在这一条最后一个键之后（没有 id 的行也能这么插）。
+  assert.match(disabled, /\n {2}disabled: true\n/);
+  assert.equal(disabled.indexOf("disabled: true") > disabled.indexOf("TOKEN: !!js"), true);
   assert.equal(disabled.includes("maxInstructionBytes: 8000"), true);
   assert.equal(disabled.includes("TOKEN: !!js"), true);
   assert.equal(disabled.includes("fontSize: 14"), true);
   assert.equal(disabled.includes("# hand-written"), true);
   assert.equal(disabled.includes("# user comment"), true);
-  const enabled = setEntryDisabledInText(disabled, "mcp-memory", false);
+  const enabled = setEntryDisabledInText(disabled, { id: "mcp-memory" }, false);
   assert.equal(enabled, original, "disable then enable must restore the file byte for byte");
-  assert.equal(setEntryDisabledInText(original, "mcp-memory", false), original);
+  assert.equal(setEntryDisabledInText(original, { id: "mcp-memory" }, false), original);
   pass("setEntryDisabledInText toggles one entry and round-trips byte for byte");
 }
 
@@ -371,7 +373,7 @@ await expectThrow("!!js disabled is refused", () => setEntryDisabledInText([
   "  config:",
   "    serverName: memory",
   ""
-].join("\n"), "mcp-memory", false), /!!js/);
+].join("\n"), { id: "mcp-memory" }, false), /!!js/);
 
 {
   const original = [
@@ -499,6 +501,176 @@ await expectThrow("!!js disabled is refused", () => setEntryDisabledInText([
   assert.equal(isJsExprValue(again.disabled), true);
   assert.equal(again.disabled.__jsExpr, "process.env.OFF === '1'");
   pass("form/oauth rewrite keeps a !!js disabled expression");
+}
+
+
+{
+  // #70 复测：条目后面的注释不能在表单保存 / 删除时被吞掉
+  const original = [
+    "- id: x",
+    "  name: '@deepseek-ai/dsh-mcp-client'",
+    "  config:",
+    "    serverName: x",
+    "    command: node",
+    "  # note about x",
+    "# NOTE: this belongs to z",
+    "- id: z",
+    "  name: '@deepseek-ai/dsh-mcp-client'",
+    "  config:",
+    "    serverName: z",
+    ""
+  ].join("\n");
+  const row = listMcpPatchRows(original)[0];
+  row.config.command = "node2";
+  const replaced = replaceMcpEntryWithRowInText(original, { id: "x" }, row);
+  assert.equal(replaced.includes("# note about x"), true, "被编辑行后面的缩进注释必须留下");
+  assert.equal(replaced.includes("# NOTE: this belongs to z"), true, "下一行的说明注释必须留下");
+  assert.equal(replaced.includes("command: node2"), true);
+  await validatePatchText(replaced);
+  const removed = removeMcpEntryInText(original, { id: "x" });
+  assert.equal(removed.includes("# note about x"), true);
+  assert.equal(removed.includes("# NOTE: this belongs to z"), true);
+  assert.match(removed, /id: z/);
+  await validatePatchText(removed);
+  pass("comments after an entry survive form save and delete");
+}
+
+{
+  // #70 复测：删掉受管块最后一行时，标记必须成对消失，块内注释保留，块外行留在块外
+  const original = [
+    "# head",
+    "- id: keep",
+    "  name: '@scope/other'",
+    "  config:",
+    "    a: 1",
+    "# >>> dsh-skill-mcp-panel:mcp:begin",
+    "- insert:",
+    "    - id: panel-mcp-only",
+    "      name: '@deepseek-ai/dsh-mcp-client'",
+    "      config:",
+    "        serverName: only",
+    "        transport: stdio",
+    "        command: node",
+    "    # 块内注释",
+    "# <<< dsh-skill-mcp-panel:mcp:end",
+    "",
+    "# 另一个插件",
+    "- id: other",
+    "  name: '@scope/other2'",
+    "  config:",
+    "    b: 2",
+    ""
+  ].join("\n");
+  const removed = removeMcpEntryInText(original, { id: "panel-mcp-only" });
+  assert.equal(removed.includes("# >>> dsh-skill-mcp-panel:mcp:begin"), false, "空块标记必须一起收掉");
+  assert.equal(removed.includes("# <<< dsh-skill-mcp-panel:mcp:end"), false);
+  assert.equal(removed.includes("# 块内注释"), true, "块内注释不能丢");
+  assert.match(removed, /id: other/);
+  assert.equal(removed.includes("id: keep"), true);
+  await validatePatchText(removed);
+  assert.equal(listMcpPatchRows(removed).length, 0);
+  pass("removing the last block row keeps begin/end balanced");
+}
+
+{
+  // 重复 id：必须按 serverName 唯一命中，不能改到第一行
+  const dup = [
+    "- id: dup",
+    "  name: '@deepseek-ai/dsh-mcp-client'",
+    "  config:",
+    "    serverName: aaa",
+    "    command: node",
+    "- id: dup",
+    "  name: '@deepseek-ai/dsh-mcp-client'",
+    "  config:",
+    "    serverName: bbb",
+    "    command: node",
+    ""
+  ].join("\n");
+  const toggled = setEntryDisabledInText(dup, { id: "dup", serverName: "bbb" }, true);
+  const parts = toggled.split("- id: dup");
+  assert.equal(parts.length, 3);
+  assert.equal(parts[1].includes("disabled: true"), false, "不能把 disabled 写到另一行");
+  assert.equal(parts[2].includes("disabled: true"), true, "要写到 serverName 匹配的那一行");
+  await validatePatchText(toggled);
+  pass("duplicate ids toggle the row identified by serverName");
+}
+
+{
+  // 没有 id 的手写行：能开关，且开关往返逐字节还原，不补 id
+  const noid = [
+    "# hand written",
+    "- name: '@deepseek-ai/dsh-mcp-client'",
+    "  config:",
+    "    serverName: hand",
+    "    transport: stdio",
+    "    command: node",
+    ""
+  ].join("\n");
+  const off = setEntryDisabledInText(noid, { serverName: "hand" }, true);
+  assert.match(off, /command: node\n {2}disabled: true\n/);
+  assert.equal(off.includes("id:"), false, "不得偷偷补一个 id");
+  const on = setEntryDisabledInText(off, { serverName: "hand" }, false);
+  assert.equal(on, noid, "没有 id 的行开关往返必须逐字节还原");
+  await validatePatchText(off);
+  pass("rows without an id can be toggled without gaining an id");
+}
+
+{
+  // 原文编辑不许改缩进/位置：块内 insert 成员不能变成顶层条目
+  const block = [
+    "# >>> dsh-skill-mcp-panel:mcp:begin",
+    "- insert:",
+    "    - id: panel-mcp-a",
+    "      name: '@deepseek-ai/dsh-mcp-client'",
+    "      config:",
+    "        serverName: a",
+    "        transport: stdio",
+    "# <<< dsh-skill-mcp-panel:mcp:end",
+    ""
+  ].join("\n");
+  await expectThrow(
+    "raw edit cannot move an entry out of the insert list",
+    () => replaceMcpEntryTextInText(block, { id: "panel-mcp-a" }, "- id: panel-mcp-a\n  name: '@deepseek-ai/dsh-mcp-client'\n  config:\n    serverName: a\n    transport: stdio\n"),
+    /位置/
+  );
+}
+
+{
+  // 原文编辑手写行：snippet 可以没有 id
+  const noid = [
+    "# hand written",
+    "- name: '@deepseek-ai/dsh-mcp-client'",
+    "  config:",
+    "    serverName: hand",
+    "    transport: stdio",
+    "    command: node",
+    ""
+  ].join("\n");
+  const next = replaceMcpEntryTextInText(noid, { serverName: "hand" }, "- name: '@deepseek-ai/dsh-mcp-client'\n  config:\n    serverName: hand\n    transport: stdio\n    command: node2\n");
+  assert.equal(next.raw.includes("command: node2"), true);
+  assert.equal(next.raw.includes("disabled: true"), false);
+  await validatePatchText(next.raw);
+  pass("raw edit accepts a snippet without an id");
+}
+
+{
+  // CRLF 文件：插入/重写必须沿用 CRLF，不能掺 LF 行
+  const crlf = [
+    "- id: mcp-x",
+    "  name: '@deepseek-ai/dsh-mcp-client'",
+    "  config:",
+    "    serverName: x",
+    "    transport: stdio",
+    "    command: node",
+    ""
+  ].join("\r\n");
+  const off = setEntryDisabledInText(crlf, { id: "mcp-x" }, true);
+  assert.equal(off.includes("  disabled: true\r\n"), true, "disabled 插入行必须用 CRLF");
+  assert.equal(off.split("\n").slice(0, -1).every((line) => line.endsWith("\r")), true, "整份文件不能出现裸 LF");
+  const on = setEntryDisabledInText(off, { id: "mcp-x" }, false);
+  assert.equal(on, crlf, "CRLF 文件开关往返必须逐字节还原");
+  pass("CRLF files keep CRLF when toggling");
 }
 
 console.log("\n" + passed + " passed, 0 failed");

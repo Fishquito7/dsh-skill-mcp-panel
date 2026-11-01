@@ -74,11 +74,42 @@ async function readRows(profile: string) {
   return { path, raw, managed, all, foreign };
 }
 
-function findUnique(rows: PatchRow[], serverName: string): PatchRow {
-  const matches = rows.filter((row) => rowServerName(row) === serverName);
-  if (matches.length === 0) throw new Error('MCP 服务器 "' + serverName + '" 不存在');
-  if (matches.length > 1) throw new Error('serverName "' + serverName + '" 对应多条 MCP 行，请先用 dsh-panel mcp raw 消掉重名');
-  return matches[0];
+/**
+ * 按 serverName + entryId 定位唯一一行。两个都给时按「都对上」匹配，文件里
+ * serverName 重复（不同 id）或 id 重复（不同 serverName）都能唯一定位；
+ * `--id` 可从 `dsh-panel mcp list --ids` 或卡片上拿到。
+ */
+function resolveRow(rows: PatchRow[], ref: { serverName?: string; entryId?: string }): PatchRow {
+  const name = typeof ref.serverName === "string" && ref.serverName !== "" ? ref.serverName : undefined;
+  const entryId = typeof ref.entryId === "string" && ref.entryId !== "" ? ref.entryId : undefined;
+  const label = name ?? entryId ?? "";
+  const matches = rows.filter(
+    (row) => (name === undefined || rowServerName(row) === name) && (entryId === undefined || row.id === entryId)
+  );
+  if (matches.length === 1) return matches[0];
+  if (matches.length > 1) {
+    throw new Error('MCP 行 "' + label + '" 在 cordis.patch.yml 里不唯一（id 或 serverName 重复）。'
+      + "请用 dsh-panel mcp raw --id <entryId> 按 id 逐条修正，让每一行的 id 和 config.serverName 都唯一");
+  }
+  if (name !== undefined) {
+    const byName = rows.filter((row) => rowServerName(row) === name);
+    if (byName.length === 1) return byName[0];
+    if (byName.length > 1) {
+      throw new Error('serverName "' + name + '" 对应多条 MCP 行：请加 --id <entryId>（entryId 见 dsh-panel mcp list --ids），'
+        + "或直接改 cordis.patch.yml 消掉重名");
+    }
+  }
+  if (entryId !== undefined) {
+    const byId = rows.filter((row) => row.id === entryId);
+    if (byId.length === 1) return byId[0];
+    if (byId.length > 1) throw new Error('id "' + entryId + '" 对应多条 MCP 行，请用原文按 id 逐条修正');
+  }
+  throw new Error('MCP 服务器 "' + label + '" 不存在');
+}
+
+/** 这一行的 patch-editor 定位器（id + serverName，缺 id 时只给 serverName）。 */
+function locatorOf(row: PatchRow): { id?: string; serverName?: string } {
+  return { id: typeof row.id === "string" ? row.id : undefined, serverName: rowServerName(row) };
 }
 
 /** 受管块里的非 MCP 外来行提示（这些行面板仍不改写，但必须让用户看见）。 */
@@ -94,12 +125,12 @@ function usage() {
     "  dsh-panel mcp list --profile <name>",
     "  dsh-panel mcp add --name <serverName> --stdio --command <cmd> [--args <arg> ...] [--env KEY=VALUE ...] [--cwd <path>] --profile <name>",
     "  dsh-panel mcp add --name <serverName> --http --url <url> [--header KEY=VALUE ...] --profile <name>",
-    "  dsh-panel mcp remove <serverName> [--yes] --profile <name>",
-    "  dsh-panel mcp enable <serverName> --profile <name>",
-    "  dsh-panel mcp disable <serverName> --profile <name>",
-    "  dsh-panel mcp raw <serverName> --profile <name>            打印这一条的原文 YAML",
-    "  dsh-panel mcp raw <serverName> --profile <name> --set <file>   用文件内容替换这一条",
-    "  dsh-panel mcp test <serverName> --profile <name>",
+    "  dsh-panel mcp remove <serverName> [--id <entryId>] [--yes] --profile <name>",
+    "  dsh-panel mcp enable <serverName> [--id <entryId>] --profile <name>",
+    "  dsh-panel mcp disable <serverName> [--id <entryId>] --profile <name>",
+    "  dsh-panel mcp raw <serverName> [--id <entryId>] --profile <name>            打印这一条的原文 YAML",
+    "  dsh-panel mcp raw <serverName> [--id <entryId>] --profile <name> --set <file>   用文件内容替换这一条",
+    "  dsh-panel mcp test <serverName> [--id <entryId>] --profile <name>",
     "  dsh-panel mcp oauth <serverName> --profile <name> [--scope \"a b\"] [--client-id ID] [--timeout <秒>] [--no-open]",
     "        给 streamable-http 的服务器做一次 OAuth 登录（授权码 + PKCE，回调落在本机 127.0.0.1）",
     "  dsh-panel mcp oauth <serverName> --profile <name> --disconnect   断开登录并清掉本地令牌",
@@ -110,6 +141,8 @@ function usage() {
     "                                      名字打错会被拒绝，绝不会新建 profile",
     "",
     "说明: 文件里每一条 @deepseek-ai/dsh-mcp-client 都能启停、删除、用原文改；",
+    "没有 id 的手写行也能启停（面板按这一条自己的缩进插 disabled）。",
+    "--id <entryId> 用于 serverName 重复时精确指定某一行（list --ids 能看到 entryId）。",
     "新建的服务器仍追加到受管块。网关在线时自动热加载。",
     "密钥参数可通过 --env/--header 重复传入；已配置密钥在编辑表单中留空保持不变。",
     "",
@@ -228,7 +261,7 @@ export async function runMcpCli(args: string[]): Promise<number> {
     return runSkillCli(["update", ...args.slice(1)]);
   }
 
-  const flags: any = { profile: undefined, yes: false, set: undefined };
+  const flags: any = { profile: undefined, yes: false, set: undefined, id: undefined };
   const positional: string[] = [];
   for (let i = 1; i < args.length; i++) {
     const arg = args[i];
@@ -237,6 +270,11 @@ export async function runMcpCli(args: string[]): Promise<number> {
       if (i >= args.length) throw new Error("--profile 需要一个配置名参数");
       flags.profile = args[i];
     } else if (arg === "--yes") flags.yes = true;
+    else if (arg === "--id") {
+      i += 1;
+      if (i >= args.length) throw new Error("--id 需要一个 entryId 参数");
+      flags.id = args[i];
+    } else if (arg === "--ids") flags.ids = true;
     else if (arg === "--set") {
       i += 1;
       if (i >= args.length) throw new Error("--set 需要一个文件路径");
@@ -268,7 +306,7 @@ export async function runMcpCli(args: string[]): Promise<number> {
       return 2;
     }
     const { all } = await readRows(profile.name);
-    const row = findUnique(all, name);
+    const row = resolveRow(all, { serverName: name, entryId: flags.id });
     const config: any = row.config ?? {};
     const dshHome = resolveDshHome();
     const flagValue = (flag: string) => {
@@ -283,7 +321,7 @@ export async function runMcpCli(args: string[]): Promise<number> {
       const nextConfig = { ...config };
       if (Object.keys(headers).length === 0) delete nextConfig.headers;
       else nextConfig.headers = headers;
-      await replaceMcpEntryWithRow(profilePatchPath(profile.name), { id: row.id, serverName: name }, { ...row, config: nextConfig });
+      await replaceMcpEntryWithRow(profilePatchPath(profile.name), locatorOf(row), { ...row, config: nextConfig });
       await removeOAuthRecord(dshHome, name);
       console.log('已断开 "' + name + '" 的 OAuth 登录（Authorization 头与本地令牌都清掉了）');
       return 0;
@@ -294,8 +332,11 @@ export async function runMcpCli(args: string[]): Promise<number> {
     }
     const timeoutMs = Number(flagValue("--timeout") ?? 300) * 1000;
     const serverUrl = normalizeServerUrl(config.url);
-    const { metadata, attempts } = await discoverMetadataDetailed(config.url);
-    if (metadata === undefined) throw new Error(discoveryFailureMessage(attempts));
+    const discovery: any = await discoverMetadataDetailed(config.url);
+    const metadata = discovery.metadata;
+    if (metadata === undefined) throw new Error(discoveryFailureMessage(discovery.attempts));
+    // PRM 声明的 resource 优先（同源才接受，见 oauth.ts）；没有就用配置里的 endpoint。
+    const resourceUrl = typeof discovery.resource === "string" && discovery.resource !== "" ? discovery.resource : serverUrl;
     const state = randomBytes(16).toString("base64url");
     const { verifier, challenge } = createPkce();
     const loopback = await startLoopbackServer(state, timeoutMs);
@@ -303,7 +344,7 @@ export async function runMcpCli(args: string[]): Promise<number> {
       const previous = (await loadOAuthStore(dshHome))[name];
       const clientId = flagValue("--client-id") ?? previous?.clientId ?? (await registerClient(metadata, loopback.redirectUri))?.client_id;
       if (typeof clientId !== "string" || clientId === "") throw new Error("拿不到 client_id：服务器既不支持动态注册，也没有用 --client-id 指定");
-      const authUrl = buildAuthorizationUrl(metadata, clientId, loopback.redirectUri, challenge, state, flagValue("--scope"), serverUrl);
+      const authUrl = buildAuthorizationUrl(metadata, clientId, loopback.redirectUri, challenge, state, flagValue("--scope"), resourceUrl);
       console.log("在浏览器里完成授权：" + authUrl);
       console.log("（回调地址 " + loopback.redirectUri + " 由本次命令监听，授权完成后自动继续；" + Math.round(timeoutMs / 1000) + " 秒内没完成就超时）");
       if (!args.includes("--no-open")) {
@@ -317,11 +358,11 @@ export async function runMcpCli(args: string[]): Promise<number> {
         }
       }
       const { code } = await loopback.waitForCode();
-      const tokens = await exchangeCode(metadata, clientId, code, verifier, loopback.redirectUri, serverUrl);
-      await saveOAuthRecord(dshHome, name, { ...tokens, clientId, serverUrl, tokenEndpoint: metadata.token_endpoint });
+      const tokens = await exchangeCode(metadata, clientId, code, verifier, loopback.redirectUri, resourceUrl);
+      await saveOAuthRecord(dshHome, name, { ...tokens, clientId, serverUrl: resourceUrl, tokenEndpoint: metadata.token_endpoint });
       const headers = config.headers !== null && typeof config.headers === "object" && !Array.isArray(config.headers) ? { ...config.headers } : {};
       headers.Authorization = authorizationHeader(tokens);
-      await replaceMcpEntryWithRow(profilePatchPath(profile.name), { id: row.id, serverName: name }, { ...row, config: { ...config, headers } });
+      await replaceMcpEntryWithRow(profilePatchPath(profile.name), locatorOf(row), { ...row, config: { ...config, headers } });
       console.log('已登录 "' + name + '"：Authorization 头已写入 profile，网关会热加载这一行');
       if (typeof tokens.expiresAt === "number") {
         console.log("令牌有效期到 " + new Date(tokens.expiresAt).toLocaleString() + "；过期后用 dsh-panel mcp oauth " + name + " --profile " + profile.name + " 重新登录（会自动复用已注册的客户端）");
@@ -357,7 +398,10 @@ export async function runMcpCli(args: string[]): Promise<number> {
     }
     for (const row of all) {
       const view = patchRowToView(row);
-      if (view !== undefined) console.log([view.enabled ? "启用" : "停用", view.serverName, view.transport, view.transport === "stdio" ? view.command : view.url].filter(Boolean).join("       "));
+      if (view === undefined) continue;
+      const cells = [view.enabled ? "启用" : "停用", view.serverName, view.transport, view.transport === "stdio" ? view.command : view.url];
+      if (flags.ids === true) cells.push(view.entryId ?? "(无 id)");
+      console.log(cells.filter(Boolean).join("       "));
     }
     if (hint !== undefined) console.log("提示：" + hint);
     return 0;
@@ -370,14 +414,14 @@ export async function runMcpCli(args: string[]): Promise<number> {
       return 2;
     }
     const { raw, all } = await readRows(flags.profile);
-    const row = findUnique(all, name);
+    const row = resolveRow(all, { serverName: name, entryId: flags.id });
     if (flags.set !== undefined) {
       const text = await readFile(resolve(flags.set), "utf8");
-      await replaceMcpEntryText(profilePatchPath(flags.profile), { id: row.id, serverName: name }, text);
+      await replaceMcpEntryText(profilePatchPath(flags.profile), locatorOf(row), text);
       console.log('已用原文更新 MCP 服务器 "' + name + '"');
       return 0;
     }
-    process.stdout.write(readMcpEntryText(raw, { id: row.id, serverName: name }));
+    process.stdout.write(readMcpEntryText(raw, locatorOf(row)));
     return 0;
   }
 
@@ -389,7 +433,7 @@ export async function runMcpCli(args: string[]): Promise<number> {
     }
     const { all, foreign } = await readRows(flags.profile);
     const writeHint = describeForeign(foreign);
-    const row = findUnique(all, name);
+    const row = resolveRow(all, { serverName: name, entryId: flags.id });
     if (command === "remove") {
       if (!flags.yes) {
         const ok = await confirm('确认删除 MCP 服务器 "' + name + '"？此操作不可恢复 (y/N): ');
@@ -398,13 +442,16 @@ export async function runMcpCli(args: string[]): Promise<number> {
           return 0;
         }
       }
-      await removeMcpEntry(profilePatchPath(flags.profile), { id: row.id, serverName: name });
+      await removeMcpEntry(profilePatchPath(flags.profile), locatorOf(row));
       console.log('已删除 MCP 服务器 "' + name + '"');
       if (writeHint !== undefined) console.log("提示：" + writeHint);
       return 0;
     }
-    if (typeof row.id !== "string" || row.id === "") throw new Error('"' + name + '" 没有 id，无法就地开关；请用 dsh-panel mcp raw 补上 id');
-    await setEntryDisabled(profilePatchPath(flags.profile), row.id, command === "disable");
+    // 没有 id 的手写行也能开关：disabled 键按这一条自己的缩进插入/删除。
+    const nextRow: PatchRow = { ...row };
+    if (command === "enable") delete nextRow.disabled;
+    else nextRow.disabled = true;
+    await setEntryDisabled(profilePatchPath(flags.profile), locatorOf(row), command === "disable");
     console.log('已' + (command === "enable" ? "启用" : "停用") + ' MCP 服务器 "' + name + '"');
     if (writeHint !== undefined) console.log("提示：" + writeHint);
     return 0;
@@ -417,7 +464,7 @@ export async function runMcpCli(args: string[]): Promise<number> {
       return 2;
     }
     const { all } = await readRows(flags.profile);
-    const row = findUnique(all, name);
+    const row = resolveRow(all, { serverName: name, entryId: flags.id });
     const result = await probeMcpServer(inputFromPatchRow(row));
     if (!result.ok) {
       console.error("连接失败：" + (result.error ?? "未知错误"));
