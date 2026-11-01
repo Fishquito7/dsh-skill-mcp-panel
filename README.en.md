@@ -122,7 +122,7 @@ The panel works exactly like the host's built-in Plugins page: a single **Skill 
 - **Server management** — **Stdio** and **HTTP** transports: add, edit, enable/disable, delete and test connections; saving is hot-reloaded by DSH HMR, no gateway restart. Every `@deepseek-ai/dsh-mcp-client` row can be operated on, inside or outside the managed block, whatever its id. The form edits ordinary fields and keeps ones it does not model yet; **Raw** edits that one entry byte for byte. Rows that are not MCP servers (including foreign rows inside the block) stay byte-for-byte untouched
 - **Secrets** — `env` / `headers` are redacted in the UI and in RPC, an omitted key keeps its old value, and `${NAME}` in a value reads that environment variable
 - **Disable individual tools** — turn tools off by name; a disabled tool disappears from the model-facing tool list instead of being merely refused at call time, so the context saving is real
-- **OAuth sign-in** — one click for a remote `streamable-http` server that supports it (authorization-server discovery, dynamic client registration, authorization code + PKCE); the token is written back into that row and hot-reloaded, and it can be disconnected at any time
+- **OAuth sign-in** — one click for a remote `streamable-http` server that supports it (RFC 8414 / OIDC / RFC 9728 discovery, dynamic client registration, authorization code + PKCE + RFC 8707 resource); the token is written back into that row and hot-reloaded, and it can be disconnected at any time
 
 ### DSH version compatibility
 

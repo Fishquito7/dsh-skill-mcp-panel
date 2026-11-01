@@ -118,7 +118,7 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 - **服务器管理** —— 支持 **Stdio** 与 **HTTP** 两种方式：新增、编辑、启停、删除、测试连接；保存后由 DSH HMR 热加载，不用重启网关。文件里每一条 `@deepseek-ai/dsh-mcp-client` 都能操作（不区分受管块内外，也不看 id 前缀）。表单改常规项并保留还没做成表单的字段；**原文**按字节改这一条。非 MCP 的行（含块内别人的条目）仍然逐字节保留
 - **密钥** —— `env` / `headers` 在页面与 RPC 里脱敏，编辑时留空即保留旧值；值里写 `${NAME}` 就是读该环境变量
 - **单工具禁用** —— 按工具名关掉其中一部分，被禁的工具会从模型看到的工具表里**消失**（不是调用时才拒绝），上下文立刻省下来
-- **OAuth 登录** —— 远程 `streamable-http` 服务器支持时一键登录（自动发现授权服务器、动态注册客户端、授权码 + PKCE），令牌写回该行配置并热加载；可随时断开
+- **OAuth 登录** —— 远程 `streamable-http` 服务器支持时一键登录（按 RFC 8414 / OIDC / RFC 9728 逐级发现授权服务器，兼容带路径端点；动态注册客户端、授权码 + PKCE + RFC 8707 resource），令牌写回该行配置并热加载；可随时断开
 
 ### DSH 版本兼容
 
@@ -243,6 +243,8 @@ CLI 只扫描当前目录锚定的项目根与用户根；管理其他工作区�
 ### MCP 部分
 
 负责维护 profile 的 `cordis.patch.yml` 里每一条 `@deepseek-ai/dsh-mcp-client`；真正连接和注册工具的是 DSH 官方插件 @deepseek-ai/dsh-mcp-client，由 DSH 的 HMR 自动加载。
+
+OAuth 发现按「RFC 8414 → OIDC → RFC 9728 PRM（根 / 路径变体）→ 旧行为兜底」的顺序尝试；命中 PRM 后再解析 `authorization_servers[]`。授权 URL 与 token 请求都带 RFC 8707 的 `resource`（取 MCP 端点 URL），兼容 Ardot 的 `invalid_target` 校验。失败时错误会列出已尝试的 URL 与每条的原因（404 / 超时 / issuer 不匹配），不再是笼统的「没有暴露发现文档」。
 
 ## 开发
 

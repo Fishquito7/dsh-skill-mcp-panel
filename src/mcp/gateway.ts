@@ -10,7 +10,8 @@ import {
   authorizationHeader,
   buildAuthorizationUrl,
   createPkce,
-  discoverMetadata,
+  discoverMetadataDetailed,
+  discoveryFailureMessage,
   exchangeCode,
   isExpired,
   loadOAuthStore,
@@ -404,8 +405,9 @@ export class McpManagerGateway extends TypertRemoteService {
     if (config.transport !== "streamable-http" || typeof config.url !== "string" || config.url === "") {
       throw new Error("只有 streamable-http 的服务器能用 OAuth 登录（stdio 由本地进程自己管凭据）");
     }
-    const metadata = await discoverMetadata(config.url);
-    if (metadata === undefined) throw new Error("这个地址没有暴露 OAuth 发现文档（/.well-known/oauth-authorization-server），无法自动登录");
+    const { metadata, attempts } = await discoverMetadataDetailed(config.url);
+    if (metadata === undefined) throw new Error(discoveryFailureMessage(attempts));
+    const serverUrl = normalizeServerUrl(config.url);
     const state = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
     const { verifier, challenge } = createPkce();
     const timeoutMs = Math.max(30, Math.min(900, Number(payload.timeoutSeconds ?? 300))) * 1000;
@@ -416,7 +418,7 @@ export class McpManagerGateway extends TypertRemoteService {
       await loopback.close();
       throw new Error("拿不到 client_id：服务器既不支持动态注册，也没有指定 clientId");
     }
-    const authUrl = buildAuthorizationUrl(metadata, clientId, loopback.redirectUri, challenge, state, payload.scope);
+    const authUrl = buildAuthorizationUrl(metadata, clientId, loopback.redirectUri, challenge, state, payload.scope, serverUrl);
     const flowId = Math.random().toString(36).slice(2) + Date.now().toString(36);
     const flow: any = {
       flowId,
@@ -426,7 +428,7 @@ export class McpManagerGateway extends TypertRemoteService {
       metadata,
       redirectUri: loopback.redirectUri,
       verifier,
-      url: normalizeServerUrl(config.url),
+      url: serverUrl,
       status: "pending",
       error: undefined,
       startedAt: Date.now(),
@@ -462,7 +464,7 @@ export class McpManagerGateway extends TypertRemoteService {
     }
     flow.status = "exchanging";
     try {
-      const tokens = await exchangeCode(flow.metadata, flow.clientId, flow.code, flow.verifier, flow.redirectUri);
+      const tokens = await exchangeCode(flow.metadata, flow.clientId, flow.code, flow.verifier, flow.redirectUri, flow.url);
       await saveOAuthRecord(this.dshHomeOf(), flow.serverName, {
         ...tokens,
         clientId: flow.clientId,
