@@ -30,7 +30,7 @@ const check = (label, fn) => {
   }
 };
 
-const source = readFileSync(new URL("./lib/client.js", import.meta.url), "utf8");
+const source = readFileSync(new URL("../lib/client.js", import.meta.url), "utf8");
 
 // ── 载入浏览器束（经典脚本，自带 window.__ModuleLoader__.load）──────────────
 let captured = null;
@@ -363,7 +363,7 @@ check("the merged panel icon is the shipped SVG, and tab/dark-theme styles survi
   assert.ok(iconRule.includes("center/contain no-repeat"), "mask must be sized to the row");
   // 图形必须与 assets/skill-mcp-icon.svg 里的路径逐条一致：换图标时两边一起改，别让 CSS 里留下旧图。
   const drawingPaths = (text) => (text.match(/d='([^']+)'|d="([^"]+)"/g) || []).map((item) => item.slice(3, -1));
-  const asset = readFileSync(new URL("./assets/skill-mcp-icon.svg", import.meta.url), "utf8");
+  const asset = readFileSync(new URL("../assets/skill-mcp-icon.svg", import.meta.url), "utf8");
   const fromAsset = drawingPaths(asset);
   assert.equal(fromAsset.length, 3, "the icon asset should carry three strokes");
   assert.deepEqual([...new Set(drawingPaths(iconRule))], fromAsset, "injected icon must match assets/skill-mcp-icon.svg");

@@ -15,7 +15,7 @@
  *      （只许带 mode/typeSymbol/create，不许再出现历史包袱 `schema`）。
  */
 import { readFileSync } from "node:fs";
-import { PANEL_MANIFEST } from "./lib/index.js";
+import { PANEL_MANIFEST } from "../lib/index.js";
 
 let failures = 0;
 const check = (label, cond) => {
@@ -79,7 +79,7 @@ check("contribution schemas 都是 create() 工厂", schemaEntries.every((entry)
 console.log("      contribution schemas=" + schemaEntries.length);
 
 // ── 3. 浏览器束里的字面量也必须同形 ─────────────────────────────────────
-const bundle = readFileSync(new URL("./lib/client.js", import.meta.url), "utf8");
+const bundle = readFileSync(new URL("../lib/client.js", import.meta.url), "utf8");
 const literals = [...bundle.matchAll(/mode:\s*"strict"/g)].length;
 check("浏览器束里存在 strict codec 字面量（不是空跑）", literals > 0);
 check("浏览器束里没有残留的 schema 字段写法", !/mode:\s*"strict"[\s\S]{0,80}?schema:/.test(bundle));

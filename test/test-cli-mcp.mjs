@@ -19,7 +19,7 @@ try {
   // CLI 靠这条在派发 dsh plugin 之前拒绝错名，所以夹具必须是真的 profile。
   await writeFile(join(profileDir, "package.json"), JSON.stringify({ name: "dsh-profile-test", private: true, dsh: { profile: { bundles: ["@deepseek-ai/dsh-base"] } } }, null, 2));
   await writeFile(join(profileDir, "cordis.patch.yml"), "[]\n");
-  const cli = fileURLToPath(new URL("./lib/cli.js", import.meta.url));
+  const cli = fileURLToPath(new URL("../lib/cli.js", import.meta.url));
   const run = (args) => spawnSync(process.execPath, [cli, ...args], {
     cwd: dir,
     env: { ...process.env, DSH_HOME: dir },
@@ -223,7 +223,7 @@ try {
   const version = run(["--version"]);
   assert.equal(version.status, 0, version.stderr);
   // 版本号从 package.json 读，避免每次发版都要改测试（旧写法硬编码 2.0.x）。
-  const declared = JSON.parse(await readFile(fileURLToPath(new URL("./package.json", import.meta.url)), "utf8")).version;
+  const declared = JSON.parse(await readFile(fileURLToPath(new URL("../package.json", import.meta.url)), "utf8")).version;
   assert.equal(version.stdout.trim(), "dsh-panel v" + declared);
   pass("dsh-panel --version reports package version");
 } finally {

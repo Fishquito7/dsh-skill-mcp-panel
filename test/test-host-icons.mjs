@@ -28,7 +28,7 @@ const check = (label, cond) => {
 	if (!cond) failures++;
 };
 
-const source = readFileSync(new URL("./lib/client.js", import.meta.url), "utf8");
+const source = readFileSync(new URL("../lib/client.js", import.meta.url), "utf8");
 
 // ── 1. 直连白名单 ─────────────────────────────────────────────────────────
 const DIRECT_ALLOW = new Set(["Menu"]);

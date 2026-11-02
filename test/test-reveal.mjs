@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { nativePath, revealCommand, revealInFileManager } from "./lib/reveal.js";
+import { nativePath, revealCommand, revealInFileManager } from "../lib/reveal.js";
 
 let passed = 0;
 function pass(name) {

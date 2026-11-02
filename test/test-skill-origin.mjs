@@ -3,7 +3,7 @@ import { Context } from "@deepseek-ai/cordis";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { PANEL_MANIFEST, SkillsViewerGateway } from "./lib/index.js";
+import { PANEL_MANIFEST, SkillsViewerGateway } from "../lib/index.js";
 
 let passed = 0;
 function pass(name) {

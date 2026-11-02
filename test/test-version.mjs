@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { compareVersions, fetchUpdateCheck } from "./lib/version.js";
+import { compareVersions, fetchUpdateCheck } from "../lib/version.js";
 
 let passed = 0;
 function pass(name) {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
-import { probeMcpServer } from "./lib/mcp/probe.js";
+import { probeMcpServer } from "../lib/mcp/probe.js";
 
 let passed = 0;
 function pass(name) {
@@ -8,7 +8,7 @@ function pass(name) {
   console.log("PASS  " + name);
 }
 
-const fixture = fileURLToPath(new URL("./test/mcp-server-fixture.mjs", import.meta.url));
+const fixture = fileURLToPath(new URL("./mcp-server-fixture.mjs", import.meta.url));
 const ok = await probeMcpServer({
   serverName: "fixture",
   transport: "stdio",

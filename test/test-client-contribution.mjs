@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
-import { PANEL_MANIFEST } from "./lib/index.js";
+import { PANEL_MANIFEST } from "../lib/index.js";
 
 let failures = 0;
 const check = (label, fn) => {
@@ -35,7 +35,7 @@ const check = (label, fn) => {
 };
 
 // ── 载入浏览器束 ──────────────────────────────────────────────────────────
-const source = readFileSync(process.argv[2] ?? fileURLToPath(new URL("./lib/client.js", import.meta.url)), "utf8");
+const source = readFileSync(process.argv[2] ?? fileURLToPath(new URL("../lib/client.js", import.meta.url)), "utf8");
 let captured = null;
 const sandbox = {
   console,

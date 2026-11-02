@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 
-const bundlePath = process.argv[2] ?? fileURLToPath(new URL("./lib/client.js", import.meta.url));
+const bundlePath = process.argv[2] ?? fileURLToPath(new URL("../lib/client.js", import.meta.url));
 const source = readFileSync(bundlePath, "utf8");
 
 let captured = null;
