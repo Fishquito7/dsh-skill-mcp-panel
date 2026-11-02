@@ -19,7 +19,7 @@ import {
   setEntryDisabledInText,
   validatePatchText,
   writeManagedRows
-} from "./lib/patch-editor.js";
+} from "../lib/patch-editor.js";
 
 let passed = 0;
 function pass(name) {

@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
-import { ToolFilterController, attachToolFilter, loadToolFilter, saveToolFilter, toolFilterFile } from "./lib/tool-filter.js";
+import { ToolFilterController, attachToolFilter, loadToolFilter, saveToolFilter, toolFilterFile } from "../lib/tool-filter.js";
 
 let passed = 0;
 function pass(name) {

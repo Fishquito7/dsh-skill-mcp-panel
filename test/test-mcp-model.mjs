@@ -15,7 +15,7 @@ import {
   parseWireScalar,
   formatWireScalar,
   inputFromPatchRow
-} from "./lib/mcp/model.js";
+} from "../lib/mcp/model.js";
 
 let passed = 0;
 function pass(name) {

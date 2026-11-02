@@ -1,4 +1,4 @@
-import { validateFrontmatter } from "./lib/skill-files.js";
+import { validateFrontmatter } from "../lib/skill-files.js";
 
 let failures = 0;
 const check = (label, cond) => {

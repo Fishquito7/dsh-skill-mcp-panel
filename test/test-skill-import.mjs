@@ -17,7 +17,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { strToU8, zipSync } from "fflate";
-import { classifySkillImport, describeSkips, expandTopLevelZips } from "./lib/skill-import.js";
+import { classifySkillImport, describeSkips, expandTopLevelZips } from "../lib/skill-import.js";
 
 let passed = 0;
 let failed = 0;
@@ -156,7 +156,7 @@ check("describeSkips 只展示前 3 条并汇总总数", () => {
 
 // ── B. 端到端：真的跑 CLI ────────────────────────────────────────────────
 
-const CLI_PATH = fileURLToPath(new URL("./lib/cli.js", import.meta.url));
+const CLI_PATH = fileURLToPath(new URL("../lib/cli.js", import.meta.url));
 const workdir = await mkdtemp(join(tmpdir(), "dsh-panel-import-"));
 const source = join(workdir, "source");
 const project = join(workdir, "project");
@@ -292,8 +292,8 @@ let gateway = null;
 let gatewaySkip = "";
 try {
 	const { Context } = await import("@deepseek-ai/cordis");
-	const { SkillsViewerGateway } = await import("./lib/index.js");
-	const { collectSkillEntries } = await import("./lib/skill-files.js");
+	const { SkillsViewerGateway } = await import("../lib/index.js");
+	const { collectSkillEntries } = await import("../lib/skill-files.js");
 	const readEntries = () => collectSkillEntries([{ path: hostRoot, source: "user-dsh", projectRoot: undefined }]);
 	const ctx = new Context();
 	ctx.provide("skills", {

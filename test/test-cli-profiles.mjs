@@ -50,8 +50,8 @@ const check = (label, cond, detail) => {
 };
 
 const LATEST = "9.9.9";
-const ENTRY_VERSION = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")).version;
-const CLI_PATH = fileURLToPath(new URL("./lib/cli.js", import.meta.url));
+const ENTRY_VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
+const CLI_PATH = fileURLToPath(new URL("../lib/cli.js", import.meta.url));
 
 const base = join(tmpdir(), "dsh-panel-profiles-" + process.pid);
 const home = join(base, "home");
@@ -254,7 +254,7 @@ try {
 		return paths;
 	}
 
-	const manifest = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8"));
+	const manifest = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 	check("声明了 @deepseek-ai/dsh 的 peerDependencies", typeof manifest.peerDependencies?.["@deepseek-ai/dsh"] === "string", JSON.stringify(manifest.peerDependencies));
 	check("peer 标成 optional（宿主自带，不让 pnpm 报 unmet peer）", manifest.peerDependenciesMeta?.["@deepseek-ai/dsh"]?.optional === true, JSON.stringify(manifest.peerDependenciesMeta));
 

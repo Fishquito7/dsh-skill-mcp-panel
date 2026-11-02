@@ -15,8 +15,8 @@ import {
   scopeRootOf,
   workspaceSkillRoot,
   workspaceTitleMap
-} from "./lib/scope.js";
-import { collectSkillEntries, pathExists } from "./lib/skill-files.js";
+} from "../lib/scope.js";
+import { collectSkillEntries, pathExists } from "../lib/skill-files.js";
 
 let passed = 0;
 let failed = 0;

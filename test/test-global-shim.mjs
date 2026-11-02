@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { posixShimBody, shellQuote, shimFiles } from "./lib/global-shim.js";
+import { posixShimBody, shellQuote, shimFiles } from "../lib/global-shim.js";
 
 let passed = 0;
 function pass(name) {
@@ -43,7 +43,7 @@ assert.equal(shellQuote("it\'s"), "\'it\'\\\'\'s\'");
 pass("shellQuote survives spaces and embedded quotes");
 
 // 5. 真的跑一遍：把 shim 指到本包 CLI，在 sh 里执行（仅 POSIX 或 Git Bash 可用时）
-const cliPath = fileURLToPath(new URL("./lib/cli.js", import.meta.url));
+const cliPath = fileURLToPath(new URL("../lib/cli.js", import.meta.url));
 const shAvailable = spawnSync("sh", ["-c", "true"], { stdio: "ignore" }).status === 0;
 if (shAvailable) {
   const dir = await mkdtemp(join(tmpdir(), "dsh-panel-shim-"));
@@ -51,7 +51,7 @@ if (shAvailable) {
     const shimPath = join(dir, "dsh-panel");
     await writeFile(shimPath, posixShimBody(cliPath, process.execPath), { mode: 0o755 });
     const run = spawnSync("sh", [shimPath, "--version"], { encoding: "utf8" });
-    const declared = JSON.parse(await readFile(new URL("./package.json", import.meta.url), "utf8")).version;
+    const declared = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8")).version;
     assert.equal(run.status, 0, run.stderr);
     assert.match(run.stdout, new RegExp("dsh-panel v" + declared.replace(/\./g, "\\.")));
     // 参数必须原样透传（含带空格的参数）

@@ -4,8 +4,8 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
-import { McpManagerGateway } from "./lib/mcp/gateway.js";
-import { MCP_MANIFEST, mcpListResultSchema } from "./lib/mcp/wire.js";
+import { McpManagerGateway } from "../lib/mcp/gateway.js";
+import { MCP_MANIFEST, mcpListResultSchema } from "../lib/mcp/wire.js";
 
 let passed = 0;
 function pass(name) {

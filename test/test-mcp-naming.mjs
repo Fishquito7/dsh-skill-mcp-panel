@@ -6,8 +6,8 @@ import { readFile } from "node:fs/promises";
 // 这个守卫保证两份不会漂移 —— 漂移的后果是 UI 放行、网关边界报「天书」。
 const LITERAL = "/^[A-Za-z0-9_-]{1,32}$/";
 
-const model = await readFile(new URL("./lib/mcp/model.js", import.meta.url), "utf8");
-const client = await readFile(new URL("./lib/client.js", import.meta.url), "utf8");
+const model = await readFile(new URL("../lib/mcp/model.js", import.meta.url), "utf8");
+const client = await readFile(new URL("../lib/client.js", import.meta.url), "utf8");
 
 assert.ok(model.includes(LITERAL), "lib/mcp/model.js 必须用规范字面量声明 SERVER_NAME_RE");
 assert.ok(client.includes(LITERAL), "lib/client.js 必须携带同一份名称规则用于即时校验");

@@ -20,7 +20,7 @@ import {
   removeOAuthRecord,
   saveOAuthRecord,
   startLoopbackServer
-} from "./lib/oauth.js";
+} from "../lib/oauth.js";
 
 let passed = 0;
 let failed = 0;

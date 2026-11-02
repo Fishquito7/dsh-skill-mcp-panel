@@ -7,7 +7,7 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { deleteGroup, groupsFile, groupsForSkill, loadGroups, upsertGroup } from "./lib/groups.js";
+import { deleteGroup, groupsFile, groupsForSkill, loadGroups, upsertGroup } from "../lib/groups.js";
 
 let passed = 0;
 let failed = 0;

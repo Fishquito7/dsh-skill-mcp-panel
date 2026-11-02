@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { collectSkillEntries } from "./lib/skill-files.js";
+import { collectSkillEntries } from "../lib/skill-files.js";
 
 let passed = 0;
 function pass(name) {
