@@ -2,7 +2,7 @@
 
 # dsh-skill-mcp-panel
 
-**在 DSH Web 侧边栏管理「技能」与「MCP」服务器，并附统一终端命令 `dsh-panel`**
+**在 DSH 侧边栏管理「技能」与「MCP」服务器，并附统一终端命令 `dsh-panel`**
 
 [![npm version](https://img.shields.io/npm/v/dsh-skill-mcp-panel?color=cb3837&logo=npm&label=npm)](https://www.npmjs.com/package/dsh-skill-mcp-panel)
 [![npm downloads](https://img.shields.io/npm/dm/dsh-skill-mcp-panel?color=cb3837&label=downloads)](https://www.npmjs.com/package/dsh-skill-mcp-panel)
