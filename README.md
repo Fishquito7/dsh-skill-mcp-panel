@@ -127,7 +127,7 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 确需在老宿主上使用，用宿主打印的精确版本豁免：
 
 ```bash
-dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.6 --dsh-version <宿主版本> --accept-risk
+dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.7 --dsh-version <宿主版本> --accept-risk
 ```
 
 ## 命令行
@@ -268,7 +268,8 @@ dsh plugin --profile web remove dsh-skill-mcp-panel
 
 只列**会改变使用方式**的版本要点；完整改动见 [Releases](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)。
 
-- **v2.3.6（未发布）** —— MCP 页接管 `cordis.patch.yml` 里的**全部** `@deepseek-ai/dsh-mcp-client` 行（#67 / PR #70）：启停、表单编辑、删除、OAuth 不再区分受管块和 `panel-mcp-*`。表单继续管常规字段，并保留还没建模的键（例如 `maxInstructionBytes`）以及已有的 `disabled`；卡片上的 **原文**（CLI：`dsh-panel mcp raw`）按字节改这一条。已有配置不用迁移，非 MCP 的外来行仍按 ADR-0003 原样保留。合并后实测又补了几处：**没有 `id` 的手写行也能启停**（按这一行自己的缩进插 `disabled`，表单保存也不会给它补 id）；`!!js` 的 `disabled` 由宿主求值，卡片标「由表达式控制」并禁用开关，不再给一个点了必然报错的开关；删掉受管块最后一行时 begin/end 标记会成对收掉、块外内容不再被卷进去；条目后面的注释不会被表单保存或删除吞掉；CRLF 文件不再被掺进 LF 行；**重复 `id` / 重复 `serverName` 不再改错行**——所有操作按 `serverName` + `entryId` 双键定位，CLI 新增 `--id <entryId>` 与 `list --ids`，重名文件可以用原文逐条改回来，面板只拒绝**新增**重名；原文编辑不许改缩进/位置（`insert` 成员不能变顶层条目）。OAuth 发现顺序（PR #72）改成 RFC 9728 路径形式优先、PRM 声明的 `resource` 同源才采用，PRM 驱动的 issuer 必须精确匹配；见 ADR-0007
+- **v2.3.7** —— **窄屏适配**（#71，感谢 @2532316972 的截图反馈）：窗口或面板宽度小于 **820px** 时自动切到简洁布局，不再出现三栏把主区挤成一列图标、内容右侧被裁掉、连布局开关都被推出屏幕外的情况。自动切换只影响显示：不覆盖你手动选的布局、不写浏览器里的偏好，拉宽后回到你选的那套；窄屏下那枚「三栏 / 简洁」开关直接不显示，避免点了又被宽度压回来。判据同时看**视口宽度**和**面板自身宽度**——面板挂在宿主主区里，窗口宽 ≠ 面板宽，左侧会话栏占掉一截时按面板自身宽度算。MCP 页在窄屏下也改单列（卡片、表单），工具栏允许换行
+- **v2.3.6** —— MCP 页接管 `cordis.patch.yml` 里的**全部** `@deepseek-ai/dsh-mcp-client` 行（#67 / PR #70）：启停、表单编辑、删除、OAuth 不再区分受管块和 `panel-mcp-*`。表单继续管常规字段，并保留还没建模的键（例如 `maxInstructionBytes`）以及已有的 `disabled`；卡片上的 **原文**（CLI：`dsh-panel mcp raw`）按字节改这一条。已有配置不用迁移，非 MCP 的外来行仍按 ADR-0003 原样保留。合并后实测又补了几处：**没有 `id` 的手写行也能启停**（按这一行自己的缩进插 `disabled`，表单保存也不会给它补 id）；`!!js` 的 `disabled` 由宿主求值，卡片标「由表达式控制」并禁用开关，不再给一个点了必然报错的开关；删掉受管块最后一行时 begin/end 标记会成对收掉、块外内容不再被卷进去；条目后面的注释不会被表单保存或删除吞掉；CRLF 文件不再被掺进 LF 行；**重复 `id` / 重复 `serverName` 不再改错行**——所有操作按 `serverName` + `entryId` 双键定位，CLI 新增 `--id <entryId>` 与 `list --ids`，重名文件可以用原文逐条改回来，面板只拒绝**新增**重名；原文编辑不许改缩进/位置（`insert` 成员不能变顶层条目）。OAuth 发现顺序（PR #72）改成 RFC 9728 路径形式优先、PRM 声明的 `resource` 同源才采用，PRM 驱动的 issuer 必须精确匹配；见 ADR-0007
 - **v2.3.5** —— 修 **禁用任一 MCP 工具后宿主卡死（#59 / #62）**。根因在我们自己的监听器：宿主的 `ScopedLayers.effect()` 在限制生效后**和撤销时**都会同步广播 `tools/change`，而插件既监听这个事件、又在回调里 `undo()` / `restrict()`，等于自己触发自己——同步无限递归，爆栈抛出的 `RangeError` 又被空 `catch` 吞掉，进程不崩、只是主线程持续 100% 烧 CPU。用宿主真实的 `@deepseek-ai/dsh-scope` 复现：一次事件放大成 **887 次 `restrict` / 1774 次 `view` / 递归 458 层**。现在 `tools/change` 只由控制器统一监听并带重入守卫，每个插件的 `sync()` 只在**禁用集合真的变化**时才撤销重施（集合没变就只多一次 `view`），挂载途中的 agent 用 `mounting` 挡住；原本静默的 `catch` 全部接上 logger，这类故障以后至少留得下日志；顺便修了同一 issue 里「显示插件技能」复选框不记忆的问题（现在勾选状态记在浏览器里）
 - **v2.3.4** —— 修「打开目录」只弹出「文档」的那个 bug（2.3.3 的回归）。Windows 的 `explorer.exe` 不认正斜杠：面板把技能根路径规范化成了 `C:/Users/.../.dsh/skills`，explorer 收到这种参数会当成无效目标、默默打开自己的默认位置，于是点哪个工作区都只看到「文档」。现在宿主先把路径换成本机分隔符再交给系统，提示条里显示的也是同一份路径，复制出来直接能粘进资源管理器；顺手修了两个边界：盘符根 `C:/` 不再被裁成 `C:`，末尾多余的 `\` 会收敛掉。界面预览换成新版截图（三栏 / 简洁两种布局各一张）
 - **v2.3.3** —— 技能页新增 **「三栏 / 简洁」布局开关**（#50）：简洁模式收起左右两栏，工作区变成折叠式下拉、分组变成横排 chip，技能一行两个，想回到旧版那种清爽的单栏就点工具栏最右那个按钮（选择记在浏览器里）。MCP 页那条「受管块里有外来行」的提醒现在能真正解决：**[移出受管块]** 把不属于面板的行原样搬到标记之外（语义不变），**[查看机制]** 说明它为什么会在块里、留在块里为什么没有影响；**「打开目录」修好了，而且真的会弹出资源管理器**（宿主侧调用系统文件管理器；技能根还不存在时会先建出来）。侧栏入口标签改为 `Skill / MCP`。另合并两条社区 PR：`@deepseek-ai/cordis` 移到 peerDependencies（dshmarket 不再报 shared-host-package-dependency）、落在受管块外的面板行标成「受管块外」
