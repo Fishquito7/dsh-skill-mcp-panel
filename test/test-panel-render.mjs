@@ -26,6 +26,32 @@ const localStorageStub = {
 };
 const clipboardWrites = [];
 const navigatorStub = { clipboard: { writeText: async (text) => { clipboardWrites.push(text); } } };
+// 视口桩：组件用 window.matchMedia("(max-width:820px)") 判断窄屏（Issue #71）。
+// 默认宽屏 = 三栏；setViewportNarrow 同时通知 change 监听者，模拟拖动窗口。
+let viewportNarrow = false;
+const mediaListeners = new Set();
+const matchMediaStub = (query) => ({
+  media: query,
+  get matches() { return viewportNarrow; },
+  addEventListener: (type, listener) => { if (type === "change") mediaListeners.add(listener); },
+  removeEventListener: (type, listener) => { if (type === "change") mediaListeners.delete(listener); }
+});
+const setViewportNarrow = (narrow) => {
+  viewportNarrow = narrow;
+  for (const listener of [...mediaListeners]) listener({ matches: narrow, media: "(max-width:820px)" });
+};
+// 面板自身宽度桩（Issue #71）：窗口宽 ≠ 面板宽，宿主左侧会话栏会占掉一截。
+// 组件的 ResizeObserver 回调从这里拿宽度；fireResize() 模拟拖动窗口改变容器宽。
+let containerWidth = 1200;
+const resizeObservers = [];
+const ResizeObserverStub = class ResizeObserver {
+  constructor(callback) { this.callback = callback; resizeObservers.push(this); }
+  observe() {}
+  disconnect() {}
+};
+const fireResize = () => {
+  for (const observer of [...resizeObservers]) observer.callback([], observer);
+};
 const sandbox = {
   console,
   document: documentStub,
@@ -37,7 +63,8 @@ const sandbox = {
   btoa,
   atob,
   URL,
-  window: { __ModuleLoader__: { load: (mod) => { captured = mod; } } }
+  window: { __ModuleLoader__: { load: (mod) => { captured = mod; } }, matchMedia: matchMediaStub },
+  ResizeObserver: ResizeObserverStub
 };
 vm.createContext(sandbox);
 vm.runInContext(source, sandbox, { filename: "lib/client.js" });
@@ -183,7 +210,18 @@ const reset = (rows = skills, lastTab = "skills") => {
   addCalls.length = 0;
   batchCalls.length = 0;
   store.clear();
+  containerWidth = 1200;
   if (lastTab === "mcp") store.set("dsh-skill-mcp-panel:last-tab", "mcp");
+};
+
+/** 模拟 React 的 ref 挂载：带 ref 的节点拿到一个能量出 containerWidth 的假 DOM。 */
+const attachRefs = (node) => {
+  walk(node, (n) => {
+    const ref = n.props === undefined ? undefined : n.props.ref;
+    if (ref !== null && typeof ref === "object" && !Array.isArray(ref)) {
+      ref.current = { nodeType: 1, getBoundingClientRect: () => ({ width: containerWidth }) };
+    }
+  });
 };
 
 const paint = (props) => {
@@ -199,6 +237,7 @@ const paint = (props) => {
   const section = body.type(body.props);
   const sectionEffects = pendingEffects;
   pendingEffects = [];
+  attachRefs(section);
   return { page, section, effects: [...pageEffects, ...sectionEffects] };
 };
 /** 按依赖数组决定要不要跑，模拟 React 的 commit 语义（deps 为 undefined 时每次都跑）。 */
@@ -862,6 +901,106 @@ const assert = (cond, message) => { if (!cond) throw new Error(message); };
   });
   check("布局选择写进 localStorage（同一个键前缀）", () => {
     assert(store.get("dsh-skill-mcp-panel:layout") === "three", "layout preference not persisted: " + store.get("dsh-skill-mcp-panel:layout"));
+  });
+}
+
+// ── 8b. 窄屏自动用简洁布局（Issue #71：手机远控）──────────────────────────
+{
+  const toggleOf = (node) => findAll(node, (n) => n.type === "button" && n.props["data-layout-toggle"] === "true")[0];
+  reset();
+  setViewportNarrow(true);
+  let view = await mount();
+  check("窄屏（≤820px）自动换成简洁外壳，不再渲染左轨/中栏", () => {
+    assert(view.section.props["data-layout"] === "compact", "narrow viewport must force the compact layout: " + view.section.props["data-layout"]);
+    assert(view.section.props["data-layout-forced"] === "true", "forced layout must be marked (data-layout-forced)");
+    assert(byClass(view.section, "SKV_rail").length === 0, "rail must not render on a narrow viewport");
+    assert(byClass(view.section, "SKV_pane").length === 0, "pane must not render on a narrow viewport");
+    assert(byClass(view.section, "SKV_filterBar").length === 1, "compact filter bar missing on a narrow viewport");
+  });
+  check("窄屏隐藏布局开关（三栏在手机上会把内容裁掉）", () => {
+    assert(toggleOf(view.section) === undefined, "layout toggle must be hidden on a narrow viewport");
+    const labels = byClass(view.section, "SKV_toolButton").map((n) => n.props["aria-label"]);
+    assert(labels.length === 4, "expected 4 toolbar buttons on a narrow viewport, got " + labels.length);
+    assert(!labels.includes("切换到简洁模式") && !labels.includes("切回三栏模式"), "layout toggle label leaked: " + JSON.stringify(labels));
+  });
+  check("窄屏自动切换不覆盖用户偏好（不改 localStorage）", () => {
+    assert(store.get("dsh-skill-mcp-panel:layout") === undefined, "auto compact must not persist a preference: " + store.get("dsh-skill-mcp-panel:layout"));
+  });
+  setViewportNarrow(false);
+  view = paint(rpc);
+  check("窗口拉宽后回到用户自己的选择（默认三栏），开关也回来", () => {
+    assert(view.section.props["data-layout"] === "three", "widening must restore the three-column layout: " + view.section.props["data-layout"]);
+    assert(view.section.props["data-layout-forced"] === undefined, "forced marker left behind after widening");
+    assert(byClass(view.section, "SKV_rail").length === 1 && byClass(view.section, "SKV_pane").length === 1, "three-column shell did not come back");
+    assert(toggleOf(view.section), "layout toggle must come back after widening");
+  });
+}
+
+// 窗口宽 ≠ 面板宽：面板挂在宿主主区里，左侧会话栏要占一截，按面板自身宽度也要切。
+{
+  const toggleOf = (node) => findAll(node, (n) => n.type === "button" && n.props["data-layout-toggle"] === "true")[0];
+  reset();
+  setViewportNarrow(false);
+  containerWidth = 700;
+  let view = await mount();
+  check("窗口不窄但面板只有 700px：按面板宽度自动切简洁", () => {
+    assert(view.section.props["data-layout"] === "compact", "a 700px-wide panel must use the compact layout: " + view.section.props["data-layout"]);
+    assert(view.section.props["data-layout-forced"] === "true", "panel-width forced layout must be marked");
+    assert(toggleOf(view.section) === undefined, "layout toggle must be hidden when the panel itself is narrow");
+    assert(byClass(view.section, "SKV_rail").length === 0, "rail must not render inside a narrow panel");
+  });
+  containerWidth = 1000;
+  fireResize();
+  view = paint(rpc);
+  check("面板拉宽到 1000px：恢复三栏，开关回来", () => {
+    assert(view.section.props["data-layout"] === "three", "widening the panel must restore three columns: " + view.section.props["data-layout"]);
+    assert(view.section.props["data-layout-forced"] === undefined, "forced marker left behind after widening the panel");
+    assert(toggleOf(view.section), "layout toggle must come back when the panel is wide");
+  });
+}
+
+// 手动选过简洁的人，窄屏→宽屏后仍留在简洁（偏好优先于视口）。
+{
+  const toggleOf = (node) => findAll(node, (n) => n.type === "button" && n.props["data-layout-toggle"] === "true")[0];
+  reset();
+  store.set("dsh-skill-mcp-panel:layout", "compact");
+  setViewportNarrow(true);
+  let view = await mount();
+  setViewportNarrow(false);
+  view = paint(rpc);
+  check("偏好是简洁时，宽屏也保持简洁", () => {
+    assert(view.section.props["data-layout"] === "compact", "manual compact preference must survive widening: " + view.section.props["data-layout"]);
+    assert(view.section.props["data-layout-forced"] === undefined, "a manual compact layout is not forced");
+    assert(toggleOf(view.section), "layout toggle must be available when the viewport is wide");
+  });
+  toggleOf(view.section).props.onClick();
+  view = paint(rpc);
+  check("宽屏下手动切回三栏仍然有效", () => {
+    assert(view.section.props["data-layout"] === "three", "toggle to three columns failed");
+    assert(store.get("dsh-skill-mcp-panel:layout") === "three", "manual choice not persisted");
+  });
+}
+
+// 没有 matchMedia 的环境（老宿主 / 非浏览器渲染）：退回三栏，别崩。
+{
+  reset();
+  const saved = sandbox.window.matchMedia;
+  delete sandbox.window.matchMedia;
+  const view = await mount();
+  check("没有 matchMedia 时退化成三栏，不报错", () => {
+    assert(view.section.props["data-layout"] === "three", "layout without matchMedia must stay three columns");
+    assert(findAll(view.section, (n) => n.type === "button" && n.props["data-layout-toggle"] === "true")[0], "layout toggle must stay reachable without matchMedia");
+  });
+  sandbox.window.matchMedia = saved;
+}
+
+// MCP 页的窄屏样式：卡片与表单单列（Issue #71）。
+{
+  check("MCP 页在窄屏改单列（卡片 + 表单 + 工具栏换行）", () => {
+    const cssText = styleTags.map((tag) => String(tag.textContent ?? "")).join(String.fromCharCode(10));
+    assert(cssText.includes("@media (max-width:640px){.MCP_cards{grid-template-columns:minmax(0,1fr)}"), "MCP cards must collapse to one column on narrow screens");
+    assert(cssText.includes(".MCP_form{grid-template-columns:minmax(0,1fr)}"), "MCP form must collapse to one column on narrow screens");
+    assert(cssText.includes(".MCP_toolbar{flex-wrap:wrap}"), "MCP toolbar must wrap on narrow screens");
   });
 }
 
