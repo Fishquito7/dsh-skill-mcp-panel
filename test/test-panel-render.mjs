@@ -14,10 +14,26 @@ const source = readFileSync(bundlePath, "utf8");
 
 let captured = null;
 const styleTags = [];
+// document 桩：Issue #82 的「点外部 / Esc 关闭」要在 document 上挂/摘监听，
+// 所以这里维护一份监听表，用 dispatchDocument 手动派发（渲染桩没有真实事件循环）。
+const documentListeners = new Map();
 const documentStub = {
   querySelector: () => null,
   createElement: () => ({ dataset: {}, textContent: "" }),
-  head: { appendChild: (tag) => styleTags.push(tag) }
+  head: { appendChild: (tag) => styleTags.push(tag) },
+  addEventListener: (type, listener) => {
+    if (!documentListeners.has(type)) documentListeners.set(type, new Set());
+    documentListeners.get(type).add(listener);
+  },
+  removeEventListener: (type, listener) => {
+    const set = documentListeners.get(type);
+    if (set !== undefined) set.delete(listener);
+  }
+};
+const dispatchDocument = (type, event) => {
+  const set = documentListeners.get(type);
+  if (set === undefined) return;
+  for (const listener of [...set]) listener(event);
 };
 const store = new Map();
 const localStorageStub = {
@@ -196,6 +212,20 @@ const mcpFace = {
   testMcp: async () => ({ ok: true, tools: [] }),
   reloadMcp: async () => ({ servers: [], externalServers: [], patch: { path: "", ok: true, error: null, foreign: [] } })
 };
+// 单工具清单（Issue #77 的筛选用例）：三台工具、一台已连接。
+const toolFilterCalls = [];
+mcpFace.listMcpTools = async ({ serverName }) => ({
+  serverName,
+  connected: true,
+  tools: [
+    { name: "alpha_tool", description: "Alpha 工具" },
+    { name: "beta_tool", description: "Beta 工具" },
+    { name: "gamma_tool", description: "Gamma 工具" }
+  ],
+  disabled: []
+});
+mcpFace.getToolFilter = async () => ({ deny: [] });
+mcpFace.setToolFilter = async (payload) => { toolFilterCalls.push(payload); return { deny: payload.deny, applied: 1 }; };
 
 // ── 渲染驱动 ───────────────────────────────────────────────────────────────
 const flush = async (turns = 12) => { for (let i = 0; i < turns; i++) await Promise.resolve(); };
@@ -210,6 +240,7 @@ const reset = (rows = skills, lastTab = "skills") => {
   addCalls.length = 0;
   batchCalls.length = 0;
   store.clear();
+  documentListeners.clear();
   containerWidth = 1200;
   if (lastTab === "mcp") store.set("dsh-skill-mcp-panel:last-tab", "mcp");
 };
@@ -245,10 +276,17 @@ const runEffects = (effects) => {
   for (const entry of effects) {
     const previous = effectRuns.get(entry.key);
     const deps = entry.deps;
-    const changed = previous === undefined || deps === undefined || previous === null || deps.length !== previous.length || deps.some((value, index) => !Object.is(value, previous[index]));
+    const previousDeps = previous === undefined || previous === null ? undefined : previous.deps;
+    const changed = previous === undefined || deps === undefined || previous === null || !Array.isArray(previousDeps) || deps.length !== previousDeps.length || deps.some((value, index) => !Object.is(value, previousDeps[index]));
     if (!changed) continue;
-    effectRuns.set(entry.key, deps === undefined ? null : deps);
-    if (typeof entry.fn === "function") entry.fn();
+    // Issue #82：依赖变化/卸载时先跑上一次的 cleanup，否则 document 上的旧闭包会一直留着。
+    if (previous !== undefined && previous !== null && typeof previous.cleanup === "function") previous.cleanup();
+    const slot = { deps: deps === undefined ? null : deps, cleanup: undefined };
+    effectRuns.set(entry.key, slot);
+    if (typeof entry.fn === "function") {
+      const cleanup = entry.fn();
+      if (typeof cleanup === "function") slot.cleanup = cleanup;
+    }
   }
 };
 /** 挂载：渲染 → 跑 effect（发起 RPC）→ 等 promise → 再渲染两次让状态落地。 */
@@ -712,6 +750,210 @@ const assert = (cond, message) => { if (!cond) throw new Error(message); };
   });
   check("MCP switch (round switch) is untouched", () => {
     assert(byClass(view.section, "SKV_switch").length === 1, "MCP card should keep the round switch");
+  });
+  store.delete("dsh-skill-mcp-panel:last-tab");
+}
+
+// ── 9. Issue #82：弹层「点外部 / Esc」关闭 ────────────────────────────────
+{
+  reset();
+  let view = await mount();
+  const findAddButton = () => findAll(view.section, (n) => n.type === "button" && n.props["aria-label"] === "添加技能")[0];
+  const addMenuVisible = () => byClass(view.section, "SKV_addMenu").length === 1;
+  check("添加技能按钮存在（#82 的前置）", () => {
+    assert(findAddButton() !== undefined, "add button missing");
+  });
+  findAddButton().props.onClick();
+  view = await mount();
+  check("点开添加技能菜单后菜单可见", () => {
+    assert(addMenuVisible(), "add menu did not open");
+  });
+  dispatchDocument("pointerdown", { target: { closest: () => null } });
+  view = await mount();
+  check("点菜单外部关闭添加技能菜单（#82）", () => {
+    assert(!addMenuVisible(), "menu must close when the click lands outside");
+  });
+  findAddButton().props.onClick();
+  view = await mount();
+  dispatchDocument("pointerdown", { target: { closest: () => ({}) } });
+  view = await mount();
+  check("点菜单内部不关闭（#82）", () => {
+    assert(addMenuVisible(), "inside clicks must not close the menu");
+  });
+  dispatchDocument("keydown", { key: "Escape" });
+  view = await mount();
+  check("Esc 关闭添加技能菜单（#82）", () => {
+    assert(!addMenuVisible(), "menu must close on Escape");
+  });
+}
+
+// ── 10. Issue #82：对话框点遮罩 / Esc 关闭 ────────────────────────────────
+// 渲染桩只调用 Section 本身（子组件只以元素形式存在），所以这里手动渲染一次
+// 对话框组件，拿到它真正的遮罩节点；Esc 走的是页面层的 hook（dispatchDocument）。
+const renderChild = (element) => {
+  const previousCursor = cursor;
+  const previousCurrent = current;
+  cursor = 0;
+  current = element.type.name || "child";
+  const before = pendingEffects.length;
+  const tree = element.type(element.props);
+  const effects = pendingEffects.splice(before);
+  cursor = previousCursor;
+  current = previousCurrent;
+  return { tree, effects };
+};
+{
+  reset();
+  let view = await mount();
+  const dialogElement = () => findAll(view.section, (n) => typeof n.type === "function" && n.type.name === "GroupDialog")[0];
+  const openEditor = () => {
+    const btn = findAll(view.section, (n) => n.type === "button" && n.props["aria-label"] === "新建分组")[0];
+    assert(btn !== undefined, "toolbar new-group button missing");
+    btn.props.onClick();
+  };
+  openEditor();
+  view = await mount();
+  check("分组编辑器打开（#82 的前置）", () => {
+    assert(dialogElement() !== undefined, "group dialog did not open");
+  });
+  const rendered = renderChild(dialogElement());
+  const overlay = () => byClass(rendered.tree, "SKV_scopeOverlay")[0];
+  const box = () => byClass(rendered.tree, "SKV_scopeBox")[0];
+  check("对话框渲染出遮罩与盒子（#82 的前置）", () => {
+    assert(overlay() !== undefined && box() !== undefined, "overlay/box missing");
+  });
+  overlay().props.onClick({ target: box(), currentTarget: overlay() });
+  view = await mount();
+  check("点对话框内部不关闭（#82）", () => {
+    assert(dialogElement() !== undefined, "inside clicks must not close the dialog");
+  });
+  const again = renderChild(dialogElement());
+  const overlay2 = byClass(again.tree, "SKV_scopeOverlay")[0];
+  overlay2.props.onClick({ target: overlay2, currentTarget: overlay2 });
+  view = await mount();
+  check("点遮罩关闭分组编辑器（#82）", () => {
+    assert(dialogElement() === undefined, "dialog must close on backdrop click");
+  });
+  openEditor();
+  view = await mount();
+  dispatchDocument("keydown", { key: "Escape" });
+  view = await mount();
+  check("Esc 关闭分组编辑器（#82）", () => {
+    assert(dialogElement() === undefined, "dialog must close on Escape");
+  });
+}
+
+// ── 11. Issue #79：搜索匹配描述 ───────────────────────────────────────────
+{
+  reset();
+  let view = await mount();
+  const search = findAll(view.section, (n) => n.type === "input" && n.props.className === "SKV_searchField")[0];
+  check("搜索框存在（#79 的前置）", () => {
+    assert(search !== undefined, "search field missing");
+  });
+  search.props.onChange({ currentTarget: { value: "B 技能" } });
+  view = await mount();
+  check("搜描述能命中技能（#79）", () => {
+    const names = findAll(view.section, (n) => typeof n.props["data-skill-name"] === "string").map((n) => n.props["data-skill-name"]);
+    assert(names.includes("beta"), "description match must keep beta, got " + JSON.stringify(names));
+    assert(!names.includes("alpha"), "alpha should be filtered out, got " + JSON.stringify(names));
+  });
+  search.props.onChange({ currentTarget: { value: "alpha" } });
+  view = await mount();
+  check("搜名字仍能命中技能（#79 没有回归）", () => {
+    const names = findAll(view.section, (n) => typeof n.props["data-skill-name"] === "string").map((n) => n.props["data-skill-name"]);
+    assert(names.includes("alpha"), "name match must keep alpha, got " + JSON.stringify(names));
+  });
+}
+
+// ── 12. Issue #77：MCP 工具清单筛选 + 全选/全不选 ─────────────────────────
+{
+  reset(skills, "mcp");
+  toolFilterCalls.length = 0;
+  let view = await mount(mcpFace);
+  const toolsBtn = findAll(view.section, (n) => n.type === "button" && n.props.children === "工具")[0];
+  check("MCP 卡片有「工具」按钮（#77 的前置）", () => {
+    assert(toolsBtn !== undefined, "tools button missing");
+  });
+  toolsBtn.props.onClick();
+  await flush();
+  view = await mount(mcpFace);
+  const filterInput = () => findAll(view.section, (n) => n.type === "input" && n.props["data-role"] === "tool-search")[0];
+  check("工具清单出现筛选框（#77）", () => {
+    assert(filterInput() !== undefined, "tool filter input missing");
+  });
+  check("未筛选时列出三台工具", () => {
+    const rows = findAll(view.section, (n) => typeof n.props.className === "string" && n.props.className.includes("MCP_toolRow"));
+    assert(rows.length === 3, "expected 3 tool rows after open, got " + rows.length);
+  });
+  filterInput().props.onChange({ currentTarget: { value: "beta" } });
+  view = await mount(mcpFace);
+  check("筛选后只剩匹配的工具（#77）", () => {
+    const rows = findAll(view.section, (n) => typeof n.props.className === "string" && n.props.className.includes("MCP_toolRow"));
+    assert(rows.length === 1, "filter should narrow the list to one row, got " + rows.length);
+  });
+  const selectNone = findAll(view.section, (n) => n.type === "button" && n.props.children === "全不选")[0];
+  check("有「全不选」按钮（#77）", () => {
+    assert(selectNone !== undefined, "clear-all button missing");
+  });
+  selectNone.props.onClick();
+  view = await mount(mcpFace);
+  const saveBtn = findAll(view.section, (n) => n.type === "button" && n.props.children === "保存禁用列表")[0];
+  saveBtn.props.onClick();
+  await flush();
+  check("全不选 + 保存写回禁用列表（#77）", () => {
+    assert(toolFilterCalls.length === 1, "setToolFilter should be called once, got " + toolFilterCalls.length);
+    const deny = toolFilterCalls[0].deny;
+    assert(Array.isArray(deny) && deny.includes("beta_tool"), "filtered tool must be denied, got " + JSON.stringify(deny));
+  });
+  store.delete("dsh-skill-mcp-panel:last-tab");
+}
+
+// ── 13. MCP 服务器搜索（卡片过滤）─────────────────────────────────────────
+{
+  const multiFace = {
+    ...mcpFace,
+    listMcp: async () => ({
+      servers: [
+        { serverName: "gitlab", transport: "streamable-http", enabled: true, fiberPhase: "active", toolCount: 5, envKeys: [], url: "https://gitlab.example.com/mcp", headerKeys: ["Authorization"] },
+        { serverName: "linear", transport: "stdio", enabled: false, fiberPhase: "pending", toolCount: 0, envKeys: ["LINEAR_TOKEN"], command: "C:/tools/linear.exe", args: ["--stdio"] },
+        { serverName: "searchsvc", transport: "streamable-http", enabled: true, fiberPhase: "active", toolCount: 2, envKeys: [], url: "https://api.search.example/mcp", headerKeys: [] }
+      ],
+      externalServers: [],
+      patch: { path: "C:/p/cordis.patch.yml", ok: true, error: null, foreign: [] }
+    })
+  };
+  reset(skills, "mcp");
+  let view = await mount(multiFace);
+  const cardCount = () => byClass(view.section, "MCP_card").length;
+  const mcpSearch = () => findAll(view.section, (n) => n.type === "input" && n.props["data-role"] === "server-search")[0];
+  check("MCP 页默认列出全部服务器卡片", () => {
+    assert(cardCount() === 3, "expected 3 cards, got " + cardCount());
+  });
+  check("MCP 页有服务器搜索框", () => {
+    assert(mcpSearch() !== undefined, "MCP server search input missing");
+  });
+  mcpSearch().props.onChange({ currentTarget: { value: "linear" } });
+  view = await mount(multiFace);
+  check("按服务器名过滤卡片", () => {
+    assert(cardCount() === 1, "expected 1 card for name match, got " + cardCount());
+  });
+  mcpSearch().props.onChange({ currentTarget: { value: "search.example" } });
+  view = await mount(multiFace);
+  check("按 URL 过滤卡片", () => {
+    assert(cardCount() === 1, "expected 1 card for url match, got " + cardCount());
+  });
+  mcpSearch().props.onChange({ currentTarget: { value: "--stdio" } });
+  view = await mount(multiFace);
+  check("按命令参数过滤卡片", () => {
+    assert(cardCount() === 1, "expected 1 card for args match, got " + cardCount());
+  });
+  mcpSearch().props.onChange({ currentTarget: { value: "nope-zzz" } });
+  view = await mount(multiFace);
+  check("无匹配时给出提示且不渲染卡片", () => {
+    assert(cardCount() === 0, "expected 0 cards, got " + cardCount());
+    const subs = findAll(view.section, (n) => n.props.className === "MCP_sub").map((n) => String(n.props.children));
+    assert(subs.includes("没有匹配的 MCP 服务器。"), "missing no-match copy: " + JSON.stringify(subs));
   });
   store.delete("dsh-skill-mcp-panel:last-tab");
 }
