@@ -16,6 +16,43 @@
 			return primitives[name];
 		}
 
+		// ── 弹层关闭（Issue #82）────────────────────────────────────────────
+		// 用户要求「添加技能弹窗在点击外部时应该自动关闭」。做两个共用工具，四个弹层
+		// （添加技能菜单、分组编辑器、批量迁移、MCP 表单/原文编辑）行为一致：
+		//   1. useEscapeClose：挂载期间监听 document 的 Escape（组件只在打开时才渲染）；
+		//   2. closeOnBackdrop：点在遮罩本身就是「点外部」，点在盒子里不算。
+		// 没有 document 的环境（渲染回归桩只跑 effect、不提供事件循环）直接跳过，不炸。
+		const canListenDocument = () =>
+			typeof document !== "undefined" && document !== null &&
+			typeof document.addEventListener === "function" && typeof document.removeEventListener === "function";
+		const useEscapeClose = (onClose: any, enabled: any = true) => {
+			react.useEffect(() => {
+				if (enabled !== true || !canListenDocument()) return undefined;
+				const handler = (event: any) => {
+					if (event !== null && event !== undefined && event.key === "Escape") onClose();
+				};
+				document.addEventListener("keydown", handler);
+				return () => document.removeEventListener("keydown", handler);
+			}, [enabled]);
+		};
+		const closeOnBackdrop = (onClose: any, busy: any = false) => (event: any) => {
+			if (busy === true || event === null || event === undefined) return;
+			// 只有点在遮罩本身才关：点在对话框内部时 target 是盒子里的元素。
+			if (event.target !== event.currentTarget) return;
+			onClose();
+		};
+
+		// ── 搜索/筛选匹配（Issue #79）───────────────────────────────────────
+		// 用户反馈「目前只匹配标题，不是很方便」：名字或描述命中任意一处即算匹配。
+		// 技能页主搜索、分组编辑器、批量迁移对话框复用同一个判据。
+		const skillMatchesQuery = (skill: any, query: string) => {
+			const q = typeof query === "string" ? query.trim().toLocaleLowerCase() : "";
+			if (q === "") return true;
+			const name = skill !== null && skill !== undefined && typeof skill.name === "string" ? skill.name.toLocaleLowerCase() : "";
+			const description = skill !== null && skill !== undefined && typeof skill.description === "string" ? skill.description.toLocaleLowerCase() : "";
+			return name.includes(q) || description.includes(q);
+		};
+
 		// ── 技能树构建：从技能条目（含 rel）构建与文件树一致的分层结构 ──────
 		// 正确性：叶子只能是扫描器验证过的技能条目（含 SKILL.md 的目录）；
 		// rel 中间段是分类文件夹（永远不是技能）；rel 为空 = 根层叶子。
@@ -854,18 +891,18 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					result: codec("dsh-skill-mcp-panel#AddResult")
 				},
 				{
-					id: "dsh-skill-mcp-panel#mcpManager/list",
-					service: "mcpManager",
-					namespace: "mcpManager",
+					id: "dsh-skill-mcp-panel#skillMcpPanel/list",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
 					method: "list",
 					invocation: { kind: "direct" },
 					parameters: [],
 					result: codec("dsh-skill-mcp-panel#McpListResult")
 				},
 				{
-					id: "dsh-skill-mcp-panel#mcpManager/save",
-					service: "mcpManager",
-					namespace: "mcpManager",
+					id: "dsh-skill-mcp-panel#skillMcpPanel/save",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
 					method: "save",
 					invocation: { kind: "direct" },
 					parameters: [
@@ -874,9 +911,9 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					result: codec("dsh-skill-mcp-panel#McpSaveResult")
 				},
 				{
-					id: "dsh-skill-mcp-panel#mcpManager/removeServer",
-					service: "mcpManager",
-					namespace: "mcpManager",
+					id: "dsh-skill-mcp-panel#skillMcpPanel/removeServer",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
 					method: "removeServer",
 					invocation: { kind: "direct" },
 					parameters: [
@@ -885,9 +922,9 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					result: codec("dsh-skill-mcp-panel#McpRemoveResult")
 				},
 				{
-					id: "dsh-skill-mcp-panel#mcpManager/setEnabled",
-					service: "mcpManager",
-					namespace: "mcpManager",
+					id: "dsh-skill-mcp-panel#skillMcpPanel/setEnabled",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
 					method: "setEnabled",
 					invocation: { kind: "direct" },
 					parameters: [
@@ -896,9 +933,9 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					result: codec("dsh-skill-mcp-panel#McpSaveResult")
 				},
 				{
-					id: "dsh-skill-mcp-panel#mcpManager/readRaw",
-					service: "mcpManager",
-					namespace: "mcpManager",
+					id: "dsh-skill-mcp-panel#skillMcpPanel/readRaw",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
 					method: "readRaw",
 					invocation: { kind: "direct" },
 					parameters: [
@@ -907,9 +944,9 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					result: codec("dsh-skill-mcp-panel#McpRawReadResult")
 				},
 				{
-					id: "dsh-skill-mcp-panel#mcpManager/writeRaw",
-					service: "mcpManager",
-					namespace: "mcpManager",
+					id: "dsh-skill-mcp-panel#skillMcpPanel/writeRaw",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
 					method: "writeRaw",
 					invocation: { kind: "direct" },
 					parameters: [
@@ -918,9 +955,9 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					result: codec("dsh-skill-mcp-panel#McpSaveResult")
 				},
 				{
-					id: "dsh-skill-mcp-panel#mcpManager/test",
-					service: "mcpManager",
-					namespace: "mcpManager",
+					id: "dsh-skill-mcp-panel#skillMcpPanel/test",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
 					method: "test",
 					invocation: { kind: "direct" },
 					parameters: [
@@ -929,9 +966,9 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					result: codec("dsh-skill-mcp-panel#McpTestResult")
 				},
 				{
-					id: "dsh-skill-mcp-panel#mcpManager/reload",
-					service: "mcpManager",
-					namespace: "mcpManager",
+					id: "dsh-skill-mcp-panel#skillMcpPanel/reload",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
 					method: "reload",
 					invocation: { kind: "direct" },
 					parameters: [],
@@ -942,9 +979,9 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 				// （Issue #51：单工具禁用面板与卡片上的 OAuth 按钮都因此点不动）。
 				// 守卫：test-client-contribution.mjs 做全量比对。
 				{
-					id: "dsh-skill-mcp-panel#mcpManager/listTools",
-					service: "mcpManager",
-					namespace: "mcpManager",
+					id: "dsh-skill-mcp-panel#skillMcpPanel/listTools",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
 					method: "listTools",
 					invocation: { kind: "direct" },
 					parameters: [
@@ -953,18 +990,18 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					result: codec("dsh-skill-mcp-panel#McpToolsResult")
 				},
 				{
-					id: "dsh-skill-mcp-panel#mcpManager/getToolFilter",
-					service: "mcpManager",
-					namespace: "mcpManager",
+					id: "dsh-skill-mcp-panel#skillMcpPanel/getToolFilter",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
 					method: "getToolFilter",
 					invocation: { kind: "direct" },
 					parameters: [],
 					result: codec("dsh-skill-mcp-panel#McpToolFilterResult")
 				},
 				{
-					id: "dsh-skill-mcp-panel#mcpManager/setToolFilter",
-					service: "mcpManager",
-					namespace: "mcpManager",
+					id: "dsh-skill-mcp-panel#skillMcpPanel/setToolFilter",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
 					method: "setToolFilter",
 					invocation: { kind: "direct" },
 					parameters: [
@@ -973,18 +1010,18 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					result: codec("dsh-skill-mcp-panel#McpToolFilterResult")
 				},
 				{
-					id: "dsh-skill-mcp-panel#mcpManager/evacuateForeign",
-					service: "mcpManager",
-					namespace: "mcpManager",
+					id: "dsh-skill-mcp-panel#skillMcpPanel/evacuateForeign",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
 					method: "evacuateForeign",
 					invocation: { kind: "direct" },
 					parameters: [],
 					result: codec("dsh-skill-mcp-panel#McpEvacuateResult")
 				},
 				{
-					id: "dsh-skill-mcp-panel#mcpManager/oauthStart",
-					service: "mcpManager",
-					namespace: "mcpManager",
+					id: "dsh-skill-mcp-panel#skillMcpPanel/oauthStart",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
 					method: "oauthStart",
 					invocation: { kind: "direct" },
 					parameters: [
@@ -993,9 +1030,9 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					result: codec("dsh-skill-mcp-panel#McpOAuthStartResult")
 				},
 				{
-					id: "dsh-skill-mcp-panel#mcpManager/oauthPoll",
-					service: "mcpManager",
-					namespace: "mcpManager",
+					id: "dsh-skill-mcp-panel#skillMcpPanel/oauthPoll",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
 					method: "oauthPoll",
 					invocation: { kind: "direct" },
 					parameters: [
@@ -1004,9 +1041,9 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					result: codec("dsh-skill-mcp-panel#McpOAuthPollResult")
 				},
 				{
-					id: "dsh-skill-mcp-panel#mcpManager/oauthStatus",
-					service: "mcpManager",
-					namespace: "mcpManager",
+					id: "dsh-skill-mcp-panel#skillMcpPanel/oauthStatus",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
 					method: "oauthStatus",
 					invocation: { kind: "direct" },
 					parameters: [
@@ -1015,9 +1052,9 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					result: codec("dsh-skill-mcp-panel#McpOAuthStatusResult")
 				},
 				{
-					id: "dsh-skill-mcp-panel#mcpManager/oauthDisconnect",
-					service: "mcpManager",
-					namespace: "mcpManager",
+					id: "dsh-skill-mcp-panel#skillMcpPanel/oauthDisconnect",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
 					method: "oauthDisconnect",
 					invocation: { kind: "direct" },
 					parameters: [
@@ -1030,6 +1067,8 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 
 // ── 分组编辑对话框（左侧分组列表，右侧名称/工作区/技能）──────────────
 		function GroupDialog({ t, options, groups, groupId, setGroupId, name, setName, scope, setScope, skills, selected, toggle, selectAll, busy, error, onSave, onDelete, onCancel }) {
+			// Issue #82：Esc 关弹窗（点遮罩由 closeOnBackdrop 处理）。
+			useEscapeClose(onCancel);
 			const known = Array.isArray(options) ? options : [];
 			const rows = Array.isArray(groups) ? groups : [];
 			const [query, setQuery] = react.useState("");
@@ -1046,7 +1085,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 				return () => clearTimeout(timer);
 			}, [confirmingDelete]);
 			const q = query.trim().toLowerCase();
-			const visible = skills.filter((skill) => skill.name.toLowerCase().includes(q));
+			const visible = skills.filter((skill) => skillMatchesQuery(skill, q));
 			const allChecked = skills.length > 0 && selected.size === skills.length;
 			// 分类快速添加：从 rel 顶层段派生分类（如 lark-cli / mattpocock / opencli）。
 			// 纯前端辅助——不改动手动分组机制，点击 chip 按目录批量勾选/取消。
@@ -1069,6 +1108,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 				className: c.scopeOverlay,
 				role: "dialog",
 				"aria-modal": "true",
+				onClick: closeOnBackdrop(onCancel, busy),
 				children: (0, react_jsx_runtime.jsxs)("div", {
 					className: c.scopeBox,
 					children: [(0, react_jsx_runtime.jsx)("h4", { children: t("groupTitle") }), (0, react_jsx_runtime.jsxs)("div", {
@@ -1250,10 +1290,12 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 
 // ── 批量迁移对话框（源/目标均为下拉表单，目标可多选）───────────────────
 		function MigrateDialog({ t, options, from, setFrom, targets, toggleTarget, mode, setMode, skills, selected, toggle, selectAll, busy, result, error, onConfirm, onCancel, onClose }) {
+			// Issue #82：Esc 关弹窗（点遮罩由 closeOnBackdrop 处理）。
+			useEscapeClose(onCancel);
 			const known = Array.isArray(options) ? options : [];
 			const [query, setQuery] = react.useState("");
 			const q = query.trim().toLowerCase();
-			const visible = skills.filter((skill) => skill.name.toLowerCase().includes(q));
+			const visible = skills.filter((skill) => skillMatchesQuery(skill, q));
 			const allChecked = skills.length > 0 && selected.size === skills.length;
 			const okCount = Array.isArray(result) ? result.filter((item) => item.ok === true).length : 0;
 			const failCount = Array.isArray(result) ? result.length - okCount : 0;
@@ -1266,6 +1308,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 				className: c.scopeOverlay,
 				role: "dialog",
 				"aria-modal": "true",
+				onClick: closeOnBackdrop(onCancel, busy),
 				children: (0, react_jsx_runtime.jsxs)("div", {
 					className: c.scopeBox,
 					children: [(0, react_jsx_runtime.jsx)("h4", { children: t("migrateTitle") }), (0, react_jsx_runtime.jsxs)("div", {
@@ -1558,9 +1601,32 @@ function SkillsSection(props) {
 			const [groupsList, setGroupsList] = react.useState(null);
 			const [groupFilter, setGroupFilter] = react.useState("all");
 			const [groupEditor, setGroupEditor] = react.useState(null);
+			// Issue #82：批量迁移 / 分组编辑器这两个对话框挂在页面层，Esc 在这里兜底关掉
+			// （保存中不关，避免把正在写的请求丢在半路）。
+			useEscapeClose(() => setMigrator(null), migrator !== null && migrator.busy !== true);
+			useEscapeClose(() => setGroupEditor(null), groupEditor !== null && groupEditor.busy !== true);
 			const [bulkGroup, setBulkGroup] = react.useState(null);
 			const [updateBanner, setUpdateBanner] = react.useState(null);
 			const [addMenuOpen, setAddMenuOpen] = react.useState(false);
+			// Issue #82：添加技能菜单点外部 / 按 Esc 关闭。菜单是定位弹层（不是全屏遮罩），
+			// 所以用 document 上的 pointerdown 判「点在哪」——落在按钮 + 菜单这个 wrap 里不算外部。
+			react.useEffect(() => {
+				if (!addMenuOpen || !canListenDocument()) return undefined;
+				const onPointerDown = (event: any) => {
+					const target = event === null || event === undefined ? null : event.target;
+					const inside = target !== null && target !== undefined && typeof target.closest === "function" && target.closest("." + c.addMenuWrap) !== null;
+					if (!inside) setAddMenuOpen(false);
+				};
+				const onKeyDown = (event: any) => {
+					if (event !== null && event !== undefined && event.key === "Escape") setAddMenuOpen(false);
+				};
+				document.addEventListener("pointerdown", onPointerDown);
+				document.addEventListener("keydown", onKeyDown);
+				return () => {
+					document.removeEventListener("pointerdown", onPointerDown);
+					document.removeEventListener("keydown", onKeyDown);
+				};
+			}, [addMenuOpen]);
 			const inflight = react.useRef(new Set());
 			const singleFileInput = react.useRef(null);
 			const zipFileInput = react.useRef(null);
@@ -2217,7 +2283,7 @@ function SkillsSection(props) {
 			}
 			const groupFiltered = paneMode !== "groups" || groupFilter === "all" ? scoped : groupFilter === "" ? scoped.filter((skill) => !groupedNames.has(skill.name)) : grouped;
 			const activeList = paneMode === "provider" ? grouped : groupFiltered;
-			const filtered = activeList.filter((skill) => skill.name.toLocaleLowerCase().includes(normalizedQuery));
+			const filtered = activeList.filter((skill) => skillMatchesQuery(skill, normalizedQuery));
 			// 中栏行：全部 / 各分组（或各来源）/ 未分组，行尾都带计数。
 			// 「未分组」只在**有意义**时出现：这个作用域确实建过分组，且真的还有没进分组的技能。
 			// 没建分组时它等于「全部」，全部分组后它点进去是空列表——两种都是纯噪音。
@@ -3263,6 +3329,9 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         docSecret: "env / headers 的值只写不读：页面与 RPC 都只回传键名，编辑时对应键留空即保持原值；也可以用 !!js 前缀直接写任意 JS 表达式。",
                         docCode: "- id: panel-mcp-github\n  name: '@deepseek-ai/dsh-mcp-client'\n  config:\n    serverName: github\n    transport: stdio\n    command: npx\n    args: ['-y', '@modelcontextprotocol/server-github']\n    env:\n      GITHUB_TOKEN: !!js '`${process.env.GITHUB_TOKEN}`'",
                         add: "+ 添加服务器",
+                        searchPlaceholder: "搜索服务器名 / 地址 / 命令",
+                        noMatch: "没有匹配的 MCP 服务器。",
+                        filteredCount: "筛出 {visible}/{total}",
                         refresh: "刷新",
                         empty: "还没有 MCP 服务器。",
                         loading: "正在读取 MCP 服务器…",
@@ -3368,6 +3437,11 @@ authBadgeHint: "这一行已经带 Authorization 头（OAuth 登录或手工填�
 toolsButton: "工具",
 toolsButtonHint: "按工具名禁用（被禁的工具会从模型工具表里消失，真正省上下文）",
 toolsScopeHint: "这份禁用列表对所有会话生效；取消勾选 = 禁用该工具。",
+toolsSearchPlaceholder: "搜索工具名或描述",
+toolsSelectAll: "全选",
+toolsSelectNone: "全不选",
+toolsNoMatch: "没有匹配的工具。",
+toolsFilteredCount: "筛出 {visible}/{total}",
 toolsLoading: "正在读取工具…",
 toolsEmpty: "这台服务器还没注册任何工具（可能没连上）。",
 toolsDisconnected: "服务器未连接：先启用它，工具清单才有内容。",
@@ -3394,6 +3468,9 @@ authStdioHint: "stdio 服务器的令牌没有单独的认证项——写在这�
                         docSecret: "env / headers values are write-only: the UI and RPC only return key names, and leaving a configured key blank keeps its current value. A !!js prefix passes a raw JS expression.",
                         docCode: "- id: panel-mcp-github\n  name: '@deepseek-ai/dsh-mcp-client'\n  config:\n    serverName: github\n    transport: stdio\n    command: npx\n    args: ['-y', '@modelcontextprotocol/server-github']\n    env:\n      GITHUB_TOKEN: !!js '`${process.env.GITHUB_TOKEN}`'",
                         add: "+ Add server",
+                        searchPlaceholder: "Search server name, URL or command",
+                        noMatch: "No matching MCP servers.",
+                        filteredCount: "{visible}/{total} shown",
                         refresh: "Refresh",
                         empty: "No MCP servers yet.",
                         loading: "Loading MCP servers…",
@@ -3499,6 +3576,11 @@ authBadgeHint: "This row already carries an Authorization header (OAuth or hand-
 toolsButton: "Tools",
 toolsButtonHint: "Disable tools by name — a disabled tool disappears from the model's tool list and saves context",
 toolsScopeHint: "This list applies to every session; uncheck a tool to disable it.",
+toolsSearchPlaceholder: "Search tool name or description",
+toolsSelectAll: "Select all",
+toolsSelectNone: "Clear all",
+toolsNoMatch: "No matching tools.",
+toolsFilteredCount: "{visible}/{total} shown",
 toolsLoading: "Loading tools…",
 toolsEmpty: "This server has no registered tools yet (probably not connected).",
 toolsDisconnected: "Server not connected: enable it first so its tools appear.",
@@ -3692,6 +3774,8 @@ function mcpWireScalar(text) {
                 }
 
                 function McpFormDialog({ t, initial, onSave, onCancel, busy, error }) {
+                        // Issue #82：Esc 关弹窗（点遮罩由 closeOnBackdrop 处理）。
+                        useEscapeClose(onCancel);
                         const editing = initial !== null && initial !== undefined;
                         const [form, setForm] = react.useState(() => editing ? formFromServer(initial) : defaultMcpForm());
                         const [deletedEnv, setDeletedEnv] = react.useState(() => new Set());
@@ -3858,6 +3942,7 @@ function mcpWireScalar(text) {
                                 className: c.scopeOverlay,
                                 role: "dialog",
                                 "aria-modal": "true",
+                                onClick: closeOnBackdrop(onCancel, busy),
                                 children: (0, react_jsx_runtime.jsxs)("div", {
                                         className: c.scopeBox,
                                         children: [
@@ -3900,6 +3985,8 @@ function mcpWireScalar(text) {
                         const [request, setRequest] = react.useState(0);
                         const [editing, setEditing] = react.useState(null);
                         const [dialogBusy, setDialogBusy] = react.useState(false);
+                        // Issue #82：MCP 表单弹窗按 Esc 关闭（保存中不关）。
+                        useEscapeClose(() => setEditing(null), editing !== null && dialogBusy !== true);
                         const [updateBanner, setUpdateBanner] = react.useState(null);
                         const [dialogError, setDialogError] = react.useState(null);
                         const [confirming, setConfirming] = react.useState(null);
@@ -3912,13 +3999,19 @@ function mcpWireScalar(text) {
                         // 单工具禁用（Issue #44）：展开哪一台、它的工具清单、勾掉的集合与忙碌态。
                         const [toolsOpen, setToolsOpen] = react.useState(null);
                         const [toolsPanel, setToolsPanel] = react.useState(null);
+                        // MCP 服务器搜索：按名字 / 地址 / 命令与参数 / 传输方式 / 头名 / 环境变量名过滤卡片。
+                        const [mcpFilter, setMcpFilter] = react.useState("");
                         const [toolsBusy, setToolsBusy] = react.useState(false);
+                        // 工具清单筛选（Issue #77）：一台服务器几十上百个工具时按名字/描述过滤。
+                        const [toolsFilter, setToolsFilter] = react.useState("");
                         // 受管块里的外来行（#46 后续）：展开「查看机制」说明、移出结果与忙碌态。
                         const [foreignDocOpen, setForeignDocOpen] = react.useState(false);
                         const [evacNotice, setEvacNotice] = react.useState(null);
                         const [evacBusy, setEvacBusy] = react.useState(false);
                         // 原文编辑：表单没覆盖的字段（maxInstructionBytes 等）和手写 YAML 走这里。
                         const [rawEdit, setRawEdit] = react.useState(null);
+                        // Issue #82：原文编辑弹层按 Esc 关闭（点遮罩在下面直接处理）。
+                        useEscapeClose(() => setRawEdit(null), rawEdit !== null);
                         react.useEffect(() => {
                                 let cancelled = false;
                                 listMcp().then((value) => {
@@ -3949,6 +4042,15 @@ function mcpWireScalar(text) {
                         }, [checkUpdateRemote, t]);
                         const servers = data?.servers ?? [];
                         const patch = data?.patch ?? {};
+                        // 服务器搜索：任意一个可见字段命中即保留。
+                        const mcpQuery = mcpFilter.trim().toLocaleLowerCase();
+                        const filteredServers = mcpQuery === "" ? servers : servers.filter((server) => {
+                                const fields = [server.serverName, server.transport, server.url, server.command, server.cwd]
+                                        .concat(Array.isArray(server.args) ? server.args : [])
+                                        .concat(Array.isArray(server.headerKeys) ? server.headerKeys : [])
+                                        .concat(Array.isArray(server.envKeys) ? server.envKeys : []);
+                                return fields.some((field) => typeof field === "string" && field.toLocaleLowerCase().includes(mcpQuery));
+                        });
                         /**
                          * #46 受管块里的外来行可见化。
                          * patch.foreign 的元素是 { id?, name?, managed }：
@@ -4118,6 +4220,7 @@ function mcpWireScalar(text) {
                         		return;
                         	}
                         	setToolsOpen(server.serverName);
+                        	setToolsFilter("");
                         	setToolsPanel({ serverName: server.serverName, loading: true });
                         	try {
                         		const [tools, filter] = await Promise.all([listMcpTools({ serverName: server.serverName }), getToolFilter()]);
@@ -4170,6 +4273,22 @@ function mcpWireScalar(text) {
                         		return (0, react_jsx_runtime.jsx)("div", { className: m.toolsPanel, children: (0, react_jsx_runtime.jsx)("p", { className: m.hint, "data-error": "true", children: panel.error }) });
                         	}
                         	const rows = panel.tools ?? [];
+                        	// 工具筛选（Issue #77）：名字或描述命中即显示；全选/全不选只作用于当前筛出的部分。
+                        	const toolQuery = toolsFilter.trim().toLocaleLowerCase();
+                        	const visibleTools = toolQuery === ""
+                        		? rows
+                        		: rows.filter((tool) => String(tool.name).toLocaleLowerCase().includes(toolQuery) || String(tool.description ?? "").toLocaleLowerCase().includes(toolQuery));
+                        	const setVisibleTools = (enabled) => {
+                        		setToolsPanel((prev) => {
+                        			if (prev === null) return prev;
+                        			const next = new Set(prev.disabled);
+                        			for (const tool of visibleTools) {
+                        				if (enabled) next.delete(tool.name);
+                        				else next.add(tool.name);
+                        			}
+                        			return { ...prev, disabled: next };
+                        		});
+                        	};
                         	if (rows.length === 0) {
                         		return (0, react_jsx_runtime.jsxs)("div", {
                         			className: m.toolsPanel,
@@ -4180,9 +4299,17 @@ function mcpWireScalar(text) {
                         		className: m.toolsPanel,
                         		children: [
                         			(0, react_jsx_runtime.jsx)("p", { className: m.hint, children: t("toolsScopeHint") }),
+                        			(0, react_jsx_runtime.jsxs)("div", {
+                        				className: m.toolbar,
+                        				children: [(0, react_jsx_runtime.jsx)("input", {
+                        					className: m.input, type: "search", "data-role": "tool-search", placeholder: t("toolsSearchPlaceholder"), value: toolsFilter,
+                        					style: { flex: "1", minWidth: "0" },
+                        					onChange: (event) => setToolsFilter(event.currentTarget.value)
+                        				}), (0, react_jsx_runtime.jsx)("button", { type: "button", className: m.actionBtn, disabled: toolsBusy || visibleTools.length === 0, onClick: () => setVisibleTools(true), children: t("toolsSelectAll") }), (0, react_jsx_runtime.jsx)("button", { type: "button", className: m.actionBtn, disabled: toolsBusy || visibleTools.length === 0, onClick: () => setVisibleTools(false), children: t("toolsSelectNone") })]
+                        			}),
                         			(0, react_jsx_runtime.jsx)("div", {
                         				className: m.toolsList,
-                        				children: rows.map((tool) => (0, react_jsx_runtime.jsxs)("label", {
+                        				children: visibleTools.length === 0 ? (0, react_jsx_runtime.jsx)("p", { className: m.hint, children: t("toolsNoMatch") }) : visibleTools.map((tool) => (0, react_jsx_runtime.jsxs)("label", {
                         					className: m.toolRow,
                         					title: tool.description ?? tool.name,
                         					children: [
@@ -4196,7 +4323,7 @@ function mcpWireScalar(text) {
                         				children: [
                         					(0, react_jsx_runtime.jsx)("button", { type: "button", className: m.actionBtn, disabled: toolsBusy, onClick: saveTools, children: toolsBusy ? t("toolsSaving") : t("toolsSave") }),
                         					(0, react_jsx_runtime.jsx)("button", { type: "button", className: m.actionBtn, disabled: toolsBusy, onClick: () => setToolsOpen(null), children: t("cancel") }),
-                        					(0, react_jsx_runtime.jsx)("span", { className: m.hint, children: t("toolsDisabledCount").replace("{count}", String(panel.disabled.size)) })
+                        					(0, react_jsx_runtime.jsx)("span", { className: m.hint, children: (toolQuery === "" ? "" : t("toolsFilteredCount").replace("{visible}", String(visibleTools.length)).replace("{total}", String(rows.length)) + " · ") + t("toolsDisabledCount").replace("{count}", String(panel.disabled.size)) })
                         				]
                         			})
                         		]
@@ -4413,17 +4540,29 @@ function mcpWireScalar(text) {
                                                 onClick: () => refresh(true),
                                                 children: t !== null ? t("retry") : ""
                                         })]
-                                }) : null, (0, react_jsx_runtime.jsx)("div", {
+                                }) : null, (0, react_jsx_runtime.jsxs)("div", {
                                         className: m.toolbar,
-                                        children: (0, react_jsx_runtime.jsx)("button", {
+                                        children: [(0, react_jsx_runtime.jsx)("input", {
+                                                className: m.input,
+                                                type: "search",
+                                                "data-role": "server-search",
+                                                value: mcpFilter,
+                                                placeholder: t !== null ? t("searchPlaceholder") : "",
+                                                "aria-label": t !== null ? t("searchPlaceholder") : "",
+                                                style: { flex: "1", minWidth: "0" },
+                                                onChange: (event) => setMcpFilter(event.currentTarget.value)
+                                        }), (0, react_jsx_runtime.jsx)("button", {
                                                 type: "button",
                                                 className: m.add,
                                                 onClick: () => { setDialogError(null); setEditing({ server: null }); },
                                                 children: t !== null ? t("add") : ""
-                                        })
-                                }), loadState.kind === "loading" && servers.length === 0 ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("loading") : "" }) : null, servers.length === 0 && loadState.kind === "ready" ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("empty") : "" }) : null, (0, react_jsx_runtime.jsx)("div", {
+                                        }), mcpQuery === "" ? null : (0, react_jsx_runtime.jsx)("span", {
+                                                className: m.hint,
+                                                children: t !== null ? t("filteredCount").replace("{visible}", String(filteredServers.length)).replace("{total}", String(servers.length)) : ""
+                                        })]
+                                }), loadState.kind === "loading" && servers.length === 0 ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("loading") : "" }) : null, servers.length === 0 && loadState.kind === "ready" ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("empty") : "" }) : null, servers.length > 0 && filteredServers.length === 0 ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("noMatch") : "" }) : null, (0, react_jsx_runtime.jsx)("div", {
                                         className: m.cards,
-                                        children: servers.map((server) => serverCard(server))
+                                        children: filteredServers.map((server) => serverCard(server))
                                 }), editing !== null ? (0, react_jsx_runtime.jsx)(McpFormDialog, {
                                         t: t !== null ? t : (key) => key,
                                         initial: editing.server,
@@ -4435,6 +4574,7 @@ function mcpWireScalar(text) {
                                         className: c.scopeOverlay,
                                         role: "dialog",
                                         "aria-modal": "true",
+                                        onClick: closeOnBackdrop(() => setRawEdit(null), false),
                                         children: (0, react_jsx_runtime.jsxs)("div", {
                                                 className: c.scopeBox,
                                                 children: [
@@ -4649,9 +4789,9 @@ function mcpWireScalar(text) {
 			};
 			const callMcp = async (method, ...args) => {
 				await mount;
-				const remote = ctx.get("remote.mcpManager");
+				const remote = ctx.get("remote.skillMcpPanel");
 				const result = await remote[method](...args);
-				if (!result.ok) throw new Error("mcpManager." + method + " failed: " + result.error.code + ": " + result.error.message);
+				if (!result.ok) throw new Error("skillMcpPanel." + method + " failed: " + result.error.code + ": " + result.error.message);
 				return result.value;
 			};
 			// 返回会话：layout 服务由宿主 shell 提供（已声明进 inject）；取不到时箭头是空操作，

@@ -1,5 +1,5 @@
 /**
- * dsh-skill-mcp-panel —— MCP 宿主服务（mcpManager）。
+ * dsh-skill-mcp-panel —— MCP 宿主服务（skillMcpPanel）。
  */
 import { TypertRemoteService } from "@deepseek-ai/dsh-typert-protocol";
 import { fileURLToPath } from "node:url";
@@ -111,7 +111,7 @@ export class McpManagerGateway extends TypertRemoteService {
   toolFilter: any;
 
   constructor(ctx: any, toolFilter?: any) {
-    super(ctx, "mcpManager");
+    super(ctx, "skillMcpPanel");
     this.toolFilter = toolFilter;
   }
 
