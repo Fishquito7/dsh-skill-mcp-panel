@@ -4161,7 +4161,9 @@ function mcpWireScalar(text) {
                                 setTestResult(null);
                                 try {
                                         const result = await testMcp({ serverName: server.serverName, entryId: server.entryId });
-                                        setTestResult({ serverName: server.serverName, result });
+                                        // 远程信封可能是 null（宿主侧重载后远端未就绪）；不归一化的话，渲染时
+                                        // 读 testResult.result.ok 会把整个面板带崩。
+                                        setTestResult({ serverName: server.serverName, result: result ?? { ok: false, error: "empty result", tools: [] } });
                                 } catch (error: any) {
                                         setTestResult({ serverName: server.serverName, result: { ok: false, error: String(error?.message ?? error), tools: [] } });
                                 } finally {
@@ -4438,11 +4440,11 @@ function mcpWireScalar(text) {
                                                         onClick: () => applyRemove(server),
                                                         children: t !== null ? t("delete") : ""
                                                 })]
-                                                                                }), oauthNotice?.serverName === server.serverName ? (0, react_jsx_runtime.jsx)("div", {
+                                                                                }), oauthNotice !== null && oauthNotice !== undefined && oauthNotice.serverName === server.serverName ? (0, react_jsx_runtime.jsx)("div", {
                                                                                 	className: m.result,
                                                                                 	"data-ok": oauthNotice.ok ? "true" : "false",
                                                                                 	children: oauthNotice.text
-                                                                                }) : null, toolsOpen === server.serverName ? toolPanel(server) : null, testResult?.serverName === server.serverName ? (0, react_jsx_runtime.jsxs)("div", {
+                                                                                }) : null, toolsOpen === server.serverName ? toolPanel(server) : null, testResult !== null && testResult !== undefined && testResult.serverName === server.serverName ? (0, react_jsx_runtime.jsxs)("div", {
                                                 className: m.result,
                                                 "data-ok": testResult.result.ok ? "true" : "false",
                                                 children: [testResult.result.ok ? t !== null ? t("testOk").replace("{count}", String(testResult.result.tools?.length ?? 0)) : "" : t !== null ? t("testFailed") + " " + (testResult.result.error ?? "") : "", testResult.result.ok && Array.isArray(testResult.result.tools) ? (0, react_jsx_runtime.jsx)("div", { children: testResult.result.tools.map((tool) => tool.name).join(", ") }) : null]
