@@ -127,7 +127,7 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 确需在老宿主上使用，用宿主打印的精确版本豁免：
 
 ```bash
-dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.11 --dsh-version <宿主版本> --accept-risk
+dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.12 --dsh-version <宿主版本> --accept-risk
 ```
 
 ## 命令行
@@ -268,6 +268,7 @@ dsh plugin --profile web remove dsh-skill-mcp-panel
 
 只列**会改变使用方式**的版本要点；完整改动见 [Releases](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)。
 
+- **v2.3.12** —— **修「关掉 MCP 之后卡片信息全丢、再开报『启用参数无效』」**（严重回归，感谢用户反馈）：启停接口的返回是信封 `{ server, reconciled }`，前端却把它当成卡片本身塞回了列表槽位，于是**这张卡的名字、传输方式、命令/地址、工具数全部变空**；再点开关时发出去的 `serverName` 已经是 `undefined`，宿主自然只回一句「启用参数无效」。现在只取信封里的 `server` 替换卡片（取不到就退回「原卡片 + 开关状态」），并且加了道闸：任何动作发现卡片身份已坏，就刷新列表自愈，**绝不把 `undefined` 发给宿主**。顺带说明：文件是干净的，`cordis.patch.yml` 里的配置一直在——坏的只是界面里的那张卡，刷新面板即可。
 - **v2.3.11** —— **修「启停 MCP 之后主区整片黑」**（PR [#87](https://github.com/Fishquito7/dsh-skill-mcp-panel/pull/87)，感谢 [@gezi-wen](https://github.com/gezi-wen)）：卡片里的守卫写成 `oauthNotice?.serverName === server.serverName`，当两边都是 `undefined` 时相等成立，于是进分支去读 `null.ok` → 抛 TypeError → 宿主把整个 `main` 槽位当一棵树卸载，主区全黑、连「返回会话」都点不到（`Ctrl+R` 也救不回来）。现在两处守卫改成显式判空，「测试连接」拿到 `null` 信封时归一化成 `{ ok: false, error: "empty result" }`。另外加了**单卡兜底**：任意一张卡片渲染期间出错，只把这一张换成写着原因的「渲染失败」卡（含原始错误信息，方便反馈），其它卡片和页面外壳照常可用——同样的数据最多显示难看，不再整片黑。
 - **v2.3.10** —— **兼容 DSH 0.2.2**（#85 / #81）：`@deepseek-ai/dsh-typert-protocol` 从 dependencies 挪进 peerDependencies——预发布版的范围写法（`^0.2.0-rc.1 || ^0.2.1-rc.1`，乃至 issue 里建议的 `>=0.2.0-rc.1 <0.3.0-0`）在 semver 下都匹配不到下一条 patch 线的预发布包，于是 profile 里被装进第二份协议包（0.2.1 线）与宿主 0.2.2 混版本，对版本一致性敏感的插件（例如 multi-root-workspace）会直接拒绝加载；现在协议包由宿主提供，安装树里不再有第二份。同时把面板注册的宿主服务从 `mcpManager` 改名为 `skillMcpPanel`，不再与 DSH 0.2.2 内置的 `@deepseek-ai/dsh-mcp-manager` 抢同一个服务名（#81）。易用性：**添加技能菜单、分组编辑器、批量迁移、MCP 表单与原文编辑**现在点遮罩空白处或按 Esc 都会关闭（#82）；技能搜索同时匹配**描述**（#79）；MCP 卡片里可按工具名/描述筛选工具并一键全选/全不选（#77），**MCP 页顶栏新增服务器搜索**（按服务器名 / 地址 / 命令 / 头名 / 环境变量名筛卡片）
 - **v2.3.7** —— **窄屏适配**（#71，感谢 @2532316972 的截图反馈）：窗口或面板宽度小于 **820px** 时自动切到简洁布局，不再出现三栏把主区挤成一列图标、内容右侧被裁掉、连布局开关都被推出屏幕外的情况。自动切换只影响显示：不覆盖你手动选的布局、不写浏览器里的偏好，拉宽后回到你选的那套；窄屏下那枚「三栏 / 简洁」开关直接不显示，避免点了又被宽度压回来。判据同时看**视口宽度**和**面板自身宽度**——面板挂在宿主主区里，窗口宽 ≠ 面板宽，左侧会话栏占掉一截时按面板自身宽度算。MCP 页在窄屏下也改单列（卡片、表单），工具栏允许换行
