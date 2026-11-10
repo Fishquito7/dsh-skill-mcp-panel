@@ -3346,6 +3346,11 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         testing: "测试中…",
                         testOk: "连接成功，发现 {count} 个工具：",
                         testFailed: "连接失败：",
+                        // 单卡兜底（2.3.11）：一张卡片渲染出错时换成的可读错误卡。
+                        cardErrorBadge: "渲染失败",
+                        cardErrorName: "（未命名服务器）",
+                        cardErrorTitle: "这一项的数据异常，已跳过渲染：",
+                        cardErrorHint: "面板其余部分仍可用。请用「原文编辑」检查这一行的字段，或把插件重挂一次；方便的话把这个提示反馈给作者。",
                         enable: "启用",
                         disable: "停用",
                         stateEnabled: "已启用",
@@ -3485,6 +3490,11 @@ authStdioHint: "stdio 服务器的令牌没有单独的认证项——写在这�
                         testing: "Testing…",
                         testOk: "Connected, {count} tools found:",
                         testFailed: "Connection failed:",
+                        // 单卡兜底（2.3.11）：一张卡片渲染出错时换成的可读错误卡。
+                        cardErrorBadge: "render failed",
+                        cardErrorName: "(unnamed server)",
+                        cardErrorTitle: "This entry's data is malformed, rendering was skipped:",
+                        cardErrorHint: "The rest of the panel still works. Check this row's fields via Raw edit, or remount the plugin; please report this message to the author.",
                         enable: "Enable",
                         disable: "Disable",
                         stateEnabled: "Enabled",
@@ -4451,6 +4461,30 @@ function mcpWireScalar(text) {
                                         }) : null]
                                 }, server.serverName);
                         };
+                        /**
+                         * 单卡兜底（2.3.11）：一张卡片的数据形状不对时，只坏它自己。
+                         *
+                         * 宿主把整个 main 槽位当一棵树渲染，卡片又是在父组件 body 里 eager 调用的，
+                         * 所以卡片里抛一次 TypeError 就足够让整片主区变黑、连「返回会话」都点不到
+                         * （PR #87 现场：oauthNotice 与 server.serverName 同时是 undefined，
+                         * 可选链相等成立后读 null.ok）。判空挡住了那一处，这里兜住所有同类：
+                         * 出错只换成一张可读的错误卡，别的卡片和页面外壳照旧。
+                         */
+                        const safeServerCard = (server) => {
+                                try {
+                                        return serverCard(server);
+                                } catch (error: any) {
+                                        const label = typeof server?.serverName === "string" && server.serverName !== "" ? server.serverName : (t !== null ? t("cardErrorName") : "");
+                                        return (0, react_jsx_runtime.jsxs)("div", {
+                                                className: m.card,
+                                                "data-card-error": "true",
+                                                children: [(0, react_jsx_runtime.jsxs)("div", {
+                                                        className: m.cardTop,
+                                                        children: [(0, react_jsx_runtime.jsx)("span", { className: m.name, children: label }), (0, react_jsx_runtime.jsx)("span", { className: m.badge, children: t !== null ? t("cardErrorBadge") : "" })]
+                                                }), (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: (t !== null ? t("cardErrorTitle") : "") + " " + String(error?.message ?? error) }), (0, react_jsx_runtime.jsx)("p", { className: m.hint, children: t !== null ? t("cardErrorHint") : "" })]
+                                        }, "card-error:" + label);
+                                }
+                        };
                         return (0, react_jsx_runtime.jsxs)("div", {
                                 className: m.section,
                                 children: [(0, react_jsx_runtime.jsxs)("div", {
@@ -4564,7 +4598,7 @@ function mcpWireScalar(text) {
                                         })]
                                 }), loadState.kind === "loading" && servers.length === 0 ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("loading") : "" }) : null, servers.length === 0 && loadState.kind === "ready" ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("empty") : "" }) : null, servers.length > 0 && filteredServers.length === 0 ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("noMatch") : "" }) : null, (0, react_jsx_runtime.jsx)("div", {
                                         className: m.cards,
-                                        children: filteredServers.map((server) => serverCard(server))
+                                        children: filteredServers.map((server) => safeServerCard(server))
                                 }), editing !== null ? (0, react_jsx_runtime.jsx)(McpFormDialog, {
                                         t: t !== null ? t : (key) => key,
                                         initial: editing.server,

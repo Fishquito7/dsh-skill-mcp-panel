@@ -1273,5 +1273,74 @@ const renderChild = (element) => {
   });
 }
 
+// ── 14. 单卡兜底：一张坏卡片不能再把整片主区带崩（PR #87 的后续）───────────
+{
+  const cardClassCount = (node) => byClass(node, "MCP_card").length;
+  const errorCards = (node) => findAll(node, (n) => n.props["data-card-error"] === "true");
+  const toolbarSearch = (node) => findAll(node, (n) => n.type === "input" && n.props["data-role"] === "server-search").length;
+
+  // (1) PR #87 的现场：某一条 servers 缺 serverName（undefined），而 oauthNotice 是 null。
+  //     旧守卫 `oauthNotice?.serverName === server.serverName` 两边都是 undefined，
+  //     相等成立 → 读 null.ok → TypeError → 宿主把整个 main 槽位卸载（主区全黑）。
+  const sparseFace = {
+    ...mcpFace,
+    listMcp: async () => ({
+      servers: [
+        { transport: "stdio", enabled: true, fiberPhase: "active", toolCount: 0, envKeys: [] },
+        { serverName: "gh", transport: "stdio", enabled: true, fiberPhase: "active", toolCount: 3, envKeys: [] }
+      ],
+      externalServers: [],
+      patch: { path: "C:/p/cordis.patch.yml", ok: true, error: null, foreign: [] }
+    })
+  };
+  reset(skills, "mcp");
+  let view = await mount(sparseFace);
+  check("缺 serverName 的条目不再把卡片渲染打断（PR #87）", () => {
+    assert(cardClassCount(view.section) === 2, "expected 2 cards, got " + cardClassCount(view.section));
+    assert(errorCards(view.section).length === 0, "both entries should render normally, no fallback card");
+  });
+
+  // (2) 单卡兜底：卡片渲染期间抛错时只换掉这一张卡，其它卡片和页面外壳照旧。
+  //     这里用一个会抛的 `enabled` getter 制造渲染期异常（等同于将来任何一种
+  //     数据形状导致的 TypeError），断言它被 safeServerCard 收住。
+  const exploding = { serverName: "boomtown", transport: "stdio", fiberPhase: "active", toolCount: 0, envKeys: [] };
+  Object.defineProperty(exploding, "enabled", { get() { throw new Error("boom: enabled getter"); } });
+  const boomFace = {
+    ...mcpFace,
+    listMcp: async () => ({
+      servers: [exploding, { serverName: "gh", transport: "stdio", enabled: true, fiberPhase: "active", toolCount: 3, envKeys: [] }],
+      externalServers: [],
+      patch: { path: "C:/p/cordis.patch.yml", ok: true, error: null, foreign: [] }
+    })
+  };
+  reset(skills, "mcp");
+  let boomError = null;
+  view = null;
+  try {
+    view = await mount(boomFace);
+  } catch (error) {
+    boomError = error;
+  }
+  check("卡片里抛错不再让整个主区变黑（2.3.11 单卡兜底）", () => {
+    assert(boomError === null, "render threw out of the section: " + (boomError && boomError.message));
+    assert(view !== null, "no render result");
+    assert(errorCards(view.section).length === 1, "expected exactly 1 fallback card, got " + errorCards(view.section).length);
+    const names = findAll(view.section, (n) => n.props.className === "MCP_name").map((n) => String(n.props.children));
+    assert(names.includes("boomtown") && names.includes("gh"), "both entries should still be listed: " + JSON.stringify(names));
+    assert(toolbarSearch(view.section) === 1, "section toolbar must still render (search input missing)");
+    assert(cardClassCount(view.section) === 2, "expected 2 card slots (1 fallback + 1 normal), got " + cardClassCount(view.section));
+  });
+  check("兜底卡写着可读的原因与去处（2.3.11）", () => {
+    const card = errorCards(view.section)[0];
+    const text = findAll(card, (n) => n.props !== undefined && typeof n.props.children === "string")
+      .map((n) => String(n.props.children))
+      .join(" | ");
+    assert(text.includes("渲染失败"), "missing failure badge copy: " + text);
+    assert(text.includes("boom: enabled getter"), "missing underlying error message: " + text);
+    assert(text.includes("原文编辑"), "missing recovery hint: " + text);
+  });
+  store.delete("dsh-skill-mcp-panel:last-tab");
+}
+
 console.log("\n" + (failures === 0 ? "ALL HARNESS CHECKS PASSED" : failures + " harness check(s) FAILED"));
 process.exit(failures === 0 ? 0 : 1);
