@@ -1342,5 +1342,89 @@ const renderChild = (element) => {
   store.delete("dsh-skill-mcp-panel:last-tab");
 }
 
+// ── 15. 启停 MCP：卡片不能被网关信封替换掉（2.3.12 严重回归）───────────────
+{
+  // 网关 setEnabled 的返回是信封 `{ server, reconciled }`，不是裸 view。
+  // 旧代码把信封整个塞进卡片槽位 → 卡片信息（名字/传输/命令/地址）全部消失，
+  // 再点开关时 payload.serverName 是 undefined → 宿主报「启用参数无效」。
+  const toggleCalls = [];
+  const envelope = (enabled) => ({
+    server: { serverName: "gh", transport: "stdio", enabled, fiberPhase: enabled ? "active" : "pending", toolCount: 3, envKeys: [], entryId: "panel-mcp-gh" },
+    reconciled: true
+  });
+  const toggleFace = {
+    ...mcpFace,
+    listMcp: async () => ({
+      servers: [{ serverName: "gh", transport: "stdio", enabled: true, fiberPhase: "active", toolCount: 3, envKeys: [], entryId: "panel-mcp-gh" }],
+      externalServers: [],
+      patch: { path: "C:/p/cordis.patch.yml", ok: true, error: null, foreign: [] }
+    }),
+    setEnabledMcp: async (serverName, enabled, entryId) => {
+      toggleCalls.push({ serverName, enabled, entryId });
+      return envelope(enabled);
+    }
+  };
+  const switchOf = () => findAll(view.section, (n) => n.type === "button" && n.props.role === "switch")[0];
+  const cardNames = () => findAll(view.section, (n) => n.props.className === "MCP_name").map((n) => String(n.props.children));
+
+  reset(skills, "mcp");
+  var view = await mount(toggleFace);
+  check("MCP 卡片有启停开关（2.3.12）", () => {
+    assert(switchOf() !== undefined, "switch button missing");
+    assert(JSON.stringify(cardNames()) === JSON.stringify(["gh"]), "unexpected initial cards: " + JSON.stringify(cardNames()));
+  });
+
+  switchOf().props.onClick();
+  await flush();
+  view = paint(toggleFace);
+  check("停用之后卡片信息仍在（名字/开关状态都对）", () => {
+    assert(JSON.stringify(cardNames()) === JSON.stringify(["gh"]), "card lost its identity after toggle: " + JSON.stringify(cardNames()));
+    const sw = switchOf();
+    assert(sw !== undefined, "switch disappeared after toggle");
+    assert(sw.props["aria-checked"] === false, "switch should read disabled, got " + JSON.stringify(sw.props["aria-checked"]));
+    assert(toggleCalls.length === 1 && toggleCalls[0].serverName === "gh", "first call payload wrong: " + JSON.stringify(toggleCalls));
+  });
+
+  switchOf().props.onClick();
+  await flush();
+  view = paint(toggleFace);
+  check("再开一次仍带着 serverName，不会「参数无效」", () => {
+    assert(toggleCalls.length === 2, "expected 2 toggle calls, got " + toggleCalls.length);
+    assert(toggleCalls[1].serverName === "gh", "second call must still carry serverName, got " + JSON.stringify(toggleCalls[1]));
+    assert(toggleCalls[1].entryId === "panel-mcp-gh", "second call must still carry entryId, got " + JSON.stringify(toggleCalls[1]));
+    assert(switchOf().props["aria-checked"] === true, "switch should read enabled again");
+  });
+
+  // 卡片身份已经坏掉（没有 serverName）时，绝不把 undefined 发给宿主，而是刷新列表自愈。
+  const brokenCalls = [];
+  let brokenListCalls = 0;
+  const brokenFace = {
+    ...mcpFace,
+    listMcp: async () => {
+      brokenListCalls += 1;
+      return {
+        servers: [{ transport: "stdio", enabled: true, fiberPhase: "active", toolCount: 0, envKeys: [] }],
+        externalServers: [],
+        patch: { path: "C:/p/cordis.patch.yml", ok: true, error: null, foreign: [] }
+      };
+    },
+    setEnabledMcp: async (serverName, enabled, entryId) => {
+      brokenCalls.push({ serverName, enabled, entryId });
+      return envelope(!enabled);
+    }
+  };
+  reset(skills, "mcp");
+  view = await mount(brokenFace);
+  const listCallsBefore = brokenListCalls;
+  switchOf().props.onClick();
+  await flush();
+  view = await mount(brokenFace);
+  check("卡片身份坏了：不发无效请求，改成刷新列表自愈", () => {
+    assert(brokenCalls.length === 0, "must not call setEnabled with a missing serverName, got " + JSON.stringify(brokenCalls));
+    assert(brokenListCalls > listCallsBefore, "expected a list reload to self-heal, got " + brokenListCalls + " (was " + listCallsBefore + ")");
+  });
+  store.delete("dsh-skill-mcp-panel:last-tab");
+}
+
 console.log("\n" + (failures === 0 ? "ALL HARNESS CHECKS PASSED" : failures + " harness check(s) FAILED"));
 process.exit(failures === 0 ? 0 : 1);
