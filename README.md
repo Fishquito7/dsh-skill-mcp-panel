@@ -127,7 +127,7 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 确需在老宿主上使用，用宿主打印的精确版本豁免：
 
 ```bash
-dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.10 --dsh-version <宿主版本> --accept-risk
+dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.11 --dsh-version <宿主版本> --accept-risk
 ```
 
 ## 命令行
@@ -268,6 +268,7 @@ dsh plugin --profile web remove dsh-skill-mcp-panel
 
 只列**会改变使用方式**的版本要点；完整改动见 [Releases](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)。
 
+- **v2.3.11** —— **修「启停 MCP 之后主区整片黑」**（PR [#87](https://github.com/Fishquito7/dsh-skill-mcp-panel/pull/87)，感谢 [@gezi-wen](https://github.com/gezi-wen)）：卡片里的守卫写成 `oauthNotice?.serverName === server.serverName`，当两边都是 `undefined` 时相等成立，于是进分支去读 `null.ok` → 抛 TypeError → 宿主把整个 `main` 槽位当一棵树卸载，主区全黑、连「返回会话」都点不到（`Ctrl+R` 也救不回来）。现在两处守卫改成显式判空，「测试连接」拿到 `null` 信封时归一化成 `{ ok: false, error: "empty result" }`。另外加了**单卡兜底**：任意一张卡片渲染期间出错，只把这一张换成写着原因的「渲染失败」卡（含原始错误信息，方便反馈），其它卡片和页面外壳照常可用——同样的数据最多显示难看，不再整片黑。
 - **v2.3.10** —— **兼容 DSH 0.2.2**（#85 / #81）：`@deepseek-ai/dsh-typert-protocol` 从 dependencies 挪进 peerDependencies——预发布版的范围写法（`^0.2.0-rc.1 || ^0.2.1-rc.1`，乃至 issue 里建议的 `>=0.2.0-rc.1 <0.3.0-0`）在 semver 下都匹配不到下一条 patch 线的预发布包，于是 profile 里被装进第二份协议包（0.2.1 线）与宿主 0.2.2 混版本，对版本一致性敏感的插件（例如 multi-root-workspace）会直接拒绝加载；现在协议包由宿主提供，安装树里不再有第二份。同时把面板注册的宿主服务从 `mcpManager` 改名为 `skillMcpPanel`，不再与 DSH 0.2.2 内置的 `@deepseek-ai/dsh-mcp-manager` 抢同一个服务名（#81）。易用性：**添加技能菜单、分组编辑器、批量迁移、MCP 表单与原文编辑**现在点遮罩空白处或按 Esc 都会关闭（#82）；技能搜索同时匹配**描述**（#79）；MCP 卡片里可按工具名/描述筛选工具并一键全选/全不选（#77），**MCP 页顶栏新增服务器搜索**（按服务器名 / 地址 / 命令 / 头名 / 环境变量名筛卡片）
 - **v2.3.7** —— **窄屏适配**（#71，感谢 @2532316972 的截图反馈）：窗口或面板宽度小于 **820px** 时自动切到简洁布局，不再出现三栏把主区挤成一列图标、内容右侧被裁掉、连布局开关都被推出屏幕外的情况。自动切换只影响显示：不覆盖你手动选的布局、不写浏览器里的偏好，拉宽后回到你选的那套；窄屏下那枚「三栏 / 简洁」开关直接不显示，避免点了又被宽度压回来。判据同时看**视口宽度**和**面板自身宽度**——面板挂在宿主主区里，窗口宽 ≠ 面板宽，左侧会话栏占掉一截时按面板自身宽度算。MCP 页在窄屏下也改单列（卡片、表单），工具栏允许换行
 - **v2.3.6** —— MCP 页接管 `cordis.patch.yml` 里的**全部** `@deepseek-ai/dsh-mcp-client` 行（#67 / PR #70）：启停、表单编辑、删除、OAuth 不再区分受管块和 `panel-mcp-*`。表单继续管常规字段，并保留还没建模的键（例如 `maxInstructionBytes`）以及已有的 `disabled`；卡片上的 **原文**（CLI：`dsh-panel mcp raw`）按字节改这一条。已有配置不用迁移，非 MCP 的外来行仍按 ADR-0003 原样保留。合并后实测又补了几处：**没有 `id` 的手写行也能启停**（按这一行自己的缩进插 `disabled`，表单保存也不会给它补 id）；`!!js` 的 `disabled` 由宿主求值，卡片标「由表达式控制」并禁用开关，不再给一个点了必然报错的开关；删掉受管块最后一行时 begin/end 标记会成对收掉、块外内容不再被卷进去；条目后面的注释不会被表单保存或删除吞掉；CRLF 文件不再被掺进 LF 行；**重复 `id` / 重复 `serverName` 不再改错行**——所有操作按 `serverName` + `entryId` 双键定位，CLI 新增 `--id <entryId>` 与 `list --ids`，重名文件可以用原文逐条改回来，面板只拒绝**新增**重名；原文编辑不许改缩进/位置（`insert` 成员不能变顶层条目）。OAuth 发现顺序（PR #72）改成 RFC 9728 路径形式优先、PRM 声明的 `resource` 同源才采用，PRM 驱动的 issuer 必须精确匹配；见 ADR-0007
