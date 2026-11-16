@@ -30,12 +30,14 @@
  * 全程离线：GitHub API 用 --import 注入的 fetch 桩顶掉，dsh plugin 用一个记录 argv 的
  * 假 dsh 顶掉。定位不到 @deepseek-ai/dsh-app-boot 时第 4 部分降级 SKIP，不制造假红。
  */
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
+import { Context } from "@deepseek-ai/cordis";
+import { SkillsViewerGateway } from "../lib/index.js";
 
 let failures = 0;
 let passed = 0;
@@ -287,6 +289,135 @@ try {
 		}
 		const exempted = evaluate(manifest, { [manifest.name + "@" + manifest.version]: ["0.1.4-rc.1"] }, "0.1.4-rc.1");
 		check("精确版本豁免可以放行（用户的逃生门）", exempted !== undefined && exempted.exempted === true);
+	}
+
+	// 5. #95：通过符号链接（npm/pnpm node_modules/.bin/dsh-panel 或目录连接）调用时不得静默退出 0。
+	const linkedDir = join(base, "bin-link-lib");
+	symlinkSync(dirname(CLI_PATH), linkedDir, process.platform === "win32" ? "junction" : "dir");
+	const symRes = spawnSync(process.execPath, [join(linkedDir, "cli.js"), "--version"], { cwd: base, encoding: "utf8" });
+	check("符号链接/junction 调用 dsh-panel --version 正常输出版本号（#95）", symRes.status === 0 && symRes.stdout.trim() === "dsh-panel v" + ENTRY_VERSION, "status=" + symRes.status + " out=" + JSON.stringify(symRes.stdout));
+
+	// 6. 修复 semver range (^ / ~ / 精确版本) 误切 GitHub 的问题（#96 根因之一）。
+	for (const [pName, pSpec] of [["npmcaret", "^2.1.0"], ["npmtilde", "~2.1.0"], ["npmexact", "2.1.0"]]) {
+		makeProfile(pName, "2.1.0", true, pSpec);
+		resetCalls();
+		const res = run(["update", "-y", "--profile", pName]);
+		const call = readCalls()[0] ?? "";
+		check("npm semver spec (" + pSpec + ") 保持走 npm dsh-skill-mcp-panel@" + LATEST, res.status === 0 && call.includes("dsh-skill-mcp-panel@" + LATEST), res.stderr + " / " + call);
+		rmSync(join(profilesDir, pName), { recursive: true, force: true });
+	}
+
+	// 7. DSH 0.2.2+ 桌面端自带 CLI 支持直接更新 desktop profile。
+	{
+		resetCalls();
+		const desktopEnvRes = run(["update", "-y", "--profile", "desktop"], { DSH_ALLOW_DESKTOP_PLUGIN: "1" });
+		const calls = readCalls();
+		check("DSH_ALLOW_DESKTOP_PLUGIN=1 允许直接 update --profile desktop", desktopEnvRes.status === 0 && calls.some((c) => c.includes("--profile desktop add")), desktopEnvRes.stderr + " / " + JSON.stringify(calls));
+
+		const desktopBinDir = join(base, "desktop-bin");
+		mkdirSync(desktopBinDir, { recursive: true });
+		writeFileSync(join(desktopBinDir, "dsh.cmd"), "@echo off\r\n@rem DeepSeek Harness dsh-desktop-host manageDesktopProfile\r\n>> \"" + callsLog + "\" echo %*\r\nexit /b 0\r\n");
+		writeFileSync(join(desktopBinDir, "dsh"), "#!/bin/sh\n# DeepSeek Harness dsh-desktop-host manageDesktopProfile\necho \"$@\" >> \"" + callsLog + "\"\nexit 0\n", { mode: 0o755 });
+		resetCalls();
+		const desktopPath = desktopBinDir + (process.platform === "win32" ? ";" : ":") + process.env.PATH;
+		const desktopAutoRes = run(["update", "-y", "--profile", "desktop"], { PATH: desktopPath, ...(process.platform === "win32" ? { Path: desktopPath } : {}) });
+		const autoCalls = readCalls();
+		check("检测到 Electron dsh-desktop-host 启动器时无需手工环境变量即可更新 desktop", desktopAutoRes.status === 0 && autoCalls.some((c) => c.includes("--profile desktop add")), desktopAutoRes.stderr + " / " + JSON.stringify(autoCalls));
+	}
+
+	// 8. #96：直接 `dsh plugin add` 失败时自动 `remove` + `add` 恢复并保住 bundles 挂载。
+	{
+		makeProfile("flaky", "2.1.0", true, "^2.1.0");
+		const flakyBinDir = join(base, "flaky-bin");
+		mkdirSync(flakyBinDir, { recursive: true });
+		const flakyLog = join(base, "flaky-calls.log");
+		const removedFlag = join(base, "flaky-removed.flag");
+		const flakyScript = join(base, "flaky-dsh.mjs");
+		writeFileSync(flakyScript, [
+			"import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';",
+			"const argv = process.argv.slice(2);",
+			"appendFileSync(" + JSON.stringify(flakyLog) + ", argv.join(' ') + '\\n');",
+			"const pkgPath = " + JSON.stringify(join(profilesDir, "flaky", "package.json")) + ";",
+			"if (argv.includes('remove')) {",
+			"  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));",
+			"  pkg.dsh.profile.bundles = (pkg.dsh?.profile?.bundles ?? []).filter((b) => b !== 'dsh-skill-mcp-panel');",
+			"  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));",
+			"  writeFileSync(" + JSON.stringify(removedFlag) + ", '1');",
+			"  process.exit(0);",
+			"}",
+			"if (argv.includes('add') && !existsSync(" + JSON.stringify(removedFlag) + ")) {",
+			"  console.error('ERR_PNPM_LOCKFILE_CONFLICT simulated upgrade failure');",
+			"  process.exit(1);",
+			"}",
+			"if (argv.includes('add')) {",
+			"  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));",
+			"  pkg.dependencies = { ...(pkg.dependencies ?? {}), 'dsh-skill-mcp-panel': '^" + LATEST + "' };",
+			"  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));",
+			"  process.exit(0);",
+			"}",
+			"process.exit(0);"
+		].join("\n"));
+		writeFileSync(join(flakyBinDir, "dsh.cmd"), "@echo off\r\n\"" + process.execPath + "\" \"" + flakyScript + "\" %*\r\nexit /b %ERRORLEVEL%\r\n");
+		writeFileSync(join(flakyBinDir, "dsh"), "#!/bin/sh\n\"" + process.execPath + "\" \"" + flakyScript + "\" \"$@\"\n", { mode: 0o755 });
+		const flakyPath = flakyBinDir + (process.platform === "win32" ? ";" : ":") + process.env.PATH;
+		const flakyRes = run(["update", "-y", "--profile", "flaky"], { PATH: flakyPath, ...(process.platform === "win32" ? { Path: flakyPath } : {}) });
+		const seq = readFileSync(flakyLog, "utf8").split(/\r?\n/).filter(Boolean);
+		const finalPkg = JSON.parse(readFileSync(join(profilesDir, "flaky", "package.json"), "utf8"));
+		check("#96 直接 add 失败时自动 remove + add 恢复且退出码 0", flakyRes.status === 0 && seq.length === 3 && seq[0].includes(" add ") && seq[1].includes(" remove ") && seq[2].includes(" add "), flakyRes.stderr + " seq=" + JSON.stringify(seq));
+		check("#96 remove + add 恢复后保留 dsh.profile.bundles 挂载", Array.isArray(finalPkg.dsh?.profile?.bundles) && finalPkg.dsh.profile.bundles.includes("dsh-skill-mcp-panel"), JSON.stringify(finalPkg));
+
+		// 9. Gateway RPC（顶部更新按钮后端）：checkUpdate + applyUpdate 一键自更新同样自动恢复。
+		makeProfile("rpctest", "2.1.0", true, "^2.1.0");
+		const rpcLog = join(base, "rpc-calls.log");
+		const rpcFlag = join(base, "rpc-removed.flag");
+		const rpcScript = join(base, "rpc-dsh.mjs");
+		writeFileSync(rpcScript, [
+			"import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';",
+			"const argv = process.argv.slice(2);",
+			"appendFileSync(" + JSON.stringify(rpcLog) + ", argv.join(' ') + '\\n');",
+			"const pkgPath = " + JSON.stringify(join(profilesDir, "rpctest", "package.json")) + ";",
+			"if (argv.includes('remove')) {",
+			"  const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));",
+			"  pkg.dsh.profile.bundles = (pkg.dsh?.profile?.bundles ?? []).filter((b) => b !== 'dsh-skill-mcp-panel');",
+			"  writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));",
+			"  writeFileSync(" + JSON.stringify(rpcFlag) + ", '1');",
+			"  process.exit(0);",
+			"}",
+			"if (argv.includes('add') && !existsSync(" + JSON.stringify(rpcFlag) + ")) process.exit(1);",
+			"if (argv.includes('add')) {",
+			"  const modPkg = " + JSON.stringify(join(profilesDir, "rpctest", "node_modules", "dsh-skill-mcp-panel", "package.json")) + ";",
+			"  writeFileSync(modPkg, JSON.stringify({ name: 'dsh-skill-mcp-panel', version: '" + LATEST + "' }));",
+			"}",
+			"process.exit(0);"
+		].join("\n"));
+		const rpcBin = join(base, "rpc-bin");
+		mkdirSync(rpcBin, { recursive: true });
+		writeFileSync(join(rpcBin, "dsh.cmd"), "@echo off\r\n\"" + process.execPath + "\" \"" + rpcScript + "\" %*\r\nexit /b %ERRORLEVEL%\r\n");
+		writeFileSync(join(rpcBin, "dsh"), "#!/bin/sh\n\"" + process.execPath + "\" \"" + rpcScript + "\" \"$@\"\n", { mode: 0o755 });
+		const prevHome = process.env.DSH_HOME;
+		const prevPath = process.env.PATH;
+		const prevFetch = globalThis.fetch;
+		process.env.DSH_HOME = home;
+		process.env.PATH = rpcBin + (process.platform === "win32" ? ";" : ":") + (prevPath ?? "");
+		globalThis.fetch = async () => new Response(JSON.stringify({ tag_name: "v" + LATEST }), { status: 200, headers: { "content-type": "application/json" } });
+		try {
+			const ctx = new Context();
+			const origGet = ctx.get.bind(ctx);
+			ctx.get = (name) => (name === "profileContext" ? { dir: join(profilesDir, "rpctest") } : origGet(name));
+			const gw = new SkillsViewerGateway(ctx);
+			const chk = await gw.checkUpdate();
+			check("Gateway checkUpdate 返回可更新且允许当前 profile 自更新", chk.updateAvailable === true && chk.canSelfUpdate === true && chk.profile === "rpctest", JSON.stringify(chk));
+			const applied = await gw.applyUpdate();
+			const rpcPkg = JSON.parse(readFileSync(join(profilesDir, "rpctest", "package.json"), "utf8"));
+			check("Gateway applyUpdate 执行 remove+add 自愈升级并返回 needsRestart=true", applied.ok === true && applied.method === "remove+add" && applied.needsRestart === true && applied.updatedTo === LATEST, JSON.stringify(applied));
+			check("Gateway applyUpdate 保留 dsh.profile.bundles 挂载", Array.isArray(rpcPkg.dsh?.profile?.bundles) && rpcPkg.dsh.profile.bundles.includes("dsh-skill-mcp-panel"), JSON.stringify(rpcPkg));
+		} finally {
+			globalThis.fetch = prevFetch;
+			if (prevHome === undefined) delete process.env.DSH_HOME; else process.env.DSH_HOME = prevHome;
+			if (prevPath === undefined) delete process.env.PATH; else process.env.PATH = prevPath;
+			rmSync(join(profilesDir, "rpctest"), { recursive: true, force: true });
+		}
+		rmSync(join(profilesDir, "flaky"), { recursive: true, force: true });
 	}
 } finally {
 	rmSync(base, { recursive: true, force: true });

@@ -165,7 +165,7 @@
 		const cssTheme = "body[data-ds-dark-theme] .SKV_switchThumb{background:#fff}body[data-ds-dark-theme] .SKV_switch[data-on=true] .SKV_switchThumb{background:#fff}";
 		// 主页主区面板（main 槽位）的整页外壳：宿主不给滚动容器与页边距，
 		// 这一层就是面板自己的「页面」。
-		const cssPage = ".SKV_page{box-sizing:border-box;height:100%;color:var(--dsw-alias-label-primary);flex-direction:column;align-items:center;gap:24px;padding:28px clamp(24px,4vw,48px) 48px;display:flex;overflow:auto}.SKV_page>*{width:100%;max-width:760px}.SKV_pageHead{flex-direction:column;gap:4px;display:flex}.SKV_pageTitle{margin:0;font-size:20px;font-weight:500;line-height:28px}.SKV_pageIntro{color:var(--dsw-alias-label-secondary);margin:0;font-size:13px;line-height:20px}.SKV_pageTop{min-height:20px;align-items:center;display:flex}.SKV_pageBack{font:inherit;font-size:12.5px;line-height:20px;color:var(--dsw-alias-label-tertiary);cursor:pointer;background:0 0;border:0;align-items:center;gap:6px;padding:0;display:inline-flex}.SKV_pageBack:hover{color:var(--dsw-alias-label-primary)}.SKV_pageBack:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.SKV_pageBack svg{flex:none}.SKV_tabs{align-items:center;gap:4px;border-bottom:1px solid var(--dsw-alias-border-l2);display:flex;flex-wrap:wrap}.SKV_tab{font:inherit;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:6px 12px;display:inline-flex;align-items:center}.SKV_tab:hover{color:var(--dsw-alias-label-primary)}.SKV_tab[data-active=true]{color:var(--dsw-alias-label-primary);border-bottom-color:var(--dsw-alias-state-business-primary);font-weight:500}.SKV_tab:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}";
+		const cssPage = ".SKV_page{box-sizing:border-box;height:100%;color:var(--dsw-alias-label-primary);flex-direction:column;align-items:center;gap:24px;padding:28px clamp(24px,4vw,48px) 48px;display:flex;overflow:auto}.SKV_page>*{width:100%;max-width:760px}.SKV_pageHead{flex-direction:column;gap:4px;display:flex}.SKV_pageTitle{margin:0;font-size:20px;font-weight:500;line-height:28px}.SKV_pageIntro{color:var(--dsw-alias-label-secondary);margin:0;font-size:13px;line-height:20px}.SKV_pageTop{min-height:20px;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;display:flex}.SKV_pageBack{font:inherit;font-size:12.5px;line-height:20px;color:var(--dsw-alias-label-tertiary);cursor:pointer;background:0 0;border:0;align-items:center;gap:6px;padding:0;display:inline-flex}.SKV_pageBack:hover{color:var(--dsw-alias-label-primary)}.SKV_pageBack:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.SKV_pageBack svg{flex:none}.SKV_updateWrap{margin-left:auto;align-items:center;gap:8px;flex-wrap:wrap;display:inline-flex}.SKV_updateHint{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.SKV_updateHint[data-kind=error]{color:var(--dsw-alias-state-danger-primary,#ef4444)}.SKV_updateBtn{font:inherit;font-size:12px;line-height:18px;font-weight:500;color:var(--dsw-alias-label-secondary);background:var(--dsw-alias-bg-container,transparent);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;cursor:pointer;padding:3px 10px;align-items:center;gap:5px;display:inline-flex;transition:color .2s,border-color .2s,background-color .2s}.SKV_updateBtn:hover:not(:disabled){color:var(--dsw-alias-label-primary);border-color:var(--dsw-alias-border-l1,currentColor)}.SKV_updateBtn:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}.SKV_updateBtn:disabled{opacity:.65;cursor:default}.SKV_updateBtn[data-available=true]{color:var(--dsw-alias-state-business-primary);border-color:var(--dsw-alias-state-business-primary)}.SKV_updateBtn[data-done=true]{color:var(--dsw-alias-state-success-primary,#10b981);border-color:var(--dsw-alias-state-success-primary,#10b981)}.SKV_tabs{align-items:center;gap:4px;border-bottom:1px solid var(--dsw-alias-border-l2);display:flex;flex-wrap:wrap}.SKV_tab{font:inherit;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:6px 12px;display:inline-flex;align-items:center}.SKV_tab:hover{color:var(--dsw-alias-label-primary)}.SKV_tab[data-active=true]{color:var(--dsw-alias-label-primary);border-bottom-color:var(--dsw-alias-state-business-primary);font-weight:500}.SKV_tab:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:2px}";
 		const cssPanelIcon = ".SKV_panelIcon{flex:none;display:inline-block;background-color:currentColor}.SKV_panelIconMerged{-webkit-mask:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' width='96' height='96' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M12 5H28L38 15V41a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z'/><path d='M28 5V13a2 2 0 0 0 2 2H38'/><path d='M17 29L23 23A2.83 2.83 0 0 1 27 27L21 33A2.83 2.83 0 0 0 25 37L31 31'/></svg>\") center/contain no-repeat;mask:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' width='96' height='96' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M12 5H28L38 15V41a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z'/><path d='M28 5V13a2 2 0 0 0 2 2H38'/><path d='M17 29L23 23A2.83 2.83 0 0 1 27 27L21 33A2.83 2.83 0 0 0 25 37L31 31'/></svg>\") center/contain no-repeat}";
 		const cssMigrate = ".SKV_scopeBar{gap:6px;padding:2px;max-width:100%;overflow-x:auto;scrollbar-width:thin;display:flex;align-items:center}.SKV_migrateSection{flex-direction:column;gap:6px;display:flex}.SKV_migrateLabel{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px;margin:0}.SKV_migrateFromValue{color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;margin:0;word-break:break-all}.SKV_migrateList{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;max-height:220px;overflow-y:auto;margin:0;padding:4px;list-style:none;display:flex;flex-direction:column;gap:2px}.SKV_migrateItem{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:none;border-radius:6px;padding:6px 10px;font-size:13px;line-height:20px;text-align:left;display:flex;align-items:center;gap:8px}.SKV_migrateItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_migrateItem input{margin:0;accent-color:var(--dsw-alias-state-business-primary)}.SKV_migrateItemName{flex:1;min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.SKV_migrateItemState{color:var(--dsw-alias-label-tertiary);font-size:11px;flex:none}.SKV_migrateSelectAll{font:inherit;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:0 0;border:none;padding:0;font-size:12px;line-height:18px}.SKV_migrateHint{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:0}.SKV_migrateResult{border-radius:8px;padding:8px 12px;font-size:12px;line-height:18px;margin:0}.SKV_migrateResult[data-ok=true]{background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent);color:var(--dsw-alias-state-success-primary)}.SKV_migrateResult[data-ok=false]{background:color-mix(in srgb, var(--dsw-alias-state-warning-primary) 10%, transparent);color:var(--dsw-alias-state-warning-primary)}.SKV_migrateResultList{margin:4px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;max-height:120px;overflow-y:auto}.SKV_wsPath{min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;display:block}.SKV_migrateOptionLabel{min-width:0;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}.SKV_scopeOptions{max-height:132px;overflow-y:auto;scrollbar-width:thin}.SKV_migrateList{max-height:148px}.SKV_scopeBox{overflow-y:auto;scrollbar-width:thin}.SKV_select{width:100%;box-sizing:border-box;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 8px}.SKV_select:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);outline:none}.SKV_groupBody{display:flex;gap:16px;min-height:0}.SKV_groupSide{width:150px;flex:none;display:flex;flex-direction:column;gap:2px;min-width:0}.SKV_groupNewBtn{display:flex;align-items:center;gap:6px;justify-content:flex-start;font:inherit;font-size:13px;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:0 0;border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;padding:7px 10px;margin-bottom:6px;text-align:left}.SKV_groupNewBtn:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_groupSideLabel{font-size:12px;color:var(--dsw-alias-label-tertiary);padding:0 10px;margin-bottom:2px}.SKV_groupSideItem{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;font:inherit;font-size:13px;cursor:pointer;color:var(--dsw-alias-label-secondary);background:0 0;border:none;text-align:left;min-width:0}.SKV_groupSideItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_groupSideItem[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);color:var(--dsw-alias-state-business-primary);font-weight:500}.SKV_groupMain{flex:1;min-width:0;display:flex;flex-direction:column;gap:12px}.SKV_field{display:flex;flex-direction:column;gap:6px}.SKV_fieldLabel{font-size:12px;color:var(--dsw-alias-label-secondary);margin:0}.SKV_skillListBox{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 10px;max-height:220px;overflow-y:auto}.SKV_skillRow{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:0.5px solid var(--dsw-alias-border-l2);font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;min-width:0}.SKV_skillRow:last-child{border-bottom:none}.SKV_skillRow:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_skillRow input{margin:0;accent-color:var(--dsw-alias-state-business-primary);flex:none}.SKV_skillName{flex:1;min-width:0;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.SKV_skillBadge{font-size:12px;padding:2px 8px;border-radius:5px;white-space:nowrap;flex:none}.SKV_skillBadge[data-on=true]{background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 12%, transparent);color:var(--dsw-alias-state-success-primary)}.SKV_skillBadge[data-on=false]{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-tertiary)}.SKV_countRow{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}.SKV_countText{font-size:12px;color:var(--dsw-alias-label-secondary);margin:0}.SKV_dialogFooter{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--dsw-alias-border-l2)}.SKV_dangerBtn{font:inherit;font-size:13px;color:var(--dsw-alias-state-error-primary);cursor:pointer;background:0 0;border:1px solid transparent;border-radius:6px;padding:5px 10px}.SKV_dangerBtn:hover:not(:disabled){background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent)}.SKV_dangerBtn:disabled{cursor:default;opacity:.6}.SKV_textInput{width:100%;box-sizing:border-box;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;outline:none;padding:0 10px}.SKV_textInput::placeholder{color:var(--dsw-alias-label-tertiary)}.SKV_textInput:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent)}.SKV_scopeBox{width:640px}.SKV_groupSide{width:170px}.SKV_groupSideItem{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.SKV_select{appearance:none;-webkit-appearance:none;width:100%;box-sizing:border-box;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background-color:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 30px 0 10px;background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 16 16%27 fill=%27none%27%3E%3Cpath d=%27M4 6l4 4 4-4%27 stroke=%27%23888%27 stroke-width=%271.6%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 10px center}.SKV_select:hover{border-color:var(--dsw-alias-border-l1)}.SKV_targetBox{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:4px;max-height:152px;overflow-y:auto;scrollbar-width:thin}.SKV_targetItem{display:flex;align-items:center;gap:8px;padding:7px 6px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:none;border-bottom:0.5px solid var(--dsw-alias-border-l2);width:100%;text-align:left;min-width:0}.SKV_targetItem:last-child{border-bottom:none}.SKV_targetItem:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_targetItem[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 8%, transparent)}.SKV_targetItem input{margin:0;accent-color:var(--dsw-alias-state-business-primary);flex:none}.SKV_skillListBox{max-height:180px};.SKV_groupBar{gap:6px;padding:2px;display:flex;flex-wrap:wrap;align-items:center}.SKV_groupItem{font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:3px 11px;font-size:12px;line-height:18px;white-space:nowrap;flex:none}.SKV_groupItem:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l1)}.SKV_groupItem[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-state-business-primary);font-weight:500}.SKV_groupSep{display:none}.SKV_scopeSelect{display:inline-flex;align-items:center;gap:12px;box-sizing:border-box;height:36px;max-width:100%;padding:0 14px;border:none;border-radius:18px;background:var(--dsw-alias-bg-module-platform);font:inherit;font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary);cursor:pointer}.SKV_scopeSelect:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_scopeSelectLabel{min-width:0;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.SKV_scopeSelectChevron{flex:none;color:var(--dsw-alias-label-tertiary)}";
 const cssCategory = ".SKV_categoryBar{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}.SKV_categoryLabel{font-size:12px;color:var(--dsw-alias-label-tertiary);flex:none;margin-right:2px}.SKV_categoryChip{font:inherit;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 10px;white-space:nowrap;flex:none}.SKV_categoryChip:hover{background:var(--dsw-alias-interactive-bg-hover)}.SKV_categoryChip[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent);border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-state-business-primary)}";
@@ -195,6 +195,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			+ ".SKV_railItem{display:flex;align-items:center;justify-content:space-between;width:100%;height:34px;margin:2px 0;padding:0 10px;border:0;border-radius:8px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;line-height:20px;text-align:left;cursor:pointer;transition:background-color .18s cubic-bezier(.3,.8,.2,1),color .18s cubic-bezier(.3,.8,.2,1)}"
 			+ ".SKV_railItem:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}"
 			+ ".SKV_railItem[data-active=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 14%, transparent);color:var(--dsw-alias-label-primary)}"
+			+ ".SKV_railItem[data-drop-hover=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 20%, transparent);color:var(--dsw-alias-label-primary);outline:1.5px dashed var(--dsw-alias-state-business-primary);outline-offset:-1px}"
 			+ ".SKV_railItemName{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}"
 			+ ".SKV_railItemCount{flex:none;margin-left:8px;font-size:11.5px;line-height:18px;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-tertiary)}"
 			+ ".SKV_railItem[data-active=true] .SKV_railItemCount{color:inherit;opacity:.75}"
@@ -210,17 +211,23 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			+ ".SKV_paneMode[data-active=true]{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary)}"
 			+ ".SKV_paneMode:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}"
 			+ ".SKV_paneList{flex:1;min-height:0;overflow-y:auto;padding:4px 12px;display:flex;flex-direction:column;gap:2px;scrollbar-width:thin}"
+			+ ".SKV_paneRow{display:flex;align-items:center;gap:4px;min-width:0;border-radius:8px;transition:background-color .18s cubic-bezier(.3,.8,.2,1)}"
+			+ ".SKV_paneRow[data-drop-hover=true]{background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);outline:1.5px dashed var(--dsw-alias-state-business-primary);outline-offset:-1px}"
+			+ ".SKV_paneRow>.SKV_paneItem{flex:1;min-width:0;width:auto}"
 			+ ".SKV_paneItem{display:flex;align-items:center;justify-content:space-between;width:100%;padding:7px 12px;border:0;border-radius:8px;background:0 0;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;line-height:18px;text-align:left;cursor:pointer;transition:background-color .18s cubic-bezier(.3,.8,.2,1),color .18s cubic-bezier(.3,.8,.2,1)}"
 			+ ".SKV_paneItem:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}"
 			+ ".SKV_paneItem[data-active=true]{background:var(--dsw-alias-interactive-bg-hover-solid);color:var(--dsw-alias-label-primary);font-weight:500}"
 			+ ".SKV_paneItem:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:-2px}"
 			+ ".SKV_paneItemName{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}"
 			+ ".SKV_paneItemCount{flex:none;margin-left:8px;font-size:11.5px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}"
+			+ ".SKV_paneGroupToggle{flex:none;height:22px;padding:0 6px;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;background:0 0;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:11px;line-height:20px;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color .18s ease,color .18s ease,border-color .18s ease}"
+			+ ".SKV_paneGroupToggle[data-on=true]{color:var(--dsw-alias-state-success-primary);border-color:color-mix(in srgb, var(--dsw-alias-state-success-primary) 40%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 10%, transparent)}"
+			+ ".SKV_paneGroupToggle:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}"
+			+ ".SKV_paneGroupToggle:disabled{opacity:.45;cursor:default}"
+			+ ".SKV_paneGroupEdit{flex:none;width:22px;height:22px;padding:0;border:0;border-radius:6px;background:0 0;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;opacity:.75;transition:background-color .18s ease,opacity .18s ease,color .18s ease}"
+			+ ".SKV_paneGroupEdit:hover{opacity:1;background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}"
 			+ ".SKV_paneNew{flex:none;display:flex;align-items:center;gap:8px;margin:8px 12px 16px;padding:8px 12px;border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;background:0 0;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:12.5px;line-height:18px;text-align:left;cursor:pointer}"
 			+ ".SKV_paneNew:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-interactive-bg-hover)}"
-			+ ".SKV_paneNewForm{flex:none;display:flex;align-items:center;gap:8px;margin:8px 12px 16px;padding:6px 8px;border:1px solid var(--dsw-alias-state-business-primary);border-radius:8px;background:var(--dsw-alias-bg-layer-3)}"
-			+ ".SKV_paneNewInput{flex:1;min-width:0;height:26px;border:0;outline:0;background:0 0;color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px;line-height:18px}"
-			+ ".SKV_paneNewInput::placeholder{color:var(--dsw-alias-label-tertiary)}"
 			+ ".SKV_mainCol{position:relative;flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;overflow:hidden}"
 			+ ".SKV_mainScroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:22px clamp(20px,3vw,40px) 96px;display:flex;flex-direction:column;align-items:center;scrollbar-width:thin}"
 			+ ".SKV_mainScroll>.SKV_catalog{width:100%;max-width:780px}"
@@ -257,6 +264,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 		const cssRow = ".SKV_cards{grid-template-columns:minmax(0,1fr)}"
 			+ ".SKV_cardRow{display:flex;align-items:center;padding:10px 12px;transition:background-color .18s cubic-bezier(.3,.8,.2,1)}"
 			+ ".SKV_card[data-selected=true]{border-color:var(--dsw-alias-state-business-primary);background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent)}"
+			+ ".SKV_card[data-dragging=true]{opacity:.5}"
 			+ ".SKV_card[data-removing=true]{pointer-events:none;opacity:0;transform:translateX(14px)}"
 			+ ".SKV_check{display:flex;align-items:center;flex:none;width:0;margin-right:0;overflow:hidden;transition:width .22s cubic-bezier(.3,.8,.2,1),margin .22s cubic-bezier(.3,.8,.2,1)}"
 			+ ".SKV_section[data-batch=true] .SKV_check{width:18px;margin-right:12px}"
@@ -327,6 +335,9 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			pageTitle: "SKV_pageTitle",
 			pageIntro: "SKV_pageIntro",
 			pageTop: "SKV_pageTop",
+			updateWrap: "SKV_updateWrap",
+			updateHint: "SKV_updateHint",
+			updateBtn: "SKV_updateBtn",
 			pageBack: "SKV_pageBack",
 			section: "SKV_section",
 			status: "SKV_status",
@@ -456,12 +467,13 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			paneModes: "SKV_paneModes",
 			paneMode: "SKV_paneMode",
 			paneList: "SKV_paneList",
+			paneRow: "SKV_paneRow",
 			paneItem: "SKV_paneItem",
 			paneItemName: "SKV_paneItemName",
 			paneItemCount: "SKV_paneItemCount",
+			paneGroupToggle: "SKV_paneGroupToggle",
+			paneGroupEdit: "SKV_paneGroupEdit",
 			paneNew: "SKV_paneNew",
-			paneNewForm: "SKV_paneNewForm",
-			paneNewInput: "SKV_paneNewInput",
 			mainCol: "SKV_mainCol",
 			mainScroll: "SKV_mainScroll",
 			toolRow: "SKV_toolRow",
@@ -583,7 +595,17 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			categoryQuickAddHint: "点击按顶层目录批量勾选/取消",
 			checkUpdateAvailable: "发现新版本 v",
 			checkUpdateCurrent: "（当前 v",
-			checkUpdateHint: "）。可在终端运行 dsh-panel update 更新",
+			checkUpdateHint: "）。可点击右上角按钮直接原地更新，或在命令行运行 dsh-panel update",
+			updateCheckBtn: "检查更新",
+			updateCheckingBtn: "检查中…",
+			updateApplyBtn: "更新到 v",
+			updateApplyingBtn: "正在更新…",
+			updateRetryBtn: "重试更新 v",
+			updateDoneBtn: "已更新 v",
+			updateUpToDate: "已是最新 v",
+			updateDoneHint: "已安装新版本，重开面板或重启应用生效",
+			updateFailed: "更新失败：",
+			updateCliHint: "可用 CLI：dsh-panel update",
 			// ── v2.1.6 三栏外壳 / 卡片行 / 批量栏 / 偏好 ──────────────────
 			railWorkspaces: "工作区",
 			paneGroups: "分组",
@@ -605,8 +627,19 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			batchSelect: "选择",
 			batchSelected: "已选 {count} 项",
 			batchMigrateTo: "迁移到…",
+			batchGroupTo: "分组…",
+			batchGroupNew: "＋ 新建分组（包含已选项）…",
+			batchGroupAdd: "添加到「{name}」",
+			batchGroupRemove: "从「{name}」移出",
+			batchGroupAdded: "已将 {count} 项添加到「{name}」",
+			batchGroupRemoved: "已从「{name}」移出 {count} 项",
 			batchAdvanced: "更多选项（复制 / 多目标）…",
 			batchMigrated: "已迁移 {count} 项到 {target}",
+			dropMoved: "已将 {count} 个技能移动到 {target}",
+			dropReadOnlySkipped: "已移动 {moved} 项；跳过 {skipped} 个只读技能",
+			dropReadOnlyAll: "所选技能为只读（插件/内置/运行时），无法移动",
+			paneEditGroup: "编辑分组",
+			paneToggleGroup: "一键启停分组「{name}」",
 			toastDeleted: "已删除 {name}",
 			toastUndo: "撤销",
 			toastUndoDone: "已还原 {name}",
@@ -701,7 +734,17 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			selectNone: "Select none",
 			checkUpdateAvailable: "Update available: v",
 			checkUpdateCurrent: " (current v",
-			checkUpdateHint: "). Run dsh-panel update in a terminal to install it",
+			checkUpdateHint: "). Click the top-right update button to upgrade in place, or run dsh-panel update",
+			updateCheckBtn: "Check updates",
+			updateCheckingBtn: "Checking…",
+			updateApplyBtn: "Update to v",
+			updateApplyingBtn: "Updating…",
+			updateRetryBtn: "Retry v",
+			updateDoneBtn: "Updated v",
+			updateUpToDate: "Up to date v",
+			updateDoneHint: "Installed; reopen panel or restart to apply",
+			updateFailed: "Update failed: ",
+			updateCliHint: "CLI: dsh-panel update",
 			// ── v2.1.6 three-column shell / card row / batch bar / preferences ──
 			railWorkspaces: "Workspaces",
 			paneGroups: "Groups",
@@ -722,8 +765,19 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			batchSelect: "Select",
 			batchSelected: "{count} selected",
 			batchMigrateTo: "Migrate to…",
+			batchGroupTo: "Group…",
+			batchGroupNew: "+ New group with selection…",
+			batchGroupAdd: "Add to “{name}”",
+			batchGroupRemove: "Remove from “{name}”",
+			batchGroupAdded: "Added {count} skill(s) to “{name}”",
+			batchGroupRemoved: "Removed {count} skill(s) from “{name}”",
 			batchAdvanced: "More options (copy / multiple targets)…",
 			batchMigrated: "Moved {count} item(s) to {target}",
+			dropMoved: "Moved {count} skill(s) to {target}",
+			dropReadOnlySkipped: "Moved {moved} skill(s); skipped {skipped} read-only item(s)",
+			dropReadOnlyAll: "Selected skills are read-only (plugin/bundled/runtime) and cannot be moved",
+			paneEditGroup: "Edit group",
+			paneToggleGroup: "Toggle all editable skills in “{name}”",
 			toastDeleted: "Deleted {name}",
 			toastUndo: "Undo",
 			toastUndoDone: "Restored {name}",
@@ -812,6 +866,17 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					invocation: { kind: "direct" },
 					parameters: [],
 					result: codec("dsh-skill-mcp-panel#CheckUpdateResult")
+				},
+				{
+					id: "dsh-skill-mcp-panel#skillsViewer/applyUpdate",
+					service: "skillsViewer",
+					namespace: "skillsViewer",
+					method: "applyUpdate",
+					invocation: { kind: "direct" },
+					parameters: [
+						{ name: "payload", wire: "payload", source: "json", acceptsUndefined: true, codec: codec("dsh-skill-mcp-panel#ApplyUpdatePayload") }
+					],
+					result: codec("dsh-skill-mcp-panel#ApplyUpdateResult")
 				},
 				{
 					id: "dsh-skill-mcp-panel#skillsViewer/migrate",
@@ -1052,6 +1117,17 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 					result: codec("dsh-skill-mcp-panel#McpOAuthStatusResult")
 				},
 				{
+					id: "dsh-skill-mcp-panel#skillMcpPanel/oauthRefresh",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
+					method: "oauthRefresh",
+					invocation: { kind: "direct" },
+					parameters: [
+						{ name: "payload", wire: "payload", source: "json", codec: codec("dsh-skill-mcp-panel#McpOAuthServerPayload") }
+					],
+					result: codec("dsh-skill-mcp-panel#McpOAuthRefreshResult")
+				},
+				{
 					id: "dsh-skill-mcp-panel#skillMcpPanel/oauthDisconnect",
 					service: "skillMcpPanel",
 					namespace: "skillMcpPanel",
@@ -1061,6 +1137,37 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 						{ name: "payload", wire: "payload", source: "json", codec: codec("dsh-skill-mcp-panel#McpOAuthServerPayload") }
 					],
 					result: codec("dsh-skill-mcp-panel#McpOAuthDisconnectResult")
+				},
+				{
+					id: "dsh-skill-mcp-panel#skillMcpPanel/listGroups",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
+					method: "listGroups",
+					invocation: { kind: "direct" },
+					parameters: [],
+					result: codec("dsh-skill-mcp-panel#McpGroupsResult")
+				},
+				{
+					id: "dsh-skill-mcp-panel#skillMcpPanel/saveGroup",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
+					method: "saveGroup",
+					invocation: { kind: "direct" },
+					parameters: [
+						{ name: "payload", wire: "payload", source: "json", codec: codec("dsh-skill-mcp-panel#McpGroupSavePayload") }
+					],
+					result: codec("dsh-skill-mcp-panel#McpGroupsResult")
+				},
+				{
+					id: "dsh-skill-mcp-panel#skillMcpPanel/deleteGroup",
+					service: "skillMcpPanel",
+					namespace: "skillMcpPanel",
+					method: "deleteGroup",
+					invocation: { kind: "direct" },
+					parameters: [
+						{ name: "payload", wire: "payload", source: "json", codec: codec("dsh-skill-mcp-panel#McpGroupDeletePayload") }
+					],
+					result: codec("dsh-skill-mcp-panel#McpGroupsResult")
 				}
 			]
 		};
@@ -1547,7 +1654,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 		}
 
 function SkillsSection(props) {
-			const { t, currentSessionId, subscribeSession, useSessions, listSkills, loadContent, setSkillEnabled, removeSkill, addSkill, listWorkspaces, openFolder, batchMigrateSkill, listGroups, saveGroupSkill, deleteGroupSkill, checkUpdateRemote } = props;
+			const { t, currentSessionId, subscribeSession, useSessions, listSkills, loadContent, setSkillEnabled, removeSkill, addSkill, listWorkspaces, openFolder, batchMigrateSkill, listGroups, saveGroupSkill, deleteGroupSkill } = props;
 			// 当前会话 id，仅用于会话级项目作用域与「随会话刷新列表」，
 			// 不再门控任何 UI：技能页在没有会话时同样正常显示（服务端回退全局注册表）。
 			// 宿主客户端以「主视图引用计数」定义当前会话，判据是
@@ -1606,7 +1713,6 @@ function SkillsSection(props) {
 			useEscapeClose(() => setMigrator(null), migrator !== null && migrator.busy !== true);
 			useEscapeClose(() => setGroupEditor(null), groupEditor !== null && groupEditor.busy !== true);
 			const [bulkGroup, setBulkGroup] = react.useState(null);
-			const [updateBanner, setUpdateBanner] = react.useState(null);
 			const [addMenuOpen, setAddMenuOpen] = react.useState(false);
 			// Issue #82：添加技能菜单点外部 / 按 Esc 关闭。菜单是定位弹层（不是全屏遮罩），
 			// 所以用 document 上的 pointerdown 判「点在哪」——落在按钮 + 菜单这个 wrap 里不算外部。
@@ -1656,6 +1762,10 @@ function SkillsSection(props) {
 			const [batchMode, setBatchMode] = react.useState(false);
 			const [selected, setSelected] = react.useState(() => new Set());
 			const [batchMenuOpen, setBatchMenuOpen] = react.useState(false);
+			const [batchGroupOpen, setBatchGroupOpen] = react.useState(false);
+			const [draggingSkills, setDraggingSkills] = react.useState(null);
+			const draggingRef = react.useRef(null);
+			const [dropTarget, setDropTarget] = react.useState(null);
 			// 正在淡出右移、等 RPC 落地的行（key = opKeyOf）。
 			const [removing, setRemoving] = react.useState(() => new Set());
 			// 顶部居中 Toast：{ text, action: { label, run } | null }。
@@ -1663,9 +1773,6 @@ function SkillsSection(props) {
 			const toastTimer = react.useRef(null);
 			// 通知条（打开目录的回显、迁移结果等）。
 			const [shellNotice, setShellNotice] = react.useState(null);
-			// 中栏底部「＋ 新建分组」的内联输入框：null = 收起。
-			const [inlineGroup, setInlineGroup] = react.useState(null);
-			const [inlineBusy, setInlineBusy] = react.useState(false);
 			// #27 入口位置偏好（前端读写骨架 + 设置浮层）。
 			const railListRef = react.useRef(null);
 			// 左轨竖条位置：行高 34px + 上下各 2px 外边距 = 38px 节距，
@@ -2042,31 +2149,30 @@ function SkillsSection(props) {
 				});
 			};
 
-			// 进入页面时后台静默检查更新；仅在有新版本时提示，网络失败不打扰。
-			react.useEffect(() => {
-				let current = true;
-				Promise.resolve().then(() => checkUpdateRemote()).then((snapshot) => {
-					if (!current) return;
-					const currentV = snapshot !== null && typeof snapshot === "object" && typeof snapshot.current === "string" ? snapshot.current : "";
-					const latest = snapshot !== null && typeof snapshot === "object" && typeof snapshot.latest === "string" ? snapshot.latest : null;
-					if (latest !== null && snapshot.updateAvailable === true) setUpdateBanner(t("checkUpdateAvailable") + latest + t("checkUpdateCurrent") + currentV + t("checkUpdateHint"));
-				}, () => {
-					// 网络不可达或超时：静默忽略
+			// 分组：打开完整分组编辑器（#83：工具栏与中栏底部「＋ 新建分组」共用此入口；中栏行编辑也走这里）。
+			const openGroupEditor = (groupId: any = null, presetScope: any = scopeFilter, presetSelected: any = null) => {
+				const targetScope = typeof presetScope === "string" && presetScope !== "" ? presetScope : scopeFilter;
+				const existing = groupId !== null && groupId !== undefined
+					? (Array.isArray(groupsList) ? groupsList : []).find((item) => item.id === groupId)
+					: undefined;
+				const initialNames = presetSelected !== null
+					? [...presetSelected]
+					: (existing !== undefined && existing.scopes !== undefined && Array.isArray(existing.scopes[targetScope]) ? existing.scopes[targetScope] : []);
+				setGroupEditor({
+					groupId: existing !== undefined ? existing.id : null,
+					name: existing !== undefined ? existing.name : "",
+					scope: targetScope,
+					selected: new Set(initialNames),
+					busy: false,
+					error: null
 				});
-				return () => {
-					current = false;
-				};
-			}, [checkUpdateRemote]);
-
-			// 分组：打开编辑器（新建分组）。
-			const openGroupEditor = () => {
-				setGroupEditor({ groupId: null, name: "", scope: scopeFilter, selected: new Set(), busy: false, error: null });
 			};
 
 			const applyGroupSave = () => {
 				const editor = groupEditor;
 				if (editor === null) return;
-				if ((editor.name ?? "").trim() === "") {
+				const trimmed = String(editor.name ?? "").trim();
+				if (trimmed === "") {
 					setGroupEditor({ ...editor, error: t("groupPickName") });
 					return;
 				}
@@ -2074,21 +2180,19 @@ function SkillsSection(props) {
 					setGroupEditor({ ...editor, error: t("groupPickScope") });
 					return;
 				}
-				if (editor.selected.size === 0) {
-					setGroupEditor({ ...editor, error: t("migratePickSkills") });
-					return;
-				}
 				setGroupEditor({ ...editor, busy: true, error: null });
 				const payload = {
 					id: editor.groupId ?? undefined,
-					name: editor.name,
+					name: trimmed,
 					scope: editor.scope === "global" ? null : editor.scope,
 					names: [...editor.selected]
 				};
 				Promise.resolve().then(() => saveGroupSkill(payload)).then((snapshot) => {
 					const rows = snapshot !== null && typeof snapshot === "object" && Array.isArray(snapshot.groups) ? snapshot.groups : [];
 					setGroupsList(rows);
-					setGroupFilter("all");
+					setPaneMode("groups");
+					if (editor.scope === scopeFilter) setGroupFilter(trimmed);
+					setProviderFilter("all");
 					setGroupEditor(null);
 					reloadAfterHot();
 				}, (error) => {
@@ -2197,9 +2301,31 @@ function SkillsSection(props) {
 				}
 				return items;
 			};
+			const activeDragNames = () => draggingRef.current ?? draggingSkills;
+			const parseDraggedNames = (dataTransfer) => {
+				const live = activeDragNames();
+				if (Array.isArray(live) && live.length > 0) return live;
+				try {
+					const raw = dataTransfer?.getData?.("application/x-dsh-skills") || dataTransfer?.getData?.("text/plain") || "";
+					if (raw.startsWith("[")) {
+						const parsed = JSON.parse(raw);
+						if (Array.isArray(parsed)) return parsed.filter((n) => typeof n === "string" && n !== "");
+					}
+					if (raw !== "") return raw.split(",").map((s) => s.trim()).filter(Boolean);
+				} catch {
+					// ignore
+				}
+				return [];
+			};
 			const onDrop = (event) => {
 				event.preventDefault();
 				setDragActive(false);
+				setDropTarget(null);
+				if (activeDragNames() !== null) {
+					draggingRef.current = null;
+					setDraggingSkills(null);
+					return;
+				}
 				if (adding.status === "busy" || event.dataTransfer === null) return;
 				collectDropItems(event.dataTransfer).then((items) => {
 					if (items.length > 0) ingestItems(items);
@@ -2209,6 +2335,10 @@ function SkillsSection(props) {
 			};
 			const onDragOver = (event) => {
 				event.preventDefault();
+				if (activeDragNames() !== null) {
+					setDragActive(false);
+					return;
+				}
 				if (adding.status !== "busy") setDragActive(true);
 			};
 			const onDragLeave = (event) => {
@@ -2298,7 +2428,7 @@ function SkillsSection(props) {
 				]
 				: [
 					{ key: "all", label: t("groupAll"), count: scoped.length },
-					...scopeGroupRows.map((group) => ({ key: group.name, label: group.name, count: membersOfGroup(group).length })),
+					...scopeGroupRows.map((group) => ({ key: group.name, label: group.name, count: membersOfGroup(group).length, group })),
 					...(showUngrouped ? [{ key: "", label: t("paneUngrouped"), count: ungroupedCount }] : [])
 				];
 			const activePaneKey = paneMode === "provider" ? providerFilter : groupFilter;
@@ -2311,13 +2441,15 @@ function SkillsSection(props) {
 				if (paneMode === "provider") setProviderFilter(key);
 				else setGroupFilter(key);
 				setBatchMenuOpen(false);
+				setBatchGroupOpen(false);
 			};
 
-			// ── 批量模式：勾选 / 迁移 ─────────────────────────────────────────
+			// ── 批量模式：勾选 / 迁移 / 批量分组 ────────────────────────────────
 			const exitBatch = () => {
 				setBatchMode(false);
 				setSelected(new Set());
 				setBatchMenuOpen(false);
+				setBatchGroupOpen(false);
 			};
 			// 「迁移到…」菜单：除当前工作区外的全部工作区（全局恒在），末项回落到完整的
 			// 批量迁移对话框（复制模式 / 多目标 / 失败明细）。
@@ -2325,6 +2457,7 @@ function SkillsSection(props) {
 			// 否则菜单能画出来但 onSelect 拿到 undefined。哨兵用 ASCII：它会作为
 			// item.id 进宿主的渲染层，不要塞控制字符；工作区路径不可能是这个值。
 			const BATCH_ADVANCED = "panel:advanced";
+			const BATCH_GROUP_NEW = "panel:group-new";
 			const targetWorkspaces = [{ id: "global", label: t("scopeGlobal") }, ...knownPaths.filter((path) => path !== "global").map((path) => ({ id: path, label: labelOf(path) }))].filter((entry) => entry.id !== scopeFilter);
 			const toggleSelected = (name) => {
 				setSelected((prev) => {
@@ -2334,52 +2467,79 @@ function SkillsSection(props) {
 					return next;
 				});
 			};
-			// 快捷迁移：单目标、移动模式（多目标/复制仍走完整的批量迁移对话框）。
-			const runQuickMigrate = (targetKey) => {
-				const names = [...selected];
-				if (names.length === 0) return;
+			// 共用的工作区移动（快捷迁移 & 拖拽到左轨工作区 #78 共用）。
+			const moveSkillsToWorkspace = (targetKey, names, fromBatch) => {
+				if (names.length === 0 || targetKey === scopeFilter) return;
+				const currentByName = new Map(scoped.map((skill) => [skill.name, skill]));
+				const editableNames = names.filter((name) => {
+					const skill = currentByName.get(name);
+					return skill === undefined || isEditableSkill(skill);
+				});
+				const skippedCount = names.length - editableNames.length;
+				if (editableNames.length === 0) {
+					showToast(t("dropReadOnlyAll"));
+					return;
+				}
 				const payload = {
 					from: scopeFilter === "global" ? null : scopeFilter,
 					targets: [targetKey === "global" ? null : targetKey],
 					mode: "move",
-					names: names
+					names: editableNames
 				};
 				Promise.resolve().then(() => batchMigrateSkill(payload)).then((snapshot) => {
 					const results = snapshot !== null && typeof snapshot === "object" && Array.isArray(snapshot.results) ? snapshot.results : [];
 					const done = results.filter((row) => row !== null && typeof row === "object" && row.ok !== false).map((row) => row.name);
-					const moved = done.length > 0 ? done : names;
+					const moved = done.length > 0 ? done : editableNames;
 					setListState((prev) => (prev.status === "ready" ? { status: "ready", skills: prev.skills.filter((skill) => !(scopeOf(skill) === scopeFilter && moved.includes(skill.name))) } : prev));
-					showToast(t("batchMigrated").replace("{count}", String(moved.length)).replace("{target}", countOfScope(targetKey)));
-					exitBatch();
+					const targetName = countOfScope(targetKey);
+					if (skippedCount > 0) {
+						showToast(t("dropReadOnlySkipped").replace("{moved}", String(moved.length)).replace("{skipped}", String(skippedCount)));
+					} else {
+						showToast(t(fromBatch ? "batchMigrated" : "dropMoved").replace("{count}", String(moved.length)).replace("{target}", targetName));
+					}
+					if (fromBatch) exitBatch();
 					reloadAfterHot();
 				}, (error) => {
 					setShellNotice({ kind: "error", text: cleanHostError(error) });
 				});
 			};
-
-			// ── 中栏底部「＋ 新建分组」：内联输入框（Enter 新建 / Esc 取消）────
-			// 空分组名由宿主侧 upsertGroup 兜底校验；这里新建的是成员为空的组，
-			// 想同时挑成员就用工具栏的「新建分组」（完整的分组编辑器）。
-			const submitInlineGroup = () => {
-				const editor = inlineGroup;
-				if (editor === null) return;
-				const name = String(editor.value ?? "").trim();
-				if (name === "" || inlineBusy) return;
-				setInlineBusy(true);
-				Promise.resolve().then(() => saveGroupSkill({ name: name, scope: scopeFilter === "global" ? null : scopeFilter, names: [] })).then((snapshot) => {
+			const runQuickMigrate = (targetKey) => moveSkillsToWorkspace(targetKey, [...selected], true);
+			// 共用的分组加/减成员 helper（批量栏「分组…」#76 与拖拽到分组 #78 共用）。
+			const saveGroupMembership = (group, names, add, fromBatch = false) => {
+				if (group === undefined || names.length === 0) return;
+				const existing = group.scopes !== undefined && Array.isArray(group.scopes[scopeFilter]) ? group.scopes[scopeFilter] : [];
+				const nameSet = new Set(names);
+				const merged = add
+					? [...new Set([...existing, ...names])]
+					: existing.filter((name) => !nameSet.has(name));
+				Promise.resolve().then(() => saveGroupSkill({
+					id: group.id,
+					name: group.name,
+					scope: scopeFilter === "global" ? null : scopeFilter,
+					names: merged
+				})).then((snapshot) => {
 					const rows = snapshot !== null && typeof snapshot === "object" && Array.isArray(snapshot.groups) ? snapshot.groups : [];
 					setGroupsList(rows);
-					setPaneMode("groups");
-					setGroupFilter(name);
-					setProviderFilter("all");
-					setInlineGroup(null);
-					setInlineBusy(false);
+					showToast(t(add ? "batchGroupAdded" : "batchGroupRemoved").replace("{count}", String(names.length)).replace("{name}", group.name));
+					if (fromBatch) exitBatch();
 					reloadAfterHot();
 				}, (error) => {
-					setInlineBusy(false);
 					setShellNotice({ kind: "error", text: cleanHostError(error) });
 				});
 			};
+			const batchGroupMenuItems = [
+				{ id: BATCH_GROUP_NEW, label: t("batchGroupNew") },
+				...scopeGroupRows.flatMap((group) => {
+					const members = new Set(group.scopes !== undefined && Array.isArray(group.scopes[scopeFilter]) ? group.scopes[scopeFilter] : []);
+					const selNames = [...selected];
+					const anyIn = selNames.some((name) => members.has(name));
+					const allIn = selNames.length > 0 && selNames.every((name) => members.has(name));
+					const out: any[] = [];
+					if (!allIn) out.push({ id: "add:" + group.id, label: t("batchGroupAdd").replace("{name}", group.name) });
+					if (anyIn) out.push({ id: "rm:" + group.id, label: t("batchGroupRemove").replace("{name}", group.name) });
+					return out;
+				})
+			];
 
 			// ── 「打开目录」（宿主没有打开文件管理器的 API）──────────────────
 			// 宿主既没有「在系统文件管理器里打开路径」的 RPC，也没有回传技能根路径的接口，
@@ -2459,7 +2619,7 @@ function SkillsSection(props) {
 				setSelected(new Set());
 				setBatchMode(false);
 				setBatchMenuOpen(false);
-				setInlineGroup(null);
+				setBatchGroupOpen(false);
 			}, [scopeFilter]);
 			// 左轨竖条位置：优先按 DOM 实测（字体/缩放下最稳），实测不到时用节距推算。
 			react.useEffect(() => {
@@ -2477,6 +2637,8 @@ function SkillsSection(props) {
 			// ── 树形渲染（嵌套技能按文件树显示；搜索时扁平化）──────────────────
 			const querying = normalizedQuery.trim() !== "";
 			const treeRoot = buildSkillTree(filtered);
+			// 可编辑判定：bundled / runtime / 插件随包自带（pluginProvided）技能不可就地启停或删除。
+			const isEditableSkill = (skill) => skill.source !== "bundled" && skill.source !== "runtime" && skill.pluginProvided !== true;
 			// 卡片行（v2.1.6）：[勾选框][图标][名称 + 描述][红绿灯 + 删除]。
 			// 展开详情的入口是中间那块文字按钮；批量模式下点它等于勾选（与设计稿一致）。
 			const renderCard = (skill) => {
@@ -2484,16 +2646,39 @@ function SkillsSection(props) {
 				const open = expanded === key;
 				const body = bodies[key];
 				const enabled = skill.enabled !== false;
-				const editable = skill.source !== "bundled" && skill.source !== "runtime";
+				const editable = isEditableSkill(skill);
 				const op = ops[key];
 				const checked = selected.has(skill.name);
 				return (0, react_jsx_runtime.jsxs)("li", {
 					key: skill.name,
 					className: c.card,
+					draggable: true,
 					"data-skill-name": skill.name,
 					"data-open": open ? "true" : void 0,
 					"data-selected": batchMode && checked ? "true" : void 0,
+					"data-dragging": draggingSkills !== null && draggingSkills.includes(skill.name) ? "true" : void 0,
 					"data-removing": removing.has(key) ? "true" : void 0,
+					onDragStart: (event) => {
+						const names = batchMode && checked && selected.size > 0 ? [...selected] : [skill.name];
+						draggingRef.current = names;
+						setDraggingSkills(names);
+						setDragActive(false);
+						if (event?.dataTransfer !== null && event?.dataTransfer !== undefined) {
+							try {
+								event.dataTransfer.effectAllowed = "copyMove";
+								event.dataTransfer.setData("application/x-dsh-skills", JSON.stringify(names));
+								event.dataTransfer.setData("text/plain", names.join(","));
+							} catch {
+								// ignore synthetic events
+							}
+						}
+					},
+					onDragEnd: () => {
+						draggingRef.current = null;
+						setDraggingSkills(null);
+						setDropTarget(null);
+						setDragActive(false);
+					},
 					children: [(0, react_jsx_runtime.jsxs)("div", {
 						className: c.cardRow,
 						children: [(0, react_jsx_runtime.jsx)("span", {
@@ -2622,12 +2807,11 @@ function SkillsSection(props) {
 			
 
 			// scopeGroupRows / membersOfGroup 已上移到中栏数据区（paneRows 需要它们）。
-			// 可编辑判定：bundled / runtime 技能随部署或运行时提供，宿主会拒绝启停。
-			const isEditableSkill = (skill) => skill.source !== "bundled" && skill.source !== "runtime";
 					const countOf = (rows) => ({
 						total: rows.length,
 						on: rows.reduce((sum, skill) => sum + (skill.enabled === true ? 1 : 0), 0),
-						editable: rows.reduce((sum, skill) => sum + (isEditableSkill(skill) ? 1 : 0), 0)
+						editable: rows.reduce((sum, skill) => sum + (isEditableSkill(skill) ? 1 : 0), 0),
+						editableOn: rows.reduce((sum, skill) => sum + (isEditableSkill(skill) && skill.enabled === true ? 1 : 0), 0)
 					});
 					const groupCount = (group) => countOf(membersOfGroup(group));
 					const allCounts = countOf(scoped);
@@ -2766,22 +2950,6 @@ function SkillsSection(props) {
 					className: c.dropHint,
 					children: t("addDragHint")
 				}) : null,
-				updateBanner !== null ? (0, react_jsx_runtime.jsxs)("div", {
-						className: c.notice,
-						"data-kind": "info",
-						role: "status",
-						children: [(0, react_jsx_runtime.jsx)("span", {
-							className: c.noticeText,
-							children: updateBanner
-						}), (0, react_jsx_runtime.jsx)("button", {
-							type: "button",
-							className: c.noticeButton,
-							onClick: () => {
-								setUpdateBanner(null);
-							},
-							children: t("addDismiss")
-						})]
-					}) : null,
 						// 「打开目录」等外壳动作的回显（剪贴板写不进去时把路径摊开给用户手抄）。
 						shellNotice !== null ? (0, react_jsx_runtime.jsxs)("div", {
 							className: c.notice,
@@ -2848,7 +3016,7 @@ function SkillsSection(props) {
 									className: c.toolButton,
 									"aria-label": t("toolbarNewGroup"),
 									disabled: listState.status !== "ready" || skills.length === 0,
-									onClick: openGroupEditor,
+									onClick: () => openGroupEditor(),
 									children: hostIcon(primitiveIcon("IconProjectAddOutlineRegular"), 15, ICON_PATHS.group)
 								}), (0, react_jsx_runtime.jsxs)("span", {
 									className: c.addMenuWrap,
@@ -2980,7 +3148,7 @@ function SkillsSection(props) {
 												disabled: activeCounts.editable === 0 || bulkGroup === bulkKey,
 												title: activeCounts.editable === 0 ? t("groupBulkBlocked") : undefined,
 												onClick: applyActiveToggle,
-												children: (activeCounts.editable > 0 && activeCounts.on === activeCounts.total ? t("groupBulkOff") : t("groupBulkOn")) + " · " + activeCounts.on + "/" + activeCounts.total
+												children: (activeCounts.editable > 0 && activeCounts.editableOn === activeCounts.editable ? t("groupBulkOff") : t("groupBulkOn")) + " · " + activeCounts.on + "/" + activeCounts.total
 											}) : null, (0, react_jsx_runtime.jsxs)("label", {
 												className: c.pluginToggle,
 												title: t("pluginSkillsToggleHint"),
@@ -3124,25 +3292,50 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
 						className: c.railBar,
 						"aria-hidden": "true",
 						style: { transform: "translateY(" + railBarY + "px)" }
-					}), ...railEntries.map((entry) => (0, react_jsx_runtime.jsxs)("button", {
-						type: "button",
-						className: c.railItem,
-						"data-active": scopeFilter === entry.key ? "true" : void 0,
-						"aria-pressed": scopeFilter === entry.key,
-						title: entry.label,
-						onClick: (event) => {
-							const node = event.currentTarget;
-							if (node !== null && typeof node.offsetTop === "number") setRailBarY(node.offsetTop + ((node.offsetHeight || 34) - 18) / 2);
-							setScopeFilter(entry.key);
-						},
-						children: [(0, react_jsx_runtime.jsx)("span", {
-							className: c.railItemName,
-							children: entry.label
-						}), (0, react_jsx_runtime.jsx)("small", {
-							className: c.railItemCount,
-							children: String(entry.count)
-						})]
-					}, entry.key))]
+					}), ...railEntries.map((entry) => {
+						const canDropHere = entry.key !== scopeFilter;
+						const railDropId = "rail:" + entry.key;
+						return (0, react_jsx_runtime.jsxs)("button", {
+							type: "button",
+							className: c.railItem,
+							"data-active": scopeFilter === entry.key ? "true" : void 0,
+							"data-drop-hover": canDropHere && dropTarget === railDropId ? "true" : void 0,
+							"aria-pressed": scopeFilter === entry.key,
+							title: entry.label,
+							onDragOver: (event) => {
+								if (!canDropHere || activeDragNames() === null) return;
+								event.preventDefault();
+								if (dropTarget !== railDropId) setDropTarget(railDropId);
+							},
+							onDragLeave: () => {
+								if (dropTarget === railDropId) setDropTarget(null);
+							},
+							onDrop: (event) => {
+								if (!canDropHere) return;
+								const names = parseDraggedNames(event?.dataTransfer);
+								draggingRef.current = null;
+								setDraggingSkills(null);
+								setDropTarget(null);
+								setDragActive(false);
+								if (names.length === 0) return;
+								event?.preventDefault?.();
+								event?.stopPropagation?.();
+								moveSkillsToWorkspace(entry.key, names, false);
+							},
+							onClick: (event) => {
+								const node = event.currentTarget;
+								if (node !== null && typeof node.offsetTop === "number") setRailBarY(node.offsetTop + ((node.offsetHeight || 34) - 18) / 2);
+								setScopeFilter(entry.key);
+							},
+							children: [(0, react_jsx_runtime.jsx)("span", {
+								className: c.railItemName,
+								children: entry.label
+							}), (0, react_jsx_runtime.jsx)("small", {
+								className: c.railItemCount,
+								children: String(entry.count)
+							})]
+						}, entry.key);
+					})]
 				})]
 			});
 
@@ -3180,51 +3373,82 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
 					})]
 				}), (0, react_jsx_runtime.jsx)("div", {
 					className: c.paneList,
-					children: paneRows.map((row) => (0, react_jsx_runtime.jsxs)("button", {
-						type: "button",
-						className: c.paneItem,
-						"data-active": activePaneKey === row.key ? "true" : void 0,
-						"aria-pressed": activePaneKey === row.key,
-						onClick: () => {
-							selectPaneRow(row.key);
-						},
-						children: [(0, react_jsx_runtime.jsx)("span", {
-							className: c.paneItemName,
-							children: row.label
-						}), (0, react_jsx_runtime.jsx)("span", {
-							className: c.paneItemCount,
-							children: String(row.count)
-						})]
-					}, paneMode + "\u0000" + row.key))
-				}), paneMode === "groups" ? (inlineGroup !== null ? (0, react_jsx_runtime.jsx)("div", {
-					className: c.paneNewForm,
-					children: (0, react_jsx_runtime.jsx)("input", {
-						className: c.paneNewInput,
-						value: inlineGroup.value,
-						placeholder: t("groupName"),
-						"aria-label": t("groupName"),
-						disabled: inlineBusy,
-						autoFocus: true,
-						onChange: (event) => {
-							setInlineGroup({ value: event.currentTarget.value });
-						},
-						onKeyDown: (event) => {
-							if (event.key === "Enter") submitInlineGroup();
-							else if (event.key === "Escape") setInlineGroup(null);
-						},
-						onBlur: () => {
-							// 失焦即收起：与设计稿一致；保存中不打断，避免输入框先消失。
-							if (!inlineBusy) setInlineGroup(null);
-						}
+					children: paneRows.map((row: any) => {
+						const group = row.group;
+						const groupDropId = group !== undefined ? "group:" + group.id : null;
+						const gCounts = group !== undefined ? groupCount(group) : null;
+						const groupOn = gCounts !== null && gCounts.editable > 0 && gCounts.editableOn === gCounts.editable;
+						return (0, react_jsx_runtime.jsxs)("div", {
+							className: c.paneRow,
+							"data-drop-hover": groupDropId !== null && dropTarget === groupDropId ? "true" : void 0,
+							onDragOver: (event) => {
+								if (groupDropId === null || activeDragNames() === null) return;
+								event.preventDefault();
+								if (dropTarget !== groupDropId) setDropTarget(groupDropId);
+							},
+							onDragLeave: () => {
+								if (groupDropId !== null && dropTarget === groupDropId) setDropTarget(null);
+							},
+							onDrop: (event) => {
+								if (group === undefined) return;
+								const names = parseDraggedNames(event?.dataTransfer);
+								draggingRef.current = null;
+								setDraggingSkills(null);
+								setDropTarget(null);
+								setDragActive(false);
+								if (names.length === 0) return;
+								event?.preventDefault?.();
+								event?.stopPropagation?.();
+								saveGroupMembership(group, names, true, false);
+							},
+							children: [(0, react_jsx_runtime.jsxs)("button", {
+								type: "button",
+								className: c.paneItem,
+								"data-active": activePaneKey === row.key ? "true" : void 0,
+								"aria-pressed": activePaneKey === row.key,
+								onClick: () => {
+									selectPaneRow(row.key);
+								},
+								children: [(0, react_jsx_runtime.jsx)("span", {
+									className: c.paneItemName,
+									children: row.label
+								}), (0, react_jsx_runtime.jsx)("span", {
+									className: c.paneItemCount,
+									children: String(row.count)
+								})]
+							}), group !== undefined && gCounts !== null ? (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								className: c.paneGroupToggle,
+								"data-on": groupOn ? "true" : void 0,
+								title: t("paneToggleGroup").replace("{name}", group.name),
+								"aria-label": t("paneToggleGroup").replace("{name}", group.name),
+								disabled: gCounts.editable === 0 || bulkGroup === "pane:" + group.id,
+								onClick: (event) => {
+									event?.stopPropagation?.();
+									applyBulkToggle(membersOfGroup(group), "pane:" + group.id);
+								},
+								children: gCounts.on + "/" + gCounts.total
+							}) : null, group !== undefined ? (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								className: c.paneGroupEdit,
+								title: t("paneEditGroup"),
+								"aria-label": t("paneEditGroup") + " " + group.name,
+								onClick: (event) => {
+									event?.stopPropagation?.();
+									openGroupEditor(group.id, scopeFilter);
+								},
+								children: "✎"
+							}) : null]
+						}, paneMode + "\u0000" + row.key);
 					})
-				}) : (0, react_jsx_runtime.jsx)("button", {
+				}), paneMode === "groups" ? (0, react_jsx_runtime.jsx)("button", {
 					type: "button",
 					className: c.paneNew,
 					onClick: () => {
-						setInlineGroup({ value: "" });
+						openGroupEditor(null, scopeFilter);
 					},
 					children: ["＋ ", t("groupNew")]
-				})) : null]
+				}) : null]
 			});
 
 			// ── 主区：滚动区 + 底部居中批量栏 + 顶部居中 Toast ─────────────────
@@ -3235,6 +3459,43 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
 				children: [(0, react_jsx_runtime.jsx)("span", {
 					className: c.batchCount,
 					children: t("batchSelected").replace("{count}", String(selected.size))
+				}), (0, react_jsx_runtime.jsx)(primitives.Menu, {
+					open: batchGroupOpen,
+					onClose: () => {
+						setBatchGroupOpen(false);
+					},
+					items: batchGroupMenuItems,
+					onSelect: (key) => {
+						setBatchGroupOpen(false);
+						if (key === BATCH_GROUP_NEW) {
+							const carry = new Set(selected);
+							exitBatch();
+							openGroupEditor(null, scopeFilter, carry);
+							return;
+						}
+						if (typeof key === "string" && key.startsWith("add:")) {
+							const g = scopeGroupRows.find((item) => item.id === key.slice(4));
+							saveGroupMembership(g, [...selected], true, true);
+							return;
+						}
+						if (typeof key === "string" && key.startsWith("rm:")) {
+							const g = scopeGroupRows.find((item) => item.id === key.slice(3));
+							saveGroupMembership(g, [...selected], false, true);
+						}
+					},
+					align: "end",
+					portal: true,
+					anchor: (0, react_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: c.batchBtn,
+						"aria-haspopup": "menu",
+						"aria-expanded": batchGroupOpen,
+						disabled: selected.size === 0,
+						onClick: () => {
+							setBatchGroupOpen((value) => !value);
+						},
+						children: t("batchGroupTo")
+					})
 				}), (0, react_jsx_runtime.jsx)(primitives.Menu, {
 					open: batchMenuOpen,
 					onClose: () => {
@@ -3385,9 +3646,11 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         phCwd: "C:/projects/my-mcp-server",
                         phUrl: "https://example.com/mcp",
                         phHeaders: "Authorization=Bearer ${MCP_TOKEN}",
-                        hintJs: "值里写 ${NAME} 即读取环境变量 NAME（DSH 只认 !!js 表达式，面板自动格式化成 !!js '`${process.env.NAME}`'）；也可以用 !!js 前缀直接写任意 JS 表达式",
+                        hintJs: "支持两种模板：${NAME} 读取环境变量（保存为 !!js）；${credential:REF} 从 DSH 凭据表读取（配合「展开凭据模板」）；!!js 前缀按原样透传",
                         fieldTimeout: "单次调用超时",
                         fieldFailOnStartup: "启动失败时报错",
+                        fieldExpandTemplates: "展开凭据模板",
+                        hintExpandTemplates: "开启后支持在 URL、请求头、命令、参数或环境变量中展开 ${credential:REF}，并在保存时自动补全 inject: [credentials]",
                         fieldReconnect: "自动重连",
                         fieldInitialDelay: "首次重连延迟",
                         fieldMaxDelay: "最大重连延迟",
@@ -3405,7 +3668,7 @@ migrator !== null ? (0, react_jsx_runtime.jsx)(MigrateDialog, {
                         currentVersion: "dsh-skill-mcp-panel",
                         checkUpdateAvailable: "发现新版本 v",
                         checkUpdateCurrent: "（当前 v",
-                        checkUpdateHint: "）。可在终端运行 dsh-panel update 更新",
+                        checkUpdateHint: "）。可点击右上角按钮直接原地更新，或在命令行运行 dsh-panel update",
                         // #46：受管块里的外来行可见化（面板永不改写它们，但必须让用户看见）
                         foreignOthers: "受管块内还有 {count} 条不属于面板的行（{list}），面板不会改动它们。",
                         foreignMine: "另有 {count} 条面板行被放在外来 insert 列表里（{list}），面板暂不管理它们。",
@@ -3424,24 +3687,61 @@ oauthLogin: "OAuth 登录",
 oauthRelogin: "重新登录",
 oauthWorking: "登录中…",
 oauthDisconnect: "断开登录",
-oauthHint: "用 OAuth 2.0 拿到令牌，写进这一行的 Authorization 头（重启后仍有效）",
+oauthHint: "通过 OAuth 2.0 获取令牌写进这一行的 Authorization 头（在添加或点开设置「⚙」时完成授权或重连）",
 oauthDone: "登录成功，令牌已写入并热加载。",
 oauthDisconnected: "已断开：Authorization 头与本地令牌都清掉了。",
 oauthFailed: "登录失败。",
 oauthTimeout: "等待授权超时，请重新点一次登录。",
+saveAndOAuth: "保存并 OAuth 登录",
+saveOnly: "仅保存",
+oauthAuthNow: "立即登录",
+oauthReauthNow: "重新认证",
+oauthRefreshNow: "刷新令牌",
+oauthStatusReady: "已认证",
+oauthStatusExpired: "令牌已过期",
+oauthStatusNeedsReauth: "需重新认证",
+oauthStatusPending: "请在浏览器中完成授权…",
+oauthStatusExpiresAt: " · 有效期至 ",
+oauthRefreshOk: "令牌已刷新并热更新。",
+oauthRefreshFailed: "刷新失败：",
+oauthNeedUrl: "请先填写服务器 URL 再进行 OAuth 登录",
 fieldAuth: "认证",
 authNone: "无",
 authBearer: "Bearer 令牌",
 authOAuth: "OAuth 登录",
 authNoneHint: "不额外加认证头（有些内网服务器不需要）。",
-authBearerHint: "会写成 Authorization=Bearer <令牌>；令牌里可以写 ${ENV} 读取环境变量。",
-authOauthHint: "保存后在这一行的卡片上点「OAuth 登录」，由面板跑完授权并把令牌写进 Authorization。",
+authBearerHint: "会写成 Authorization=Bearer <令牌>；支持 ${ENV} 或凭据模板 ${credential:REF}。",
+authOauthHint: "保存配置时直接拉起 OAuth 2.0 授权并写入 Authorization；之后点卡片右上角设置（⚙）即可重新认证、刷新令牌或断开。",
 phAuthToken: "eyJ… 或 ${MCP_TOKEN}",
 authBadge: "已认证",
 authBadgeHint: "这一行已经带 Authorization 头（OAuth 登录或手工填写）。",
 toolsButton: "工具",
 toolsButtonHint: "按工具名禁用（被禁的工具会从模型工具表里消失，真正省上下文）",
 toolsScopeHint: "这份禁用列表对所有会话生效；取消勾选 = 禁用该工具。",
+toolScopeLabel: "生效范围：",
+toolScopeGlobal: "全局默认",
+toolScopeWorkspace: "当前工作区",
+toolScopeSession: "当前会话",
+toolScopeSubagent: "子代理例外",
+toolScopeNoWorkspace: "暂无可选工作区路径",
+toolScopeNoSession: "未检测到活跃会话（先进入对话后可按会话临时覆盖）",
+toolScopeGlobalHint: "对本 Profile 下所有会话与代理生效；取消勾选 = 禁用该工具。",
+toolScopeWorkspaceHint: "仅当会话处于工作区 {ws} 时追加禁用未勾选的工具。",
+toolScopeSessionHint: "仅在当前会话内临时覆盖（支持临时放行全局禁用的工具），会话关闭后自动清理，不落盘。",
+toolScopeSubagentHint: "单独配置子代理/协作团队可见的工具：勾选 = 允许子代理使用（可放行全局禁用的工具），取消 = 禁止。",
+toolScopeInheritedBlocked: "（全局已禁用）",
+groupAll: "全部",
+groupUngrouped: "未分组",
+groupNew: "+ 分组",
+groupEdit: "编辑分组",
+groupEnableAll: "整组启用",
+groupDisableAll: "整组停用",
+groupName: "分组名称",
+groupNameRequired: "请填写分组名称",
+groupServers: "包含服务器",
+groupDelete: "删除分组",
+groupEmpty: "该分组下暂无 MCP 服务器。",
+groupBulkResult: "分组操作完成：已更新 {done} 台服务器",
 toolsSearchPlaceholder: "搜索工具名或描述",
 toolsSelectAll: "全选",
 toolsSelectNone: "全不选",
@@ -3451,6 +3751,10 @@ toolsLoading: "正在读取工具…",
 toolsEmpty: "这台服务器还没注册任何工具（可能没连上）。",
 toolsDisconnected: "服务器未连接：先启用它，工具清单才有内容。",
 toolsDisabledCount: "已禁用 {count} 个",
+toolsVisibilitySummary: "对模型可见 {visible}/{total} · 已过滤 {disabled} 个",
+toolsVisibilityStopped: "服务器已停用（对模型可见 0/{total} · 预设过滤 {disabled} 个）",
+toolsCardVisible: "对模型可见 {visible}/{total}（已过滤 {filtered}）",
+toolsCardFilteredOnly: "已过滤 {filtered} 个",
 toolsSave: "保存禁用列表",
 toolsSaving: "保存中…",
 toolsSaved: "已保存：{count} 个工具被禁用，当前 {applied} 个会话已生效。",
@@ -3529,9 +3833,11 @@ authStdioHint: "stdio 服务器的令牌没有单独的认证项——写在这�
                         phCwd: "C:/projects/my-mcp-server",
                         phUrl: "https://example.com/mcp",
                         phHeaders: "Authorization=Bearer ${MCP_TOKEN}",
-                        hintJs: "Write ${NAME} in a value to read the environment variable NAME (DSH only understands !!js expressions; the panel formats it as !!js '`${process.env.NAME}`'). A !!js prefix passes a raw JS expression.",
+                        hintJs: "Templates: ${NAME} reads an env var (saved as !!js); ${credential:REF} reads DSH credentials (with Expand credential templates enabled). A !!js prefix passes a raw JS expression.",
                         fieldTimeout: "toolCallTimeoutMs",
                         fieldFailOnStartup: "Fail on startup error",
+                        fieldExpandTemplates: "Expand credential templates",
+                        hintExpandTemplates: "Resolves ${credential:REF} in URL, headers, command, args or env, saving expandTemplates: true and inject: [credentials]",
                         fieldReconnect: "Auto reconnect",
                         fieldInitialDelay: "initialDelayMs",
                         fieldMaxDelay: "maxDelayMs",
@@ -3549,7 +3855,7 @@ authStdioHint: "stdio 服务器的令牌没有单独的认证项——写在这�
                         currentVersion: "dsh-skill-mcp-panel",
                         checkUpdateAvailable: "Update available: v",
                         checkUpdateCurrent: " (current v",
-                        checkUpdateHint: "). Run dsh-panel update in a terminal to install it",
+                        checkUpdateHint: "). Click the top-right update button to upgrade in place, or run dsh-panel update",
                         // #46: surface foreign rows inside the managed block (never rewritten by the panel)
                         foreignOthers: "{count} row(s) in the managed block do not belong to this panel ({list}); the panel leaves them untouched.",
                         foreignMine: "{count} panel row(s) sit inside a foreign insert list ({list}); the panel does not manage them yet.",
@@ -3568,24 +3874,61 @@ oauthLogin: "OAuth sign-in",
 oauthRelogin: "Sign in again",
 oauthWorking: "Signing in…",
 oauthDisconnect: "Disconnect",
-oauthHint: "Runs OAuth 2.0 and writes the token into this row's Authorization header (survives restarts).",
+oauthHint: "Runs OAuth 2.0 and writes the token into this row's Authorization header right during setup or in settings (⚙).",
 oauthDone: "Signed in — the token is written and hot-loaded.",
 oauthDisconnected: "Disconnected: the Authorization header and the local token are gone.",
 oauthFailed: "Sign-in failed.",
 oauthTimeout: "Timed out waiting for authorization — click sign-in again.",
+saveAndOAuth: "Save & OAuth sign-in",
+saveOnly: "Save only",
+oauthAuthNow: "Sign in now",
+oauthReauthNow: "Re-authenticate",
+oauthRefreshNow: "Refresh token",
+oauthStatusReady: "Authenticated",
+oauthStatusExpired: "Token expired",
+oauthStatusNeedsReauth: "Re-auth required",
+oauthStatusPending: "Complete authorization in your browser…",
+oauthStatusExpiresAt: " · Expires ",
+oauthRefreshOk: "Token refreshed and hot-applied.",
+oauthRefreshFailed: "Refresh failed: ",
+oauthNeedUrl: "Enter the server URL before running OAuth sign-in",
 fieldAuth: "Authentication",
 authNone: "None",
 authBearer: "Bearer token",
 authOAuth: "OAuth sign-in",
 authNoneHint: "Adds no auth header (some intranet servers need none).",
-authBearerHint: "Saved as Authorization=Bearer <token>; write ${ENV} inside the token to read an environment variable.",
-authOauthHint: "After saving, click “OAuth sign-in” on this server's card — the panel runs the flow and writes the token into Authorization.",
+authBearerHint: "Saved as Authorization=Bearer <token>; supports ${ENV} or ${credential:REF}.",
+authOauthHint: "Completes OAuth 2.0 right when saving; open settings (⚙) anytime to re-authenticate, refresh, or disconnect.",
 phAuthToken: "eyJ… or ${MCP_TOKEN}",
 authBadge: "Authenticated",
 authBadgeHint: "This row already carries an Authorization header (OAuth or hand-written).",
 toolsButton: "Tools",
 toolsButtonHint: "Disable tools by name — a disabled tool disappears from the model's tool list and saves context",
 toolsScopeHint: "This list applies to every session; uncheck a tool to disable it.",
+toolScopeLabel: "Scope:",
+toolScopeGlobal: "Global default",
+toolScopeWorkspace: "Workspace",
+toolScopeSession: "Current session",
+toolScopeSubagent: "Subagents",
+toolScopeNoWorkspace: "No workspace path available",
+toolScopeNoSession: "No active session detected (open a chat session to set a temporary override)",
+toolScopeGlobalHint: "Applies to all sessions and agents in this profile; uncheck to disable.",
+toolScopeWorkspaceHint: "Adds extra disables only when the active workspace matches {ws}.",
+toolScopeSessionHint: "Temporary in-memory override for this session (can allow globally disabled tools); cleared when the session closes.",
+toolScopeSubagentHint: "Role override for subagents/teammates: checked = visible to subagents (can override global disables), unchecked = blocked.",
+toolScopeInheritedBlocked: "(disabled globally)",
+groupAll: "All",
+groupUngrouped: "Ungrouped",
+groupNew: "+ Group",
+groupEdit: "Edit group",
+groupEnableAll: "Enable group",
+groupDisableAll: "Disable group",
+groupName: "Group name",
+groupNameRequired: "Group name is required",
+groupServers: "Servers",
+groupDelete: "Delete group",
+groupEmpty: "No MCP servers in this group.",
+groupBulkResult: "Group update finished: {done} server(s) updated",
 toolsSearchPlaceholder: "Search tool name or description",
 toolsSelectAll: "Select all",
 toolsSelectNone: "Clear all",
@@ -3595,6 +3938,10 @@ toolsLoading: "Loading tools…",
 toolsEmpty: "This server has no registered tools yet (probably not connected).",
 toolsDisconnected: "Server not connected: enable it first so its tools appear.",
 toolsDisabledCount: "{count} disabled",
+toolsVisibilitySummary: "Visible to agents: {visible}/{total} · {disabled} filtered out",
+toolsVisibilityStopped: "Server stopped (0/{total} visible · {disabled} filtered out)",
+toolsCardVisible: "{visible}/{total} visible ({filtered} filtered out)",
+toolsCardFilteredOnly: "{filtered} filtered out",
 toolsSave: "Save disabled list",
 toolsSaving: "Saving…",
 toolsSaved: "Saved: {count} tool(s) disabled; applied to {applied} session(s).",
@@ -3603,7 +3950,7 @@ authStdioHint: "stdio servers have no separate auth field — put the token in t
                 };
 
                 const cssMcpEffects = "@keyframes skvFadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}@keyframes skvFadeOnly{from{opacity:0}to{opacity:1}}.MCP_card{transition:border-color .18s cubic-bezier(.22,.61,.36,1),box-shadow .18s ease}.MCP_card:hover{border-color:var(--dsw-alias-border-l1);box-shadow:var(--dsw-shadow-lv1)}.MCP_dot{transition:background-color .2s ease}.MCP_input,.MCP_textarea{transition:border-color .15s ease,box-shadow .15s ease}.MCP_transportBtn{transition:background-color .15s ease,border-color .15s ease,color .15s ease}.MCP_actionBtn,.MCP_dangerBtn,.MCP_iconBtn,.MCP_add,.MCP_advancedToggle{transition:background-color .15s ease,border-color .15s ease,transform .1s ease}.MCP_actionBtn:active:not(:disabled),.MCP_dangerBtn:active:not(:disabled),.MCP_iconBtn:active,.MCP_add:active{transform:scale(.96)}.MCP_actionBtn:focus-visible,.MCP_dangerBtn:focus-visible,.MCP_iconBtn:focus-visible,.MCP_add:focus-visible,.MCP_transportBtn:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}.MCP_cards{animation:skvFadeOnly .2s ease}.MCP_result{animation:skvFadeIn .18s ease}@media (prefers-reduced-motion: reduce){.MCP_section *{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}.MCP_doc{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;animation:skvFadeIn .18s ease}.MCP_doc h4{font-size:13px;font-weight:600;line-height:20px;margin:0}.MCP_doc p{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:19px}.MCP_docCode{margin:0;background:var(--dsw-alias-bg-layer-3);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;line-height:17px;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-all;overflow-x:auto}";
-const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:14px}.MCP_head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.MCP_head h3{font-size:14px;font-weight:600;line-height:20px;margin:0}.MCP_sub{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:0}.MCP_toolbar{display:flex;align-items:center;gap:8px}.MCP_add{font:inherit;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:0 0;border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;padding:7px 16px;font-size:13px;line-height:20px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}.MCP_add:hover{background:var(--dsw-alias-interactive-bg-hover)}.MCP_cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.MCP_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}.MCP_cardTop{display:flex;align-items:center;gap:8px;min-width:0}.MCP_name{font-size:13px;font-weight:600;line-height:20px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.MCP_badges{display:inline-flex;align-items:center;gap:6px;flex:none}.MCP_badge{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);border-radius:5px;padding:1px 6px;font-size:11px;line-height:16px}.MCP_meta{display:flex;align-items:center;gap:8px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}.MCP_dot{width:7px;height:7px;border-radius:999px;background:var(--dsw-alias-label-tertiary);flex:none}.MCP_dot[data-on=true]{background:var(--dsw-alias-state-success-primary)}.MCP_dot[data-err=true]{background:var(--dsw-alias-state-error-primary)}.MCP_actions{display:flex;align-items:center;gap:8px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:8px;flex-wrap:wrap}.MCP_spacer{flex:1}.MCP_form{display:grid;grid-template-columns:1fr 1fr;gap:10px}.MCP_field{display:flex;flex-direction:column;gap:5px}.MCP_field[data-wide=true]{grid-column:1 / -1}.MCP_label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);margin:0}.MCP_input{box-sizing:border-box;width:100%;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 8px}.MCP_input:focus-visible,.MCP_textarea:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);outline:none}.MCP_textarea{box-sizing:border-box;width:100%;min-height:64px;font:inherit;font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:6px 8px;resize:vertical}.MCP_transportRow{display:flex;gap:8px}.MCP_transportBtn{font:inherit;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:4px 14px}.MCP_transportBtn[data-active=true]{color:var(--dsw-alias-state-business-primary);border-color:var(--dsw-alias-state-business-primary);background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent)}.MCP_secretKeys{display:flex;flex-wrap:wrap;gap:6px}.MCP_key{display:inline-flex;align-items:center;gap:6px;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 8px;font-size:11px;line-height:16px}.MCP_key button{font:inherit;color:var(--dsw-alias-state-error-primary);cursor:pointer;background:0 0;border:none;padding:0}.MCP_checkRow{display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.MCP_result{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px;font-size:12px;line-height:18px;max-height:160px;overflow:auto}.MCP_actionBtn{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;padding:0 12px;font-size:12px;line-height:26px;height:28px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;box-sizing:border-box}.MCP_actionBtn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.MCP_actionBtn:disabled{cursor:default;opacity:.6}.MCP_dangerBtn{font:inherit;color:var(--dsw-alias-state-error-primary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;padding:0 12px;font-size:12px;line-height:26px;height:28px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;box-sizing:border-box}.MCP_dangerBtn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.MCP_iconBtn{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:0;flex:none}.MCP_iconBtn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.MCP_advancedToggle{font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;padding:6px 12px;font-size:13px;line-height:20px}.MCP_advancedToggle:hover{background:var(--dsw-alias-interactive-bg-hover)}.MCP_result[data-ok=true]{border-color:color-mix(in srgb, var(--dsw-alias-state-success-primary) 40%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 8%, transparent)}.MCP_result[data-ok=false]{border-color:color-mix(in srgb, var(--dsw-alias-state-error-primary) 40%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent)}.MCP_hint{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary);margin:0}.MCP_hint[data-error=true]{color:var(--dsw-alias-state-error-primary)}.MCP_authBox{display:flex;flex-direction:column;gap:6px}.MCP_toolsPanel{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:8px}.MCP_toolsList{display:flex;flex-direction:column;gap:2px;max-height:200px;overflow-y:auto;scrollbar-width:thin;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:4px 8px}.MCP_toolRow{display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;padding:3px 0;cursor:pointer;min-width:0}.MCP_toolRow input{margin:0;accent-color:var(--dsw-alias-state-business-primary);flex:none}.MCP_toolName{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;font-size:11.5px}.MCP_toolsActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.MCP_rawText{box-sizing:border-box;width:100%;min-height:240px;font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;font-size:12px;line-height:18px;white-space:pre;tab-size:2}"
+const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:14px}.MCP_head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.MCP_head h3{font-size:14px;font-weight:600;line-height:20px;margin:0}.MCP_sub{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;margin:0}.MCP_toolbar{display:flex;align-items:center;gap:8px}.MCP_groupRow{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.MCP_groupChip{font:inherit;font-size:12px;line-height:18px;padding:3px 10px;border-radius:999px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);cursor:pointer;display:inline-flex;align-items:center;gap:5px;transition:background-color .18s ease,border-color .18s ease,color .18s ease}.MCP_groupChip:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.MCP_groupChip[data-active=true]{color:var(--dsw-alias-state-business-primary);border-color:var(--dsw-alias-state-business-primary);background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent)}.MCP_groupChipCount{font-size:11px;opacity:.75;font-variant-numeric:tabular-nums}.MCP_add{font:inherit;color:var(--dsw-alias-state-business-primary);cursor:pointer;background:0 0;border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;padding:7px 16px;font-size:13px;line-height:20px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}.MCP_add:hover{background:var(--dsw-alias-interactive-bg-hover)}.MCP_cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.MCP_card{border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-3);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}.MCP_cardTop{display:flex;align-items:center;gap:8px;min-width:0}.MCP_name{font-size:13px;font-weight:600;line-height:20px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.MCP_badges{display:inline-flex;align-items:center;gap:6px;flex:none}.MCP_badge{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);border-radius:5px;padding:1px 6px;font-size:11px;line-height:16px}.MCP_badgeBtn{font:inherit;cursor:pointer;border:1px solid color-mix(in srgb, var(--dsw-alias-state-warning-primary) 45%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-warning-primary) 12%, transparent);color:var(--dsw-alias-state-warning-primary);border-radius:5px;padding:1px 6px;font-size:11px;line-height:16px;transition:background-color .18s ease}.MCP_badgeBtn:hover{background:color-mix(in srgb, var(--dsw-alias-state-warning-primary) 22%, transparent)}.MCP_meta{display:flex;align-items:center;gap:8px;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:18px}.MCP_dot{width:7px;height:7px;border-radius:999px;background:var(--dsw-alias-label-tertiary);flex:none}.MCP_dot[data-on=true]{background:var(--dsw-alias-state-success-primary)}.MCP_dot[data-err=true]{background:var(--dsw-alias-state-error-primary)}.MCP_actions{display:flex;align-items:center;gap:8px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:8px;flex-wrap:wrap}.MCP_spacer{flex:1}.MCP_form{display:grid;grid-template-columns:1fr 1fr;gap:10px}.MCP_field{display:flex;flex-direction:column;gap:5px}.MCP_field[data-wide=true]{grid-column:1 / -1}.MCP_label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);margin:0}.MCP_input{box-sizing:border-box;width:100%;height:32px;font:inherit;font-size:13px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 8px}.MCP_input:focus-visible,.MCP_textarea:focus-visible{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 2px color-mix(in srgb, var(--dsw-alias-state-business-primary) 18%, transparent);outline:none}.MCP_textarea{box-sizing:border-box;width:100%;min-height:64px;font:inherit;font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:6px 8px;resize:vertical}.MCP_transportRow{display:flex;gap:8px}.MCP_transportBtn{font:inherit;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary);cursor:pointer;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:4px 14px}.MCP_transportBtn[data-active=true]{color:var(--dsw-alias-state-business-primary);border-color:var(--dsw-alias-state-business-primary);background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent)}.MCP_secretKeys{display:flex;flex-wrap:wrap;gap:6px}.MCP_key{display:inline-flex;align-items:center;gap:6px;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:2px 8px;font-size:11px;line-height:16px}.MCP_key button{font:inherit;color:var(--dsw-alias-state-error-primary);cursor:pointer;background:0 0;border:none;padding:0}.MCP_checkRow{display:flex;align-items:center;gap:8px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.MCP_result{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:8px 10px;font-size:12px;line-height:18px;max-height:160px;overflow:auto}.MCP_actionBtn{font:inherit;color:var(--dsw-alias-label-primary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;padding:0 12px;font-size:12px;line-height:26px;height:28px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;box-sizing:border-box}.MCP_actionBtn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.MCP_actionBtn:disabled{cursor:default;opacity:.6}.MCP_dangerBtn{font:inherit;color:var(--dsw-alias-state-error-primary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:14px;padding:0 12px;font-size:12px;line-height:26px;height:28px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;box-sizing:border-box}.MCP_dangerBtn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover-solid)}.MCP_iconBtn{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:1px solid var(--dsw-alias-border-l2);border-radius:6px;padding:0;flex:none}.MCP_iconBtn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.MCP_advancedToggle{font:inherit;color:var(--dsw-alias-label-secondary);cursor:pointer;background:0 0;border:1px dashed var(--dsw-alias-border-l1);border-radius:8px;padding:6px 12px;font-size:13px;line-height:20px}.MCP_advancedToggle:hover{background:var(--dsw-alias-interactive-bg-hover)}.MCP_result[data-ok=true]{border-color:color-mix(in srgb, var(--dsw-alias-state-success-primary) 40%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-success-primary) 8%, transparent)}.MCP_result[data-ok=false]{border-color:color-mix(in srgb, var(--dsw-alias-state-error-primary) 40%, transparent);background:color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent)}.MCP_hint{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary);margin:0}.MCP_hint[data-error=true]{color:var(--dsw-alias-state-error-primary)}.MCP_authBox{display:flex;flex-direction:column;gap:6px}.MCP_oauthInline{display:flex;flex-direction:column;gap:8px;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-1)}.MCP_oauthActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.MCP_toolsPanel{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:8px}.MCP_scopeTabs{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.MCP_scopeTab{font:inherit;font-size:11.5px;line-height:16px;padding:3px 9px;border-radius:999px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);cursor:pointer;transition:background-color .18s ease,border-color .18s ease,color .18s ease}.MCP_scopeTab[data-active=true]{color:var(--dsw-alias-state-business-primary);border-color:var(--dsw-alias-state-business-primary);background:color-mix(in srgb, var(--dsw-alias-state-business-primary) 12%, transparent)}.MCP_toolsList{display:flex;flex-direction:column;gap:2px;max-height:260px;overflow-y:auto;scrollbar-width:thin;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:4px 8px}.MCP_toolRow{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:18px;padding:5px 0;cursor:pointer;min-width:0;border-bottom:1px solid color-mix(in srgb, var(--dsw-alias-border-l2) 45%, transparent)}.MCP_toolRow:last-child{border-bottom:none}.MCP_toolRow input{margin:2px 0 0;accent-color:var(--dsw-alias-state-business-primary);flex:none}.MCP_toolInfo{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}.MCP_toolName{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;font-size:11.5px}.MCP_toolDesc{font-size:11px;line-height:15px;color:var(--dsw-alias-label-secondary);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}.MCP_toolsActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.MCP_rawText{box-sizing:border-box;width:100%;min-height:240px;font-family:ui-monospace,SFMono-Regular,Consolas,Menlo,monospace;font-size:12px;line-height:18px;white-space:pre;tab-size:2}"
 // 窄屏（Issue #71）：手机上 MCP 页的「一行两张卡片」和「两列表单」都只剩 ~200px，
 // 改单列；工具栏允许换行，别把「＋ 添加」挤到屏幕外。
 + "@media (max-width:640px){.MCP_cards{grid-template-columns:minmax(0,1fr)}.MCP_form{grid-template-columns:minmax(0,1fr)}.MCP_toolbar{flex-wrap:wrap}}"
@@ -3624,6 +3971,9 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
                         head: "MCP_head",
                         sub: "MCP_sub",
                         toolbar: "MCP_toolbar",
+                        groupRow: "MCP_groupRow",
+                        groupChip: "MCP_groupChip",
+                        groupChipCount: "MCP_groupChipCount",
                         add: "MCP_add",
                         cards: "MCP_cards",
                         card: "MCP_card",
@@ -3631,6 +3981,7 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
                         name: "MCP_name",
                         badges: "MCP_badges",
                         badge: "MCP_badge",
+                        badgeBtn: "MCP_badgeBtn",
                         meta: "MCP_meta",
                         dot: "MCP_dot",
                         actions: "MCP_actions",
@@ -3653,10 +4004,16 @@ const cssMcp = ".MCP_section{position:relative;width:100%;max-width:760px;color:
                         advancedToggle: "MCP_advancedToggle",
                         hint: "MCP_hint",
 			authBox: "MCP_authBox",
+			oauthInline: "MCP_oauthInline",
+			oauthActions: "MCP_oauthActions",
 			toolsPanel: "MCP_toolsPanel",
+			scopeTabs: "MCP_scopeTabs",
+			scopeTab: "MCP_scopeTab",
 			toolsList: "MCP_toolsList",
 			toolRow: "MCP_toolRow",
+			toolInfo: "MCP_toolInfo",
 			toolName: "MCP_toolName",
+			toolDesc: "MCP_toolDesc",
 			toolsActions: "MCP_toolsActions",
                         doc: "MCP_doc",
                         docCode: "MCP_docCode"
@@ -3690,6 +4047,7 @@ const MCP_ENV_REF_RE = /\$\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}/g;
 function mcpEnvRefs(value) {
         return value.replace(MCP_ENV_REF_RE, (match, name) => "${process.env." + name + "}");
 }
+const MCP_CRED_REF_TEST_RE = /\$\{credential:[A-Za-z_][A-Za-z0-9_]*\}/;
 function mcpWireScalar(text) {
         const raw = String(text ?? "");
         const trimmed = raw.trim();
@@ -3697,7 +4055,9 @@ function mcpWireScalar(text) {
                 const expression = trimmed.slice(MCP_JS_EXPR_PREFIX.length).trim();
                 return expression === "" ? raw : { __jsExpr: expression };
         }
-        if (trimmed.indexOf("${") === -1) return raw;
+        const isBacktickTemplate = trimmed.length > 1 && trimmed.startsWith("`") && trimmed.endsWith("`") && trimmed.includes("${");
+        const hasEnvRef = new RegExp(MCP_ENV_REF_RE.source).test(raw) || raw.includes("${process.env.");
+        if (!isBacktickTemplate && !hasEnvRef) return raw;
         if (trimmed.length > 1 && trimmed.startsWith("`") && trimmed.endsWith("`")) return { __jsExpr: mcpEnvRefs(trimmed) };
         return { __jsExpr: "`" + mcpEnvRefs(raw) + "`" };
 }
@@ -3734,6 +4094,7 @@ function mcpWireScalar(text) {
                                 authToken: "",
                                 timeout: "60000",
                                 failOnStartup: false,
+                                expandTemplates: false,
                                 reconnectEnabled: true,
                                 initialDelay: "500",
                                 maxDelay: "30000",
@@ -3750,13 +4111,15 @@ function mcpWireScalar(text) {
                         form.url = server.url ?? "";
                         form.timeout = String(server.toolCallTimeoutMs ?? 60000);
                         form.failOnStartup = !!server.failOnStartupError;
+                        form.expandTemplates = server.expandTemplates === true;
                         form.reconnectEnabled = server.reconnect?.enabled !== false;
                         form.initialDelay = String(server.reconnect?.initialDelayMs ?? 500);
                         form.maxDelay = String(server.reconnect?.maxDelayMs ?? 30000);
                         form.maxAttempts = String(server.reconnect?.maxAttempts ?? 10);
-                        // 已经有 Authorization 头就默认选中「Bearer 令牌」；令牌本身不回显（只显示在请求头里）。
-                        if (form.transport === "streamable-http" && Array.isArray(server.headerKeys) && server.headerKeys.includes("Authorization")) {
-                        	form.authMode = "bearer";
+                        // 已有 OAuth 记录则默认选 OAuth；否则有 Authorization 头选「Bearer 令牌」（令牌本身不回显）。
+                        if (form.transport === "streamable-http") {
+                        	if (server.oauth !== undefined) form.authMode = "oauth";
+                        	else if (Array.isArray(server.headerKeys) && server.headerKeys.includes("Authorization")) form.authMode = "bearer";
                         }
                         return form;
                 }
@@ -3771,6 +4134,7 @@ function mcpWireScalar(text) {
                                 serverName: String(form.serverName ?? "").trim(),
                                 toolCallTimeoutMs: mcpNumber(form.timeout, 60000),
                                 failOnStartupError: !!form.failOnStartup,
+                                ...(form.expandTemplates ? { expandTemplates: true } : {}),
                                 reconnect
                         };
                         if (form.transport === "streamable-http") {
@@ -3783,25 +4147,64 @@ function mcpWireScalar(text) {
                         return { ...common, transport: "stdio", command: mcpWireScalar(String(form.command ?? "").trim()), args: mcpParseScalarLines(form.argsText), env, cwd: mcpWireScalar(String(form.cwd ?? "").trim()) };
                 }
 
-                function McpFormDialog({ t, initial, onSave, onCancel, busy, error }) {
-                        // Issue #82：Esc 关弹窗（点遮罩由 closeOnBackdrop 处理）。
-                        useEscapeClose(onCancel);
-                        const editing = initial !== null && initial !== undefined;
-                        const [form, setForm] = react.useState(() => editing ? formFromServer(initial) : defaultMcpForm());
+                function formatExpiryShort(expiresAt) {
+                        if (typeof expiresAt !== "number" || !Number.isFinite(expiresAt)) return "";
+                        try {
+                                return new Date(expiresAt).toLocaleString();
+                        } catch {
+                                return "";
+                        }
+                }
+
+                function McpFormDialog({ t, initial, onSave, onOAuthFlow, onOAuthRefresh, onOAuthDisconnect, onCancel, busy, error }) {
+                        const initialIdentity = (initial?.entryId ?? "") + "\u0000" + (initial?.serverName ?? "");
+                        const initOAuthState = (src) => ({
+                                busy: false,
+                                authed: src !== null && src !== undefined && (src.oauth?.connected === true || (src.headerKeys ?? []).includes("Authorization")),
+                                needsReauth: src?.oauth?.needsReauth === true,
+                                expired: src?.oauth?.expired === true,
+                                expiresAt: typeof src?.oauth?.expiresAt === "number" ? src.oauth.expiresAt : null,
+                                canRefresh: src?.oauth?.canRefresh === true,
+                                refreshError: typeof src?.oauth?.refreshError === "string" ? src.oauth.refreshError : "",
+                                notice: null
+                        });
+                        // 追踪落盘后的服务器标识：新建并当场点 OAuth 登录/重试时不会误当成新建重复名。
+                        const [savedTarget, setSavedTarget] = react.useState(() => (initial !== null && initial !== undefined ? { serverName: initial.serverName, entryId: initial.entryId } : null));
+                        const [oauthState, setOauthState] = react.useState(() => initOAuthState(initial));
+                        useEscapeClose(onCancel, !busy && !oauthState.busy);
+                        const editing = savedTarget !== null;
+                        const [form, setForm] = react.useState(() => initial !== null && initial !== undefined ? formFromServer(initial) : defaultMcpForm());
                         const [deletedEnv, setDeletedEnv] = react.useState(() => new Set());
                         const [deletedHeaders, setDeletedHeaders] = react.useState(() => new Set());
                         const [advancedOpen, setAdvancedOpen] = react.useState(false);
-                        const set = (patch) => setForm((prev) => ({ ...prev, ...patch }));
+                        const [expandTouched, setExpandTouched] = react.useState(false);
+                        react.useEffect(() => {
+                                setSavedTarget(initial !== null && initial !== undefined ? { serverName: initial.serverName, entryId: initial.entryId } : null);
+                                setOauthState(initOAuthState(initial));
+                                setForm(initial !== null && initial !== undefined ? formFromServer(initial) : defaultMcpForm());
+                                setDeletedEnv(new Set());
+                                setDeletedHeaders(new Set());
+                                setAdvancedOpen(false);
+                                setExpandTouched(false);
+                        }, [initialIdentity]);
+                        const set = (patch) => {
+                        	setForm((prev) => {
+                        		const next = { ...prev, ...patch };
+                        		if (!expandTouched && !("expandTemplates" in patch)) {
+                        			const hasCred = [patch.url, patch.headersText, patch.authToken, patch.command, patch.argsText, patch.envText, patch.cwd]
+                        				.some((v) => typeof v === "string" && MCP_CRED_REF_TEST_RE.test(v));
+                        			if (hasCred) next.expandTemplates = true;
+                        		}
+                        		return next;
+                        	});
+                        };
                         // 名称规则最终由宿主边界校验，撞上只会得到一句泛化错误；
                         // 这里提前拦截并把规则写在字段下面，别让用户对着天书猜。
                         const trimmedName = String(form.serverName ?? "").trim();
                         const nameIssue = trimmedName === "" ? t("nameRequired") : MCP_NAME_RE.test(trimmedName) ? null : t("nameHint");
-                        const envKeys = editing && Array.isArray(initial.envKeys) ? initial.envKeys.filter((key) => !deletedEnv.has(key)) : [];
-                        const headerKeys = editing && Array.isArray(initial.headerKeys) ? initial.headerKeys.filter((key) => !deletedHeaders.has(key)) : [];
-                        const submit = () => {
-                        	if (nameIssue !== null) return;
-                        	// 「Bearer 令牌」不是独立字段：保存时并成一行 Authorization=Bearer …（支持 ${ENV}），
-                        	// 与手写请求头走同一条落盘路径，避免两套真相。
+                        const envKeys = editing && Array.isArray(initial?.envKeys) ? initial.envKeys.filter((key) => !deletedEnv.has(key)) : [];
+                        const headerKeys = editing && Array.isArray(initial?.headerKeys) ? initial.headerKeys.filter((key) => !deletedHeaders.has(key)) : [];
+                        const buildFormInput = () => {
                         	let toSave = form;
                         	const token = String(form.authToken ?? "").trim();
                         	if (form.transport === "streamable-http" && form.authMode === "bearer" && token !== "") {
@@ -3810,7 +4213,87 @@ function mcpWireScalar(text) {
                         			.filter((line) => line.trim() !== "" && !/^\s*Authorization\s*[=:]/i.test(line));
                         		toSave = { ...form, headersText: [...kept, "Authorization=Bearer " + token].join("\n") };
                         	}
-                        	onSave(buildMcpInput(toSave, deletedEnv, deletedHeaders), editing ? initial.serverName : undefined, editing ? initial.entryId : undefined);
+                        	return buildMcpInput(toSave, deletedEnv, deletedHeaders);
+                        };
+                        const submit = () => {
+                        	if (nameIssue !== null) return;
+                        	onSave(buildFormInput(), savedTarget?.serverName, savedTarget?.entryId);
+                        };
+                        const startDialogOAuth = async (closeOnDone) => {
+                        	if (nameIssue !== null || oauthState.busy || busy) return;
+                        	if (String(form.url ?? "").trim() === "") {
+                        		setOauthState((prev) => ({ ...prev, notice: { ok: false, text: t("oauthNeedUrl") } }));
+                        		return;
+                        	}
+                        	setOauthState((prev) => ({ ...prev, busy: true, notice: { ok: true, text: t("oauthStatusPending") } }));
+                        	try {
+                        		const res = await onOAuthFlow(buildFormInput(), savedTarget?.serverName, savedTarget?.entryId, closeOnDone, (savedInfo) => {
+                        			if (savedInfo !== undefined && savedInfo !== null) setSavedTarget(savedInfo);
+                        		});
+                        		if (res?.saved !== undefined) setSavedTarget(res.saved);
+                        		if (!closeOnDone) {
+                        			setOauthState((prev) => ({
+                        				...prev,
+                        				busy: false,
+                        				authed: true,
+                        				needsReauth: false,
+                        				expired: false,
+                        				expiresAt: typeof res?.expiresAt === "number" ? res.expiresAt : prev.expiresAt,
+                        				refreshError: "",
+                        				notice: { ok: true, text: t("oauthDone") }
+                        			}));
+                        		}
+                        	} catch (err: any) {
+                        		setOauthState((prev) => ({ ...prev, busy: false, notice: { ok: false, text: String(err?.message ?? err) } }));
+                        	}
+                        };
+                        const refreshDialogOAuth = async () => {
+                        	if (savedTarget === null || oauthState.busy || busy) return;
+                        	setOauthState((prev) => ({ ...prev, busy: true, notice: null }));
+                        	try {
+                        		const res = await onOAuthRefresh(savedTarget.serverName);
+                        		if (res?.ok) {
+                        			setOauthState((prev) => ({
+                        				...prev,
+                        				busy: false,
+                        				authed: true,
+                        				needsReauth: false,
+                        				expired: false,
+                        				expiresAt: typeof res.expiresAt === "number" ? res.expiresAt : prev.expiresAt,
+                        				refreshError: "",
+                        				notice: { ok: true, text: t("oauthRefreshOk") }
+                        			}));
+                        		} else {
+                        			setOauthState((prev) => ({
+                        				...prev,
+                        				busy: false,
+                        				needsReauth: res?.needsReauth === true ? true : prev.needsReauth,
+                        				notice: { ok: false, text: t("oauthRefreshFailed") + String(res?.error ?? "") }
+                        			}));
+                        		}
+                        	} catch (err: any) {
+                        		setOauthState((prev) => ({ ...prev, busy: false, notice: { ok: false, text: t("oauthRefreshFailed") + String(err?.message ?? err) } }));
+                        	}
+                        };
+                        const disconnectDialogOAuth = async () => {
+                        	if (savedTarget === null || oauthState.busy || busy) return;
+                        	setOauthState((prev) => ({ ...prev, busy: true, notice: null }));
+                        	try {
+                        		await onOAuthDisconnect(savedTarget.serverName);
+                        		setOauthState((prev) => ({
+                        			...prev,
+                        			busy: false,
+                        			authed: false,
+                        			needsReauth: false,
+                        			expired: false,
+                        			expiresAt: null,
+                        			canRefresh: false,
+                        			refreshError: "",
+                        			notice: { ok: true, text: t("oauthDisconnected") }
+                        		}));
+                        	} catch (err: any) {
+                        		setOauthState((prev) => ({ ...prev, busy: false, notice: { ok: false, text: String(err?.message ?? err) } }));
+                        	}
                         };
                         const label = (text) => (0, react_jsx_runtime.jsx)("span", { className: m.label, children: text });
                         const field = (text, node, wide, hint: any = null) => (0, react_jsx_runtime.jsxs)("label", {
@@ -3902,6 +4385,49 @@ function mcpWireScalar(text) {
                                 			]
                                 		}),
                                 		form.authMode === "bearer" ? textInput(form.authToken, (value) => set({ authToken: value }), t("phAuthToken")) : null,
+                                		form.authMode === "oauth" ? (0, react_jsx_runtime.jsxs)("div", {
+                                			className: m.oauthInline,
+                                			children: [
+                                				oauthState.authed || oauthState.needsReauth || oauthState.expired ? (0, react_jsx_runtime.jsx)("span", {
+                                					className: m.hint,
+                                					"data-error": oauthState.needsReauth || oauthState.expired ? "true" : void 0,
+                                					children: (oauthState.needsReauth ? t("oauthStatusNeedsReauth") : oauthState.expired ? t("oauthStatusExpired") : t("oauthStatusReady"))
+                                						+ (oauthState.expiresAt !== null ? t("oauthStatusExpiresAt") + formatExpiryShort(oauthState.expiresAt) : "")
+                                						+ (oauthState.refreshError !== "" ? " — " + oauthState.refreshError : "")
+                                				}) : null,
+                                				editing ? (0, react_jsx_runtime.jsxs)("div", {
+                                					className: m.oauthActions,
+                                					children: [
+                                						(0, react_jsx_runtime.jsx)("button", {
+                                							type: "button",
+                                							className: m.actionBtn,
+                                							disabled: oauthState.busy || busy || nameIssue !== null,
+                                							onClick: () => startDialogOAuth(false),
+                                							children: oauthState.busy ? t("oauthWorking") : (oauthState.authed || oauthState.needsReauth || oauthState.expired ? t("oauthReauthNow") : t("oauthAuthNow"))
+                                						}),
+                                						oauthState.canRefresh ? (0, react_jsx_runtime.jsx)("button", {
+                                							type: "button",
+                                							className: m.actionBtn,
+                                							disabled: oauthState.busy || busy,
+                                							onClick: refreshDialogOAuth,
+                                							children: t("oauthRefreshNow")
+                                						}) : null,
+                                						oauthState.authed || oauthState.needsReauth ? (0, react_jsx_runtime.jsx)("button", {
+                                							type: "button",
+                                							className: m.dangerBtn,
+                                							disabled: oauthState.busy || busy,
+                                							onClick: disconnectDialogOAuth,
+                                							children: t("oauthDisconnect")
+                                						}) : null
+                                					]
+                                				}) : null,
+                                				oauthState.notice !== null ? (0, react_jsx_runtime.jsx)("div", {
+                                					className: m.result,
+                                					"data-ok": oauthState.notice.ok ? "true" : "false",
+                                					children: oauthState.notice.text
+                                				}) : null
+                                			]
+                                		}) : null,
                                 		(0, react_jsx_runtime.jsx)("span", {
                                 			className: m.hint,
                                 			children: form.authMode === "bearer" ? t("authBearerHint") : form.authMode === "oauth" ? t("authOauthHint") : t("authNoneHint")
@@ -3932,6 +4458,20 @@ function mcpWireScalar(text) {
                                                 t("fieldFailOnStartup")
                                         ]
                                 }), false));
+                                fields.push(field(t("fieldExpandTemplates"), (0, react_jsx_runtime.jsxs)("label", {
+                                        className: m.checkRow,
+                                        children: [
+                                                (0, react_jsx_runtime.jsx)("input", {
+                                                        type: "checkbox",
+                                                        checked: !!form.expandTemplates,
+                                                        onChange: (event) => {
+                                                                setExpandTouched(true);
+                                                                set({ expandTemplates: event.target.checked });
+                                                        }
+                                                }),
+                                                t("fieldExpandTemplates")
+                                        ]
+                                }), true, { text: t("hintExpandTemplates") }));
                                 fields.push(field(t("fieldReconnect"), (0, react_jsx_runtime.jsxs)("label", {
                                         className: m.checkRow,
                                         children: [
@@ -3948,11 +4488,12 @@ function mcpWireScalar(text) {
                                 fields.push(field(t("fieldMaxDelay"), textInput(form.maxDelay, (value) => set({ maxDelay: value }), "30000"), false));
                                 fields.push(field(t("fieldMaxAttempts"), textInput(form.maxAttempts, (value) => set({ maxAttempts: value }), "10"), false));
                         }
+                        const shouldSaveAndOAuth = form.transport === "streamable-http" && form.authMode === "oauth" && (!oauthState.authed || oauthState.needsReauth || oauthState.expired);
                         return (0, react_jsx_runtime.jsx)("div", {
                                 className: c.scopeOverlay,
                                 role: "dialog",
                                 "aria-modal": "true",
-                                onClick: closeOnBackdrop(onCancel, busy),
+                                onClick: closeOnBackdrop(onCancel, busy || oauthState.busy),
                                 children: (0, react_jsx_runtime.jsxs)("div", {
                                         className: c.scopeBox,
                                         children: [
@@ -3972,16 +4513,23 @@ function mcpWireScalar(text) {
                                                                 (0, react_jsx_runtime.jsx)("button", {
                                                                         type: "button",
                                                                         className: c.scopeAction + " " + c.scopeCancel,
-                                                                        disabled: busy,
+                                                                        disabled: busy || oauthState.busy,
                                                                         onClick: onCancel,
                                                                         children: t("cancel")
                                                                 }),
+                                                                shouldSaveAndOAuth ? (0, react_jsx_runtime.jsx)("button", {
+                                                                        type: "button",
+                                                                        className: c.scopeAction + " " + c.scopeCancel,
+                                                                        disabled: busy || oauthState.busy || nameIssue !== null,
+                                                                        onClick: submit,
+                                                                        children: t("saveOnly")
+                                                                }) : null,
                                                                 (0, react_jsx_runtime.jsx)("button", {
                                                                         type: "button",
                                                                         className: c.scopeAction + " " + c.scopeConfirm,
-                                                                        disabled: busy || nameIssue !== null,
-                                                                        onClick: submit,
-                                                                        children: t("save")
+                                                                        disabled: busy || oauthState.busy || nameIssue !== null,
+                                                                        onClick: shouldSaveAndOAuth ? () => startDialogOAuth(true) : submit,
+                                                                        children: oauthState.busy ? t("oauthWorking") : (shouldSaveAndOAuth ? t("saveAndOAuth") : t("save"))
                                                                 })
                                                         ]
                                                 })
@@ -3989,7 +4537,31 @@ function mcpWireScalar(text) {
                                 })
                         });
                 }
-                function McpSection({ t, listMcp, saveMcp, removeMcp, setEnabledMcp, testMcp, reloadMcp, checkUpdateRemote, oauthStart, oauthPoll, oauthDisconnect, listMcpTools, getToolFilter, setToolFilter, evacuateForeign, readRawMcp, writeRawMcp }) {
+                function McpSection({ t, listMcp, saveMcp, removeMcp, setEnabledMcp, testMcp, reloadMcp, oauthStart, oauthPoll, oauthRefresh, oauthDisconnect, listMcpTools, getToolFilter, setToolFilter, listMcpGroups, saveMcpGroup, deleteMcpGroup, listWorkspaces, currentSessionId, subscribeSession, useSessions, evacuateForeign, readRawMcp, writeRawMcp }) {
+                        const selectMainSession = (state) => {
+                                const rows = state !== null && typeof state === "object" ? state.byId : undefined;
+                                if (rows === null || typeof rows !== "object") return undefined;
+                                for (const id of Object.keys(rows)) {
+                                        const row = rows[id];
+                                        if (((row && row.retainedBy && row.retainedBy.mainView) || 0) > 0) {
+                                                const cwd = row?.header?.cwd ?? row?.cwd ?? row?.workspace;
+                                                return { id, cwd: typeof cwd === "string" && cwd !== "" ? cwd : undefined };
+                                        }
+                                }
+                                return undefined;
+                        };
+                        const useHostSessions = typeof useSessions === "function";
+                        const hostSession = useHostSessions ? useSessions(selectMainSession) : undefined;
+                        const [fallbackSessionId, setFallbackSessionId] = react.useState(() => (typeof currentSessionId === "function" ? currentSessionId() : undefined));
+                        react.useEffect(() => {
+                                if (useHostSessions || typeof subscribeSession !== "function" || typeof currentSessionId !== "function") return undefined;
+                                const sync = () => setFallbackSessionId(currentSessionId());
+                                sync();
+                                return subscribeSession(sync);
+                        }, [useHostSessions]);
+                        const activeSessionId = useHostSessions ? hostSession?.id : fallbackSessionId;
+                        const activeSessionCwd = useHostSessions ? hostSession?.cwd : undefined;
+
                         const [loadState, setLoadState] = react.useState({ kind: "loading" } as any);
                         const [data, setData] = react.useState(null);
                         const [request, setRequest] = react.useState(0);
@@ -3997,18 +4569,24 @@ function mcpWireScalar(text) {
                         const [dialogBusy, setDialogBusy] = react.useState(false);
                         // Issue #82：MCP 表单弹窗按 Esc 关闭（保存中不关）。
                         useEscapeClose(() => setEditing(null), editing !== null && dialogBusy !== true);
-                        const [updateBanner, setUpdateBanner] = react.useState(null);
                         const [dialogError, setDialogError] = react.useState(null);
                         const [confirming, setConfirming] = react.useState(null);
                         const [testing, setTesting] = react.useState(null);
                         const [testResult, setTestResult] = react.useState(null);
                         const [docOpen, setDocOpen] = react.useState(false);
-                        // MCP OAuth 登录（Issue #45）：一次只跑一条流程，轮询到 done/failed 为止。
-                        const [oauthBusy, setOauthBusy] = react.useState(null);
                         const [oauthNotice, setOauthNotice] = react.useState(null);
-                        // 单工具禁用（Issue #44）：展开哪一台、它的工具清单、勾掉的集合与忙碌态。
+                        // MCP 服务器分组（#55：存在 mcp-groups.json，不动 cordis.patch.yml）
+                        const [mcpGroups, setMcpGroups] = react.useState([]);
+                        const [mcpGroupFilter, setMcpGroupFilter] = react.useState("all");
+                        const [mcpGroupDialog, setMcpGroupDialog] = react.useState(null);
+                        useEscapeClose(() => setMcpGroupDialog(null), mcpGroupDialog !== null && mcpGroupDialog.busy !== true);
+                        const [groupToggleBusy, setGroupToggleBusy] = react.useState(false);
+                        const [mcpWorkspaces, setMcpWorkspaces] = react.useState([]);
+                        // 单工具禁用与分层作用域（Issue #44 / #55 / #92）
                         const [toolsOpen, setToolsOpen] = react.useState(null);
                         const [toolsPanel, setToolsPanel] = react.useState(null);
+                        const [toolDenyList, setToolDenyList] = react.useState([]);
+                        const [toolPolicy, setToolPolicy] = react.useState({ deny: [], workspaces: {}, roles: { subagentAllow: [], subagentDeny: [] }, sessionOverrides: {} });
                         // MCP 服务器搜索：按名字 / 地址 / 命令与参数 / 传输方式 / 头名 / 环境变量名过滤卡片。
                         const [mcpFilter, setMcpFilter] = react.useState("");
                         const [toolsBusy, setToolsBusy] = react.useState(false);
@@ -4032,29 +4610,64 @@ function mcpWireScalar(text) {
                                         if (cancelled) return;
                                         setLoadState({ kind: "error", message: String(error?.message ?? error) });
                                 });
+                                if (typeof getToolFilter === "function") {
+                                        Promise.resolve().then(() => getToolFilter()).then((filter) => {
+                                                if (cancelled) return;
+                                                setToolDenyList(Array.isArray(filter?.deny) ? filter.deny : []);
+                                                setToolPolicy({
+                                                        deny: Array.isArray(filter?.deny) ? filter.deny : [],
+                                                        workspaces: filter?.workspaces && typeof filter.workspaces === "object" ? filter.workspaces : {},
+                                                        roles: {
+                                                                subagentAllow: Array.isArray(filter?.roles?.subagentAllow) ? filter.roles.subagentAllow : [],
+                                                                subagentDeny: Array.isArray(filter?.roles?.subagentDeny) ? filter.roles.subagentDeny : []
+                                                        },
+                                                        sessionOverrides: filter?.sessionOverrides && typeof filter.sessionOverrides === "object" ? filter.sessionOverrides : {}
+                                                });
+                                        }).catch(() => {});
+                                }
+                                if (typeof listMcpGroups === "function") {
+                                        Promise.resolve().then(() => listMcpGroups()).then((res) => {
+                                                if (cancelled) return;
+                                                setMcpGroups(Array.isArray(res?.groups) ? res.groups : []);
+                                        }).catch(() => {});
+                                }
+                                if (typeof listWorkspaces === "function") {
+                                        Promise.resolve().then(() => listWorkspaces()).then((wsRes) => {
+                                                if (cancelled) return;
+                                                setMcpWorkspaces(Array.isArray(wsRes?.workspaces) ? wsRes.workspaces : []);
+                                        }).catch(() => {});
+                                }
                                 return () => { cancelled = true; };
-                        }, [listMcp, request]);
+                        }, [listMcp, getToolFilter, listMcpGroups, listWorkspaces, request]);
                         react.useEffect(() => {
                                 if (confirming === null) return;
                                 const timer = setTimeout(() => setConfirming(null), 3000);
                                 return () => clearTimeout(timer);
                         }, [confirming]);
-
-                        react.useEffect(() => {
-                                let current = true;
-                                Promise.resolve().then(() => checkUpdateRemote()).then((snapshot) => {
-                                        if (!current) return;
-                                        const currentV = snapshot !== null && typeof snapshot === "object" && typeof snapshot.current === "string" ? snapshot.current : "";
-                                        const latest = snapshot !== null && typeof snapshot === "object" && typeof snapshot.latest === "string" ? snapshot.latest : null;
-                                        if (latest !== null && snapshot.updateAvailable === true) setUpdateBanner(t("checkUpdateAvailable") + latest + t("checkUpdateCurrent") + currentV + t("checkUpdateHint"));
-                                }, () => {});
-                                return () => { current = false; };
-                        }, [checkUpdateRemote, t]);
                         const servers = data?.servers ?? [];
                         const patch = data?.patch ?? {};
+                        // 分组筛选（#55）：先按选中分组过滤，再叠加关键词搜索。
+                        const groupedMcpNames = new Set();
+                        for (const grp of mcpGroups) {
+                                for (const sName of Array.isArray(grp.servers) ? grp.servers : []) groupedMcpNames.add(sName);
+                        }
+                        const activeMcpGroup = mcpGroupFilter !== "all" && mcpGroupFilter !== ""
+                                ? mcpGroups.find((grp) => grp.id === mcpGroupFilter)
+                                : undefined;
+                        react.useEffect(() => {
+                                if (mcpGroupFilter !== "all" && mcpGroupFilter !== "" && activeMcpGroup === undefined) {
+                                        setMcpGroupFilter("all");
+                                }
+                        }, [mcpGroupFilter, activeMcpGroup]);
+                        const groupScopedServers = activeMcpGroup !== undefined
+                                ? servers.filter((server) => Array.isArray(activeMcpGroup.servers) && activeMcpGroup.servers.includes(server.serverName))
+                                : mcpGroupFilter === ""
+                                        ? servers.filter((server) => !groupedMcpNames.has(server.serverName))
+                                        : servers;
+                        const ungroupedMcpCount = servers.reduce((sum, server) => sum + (groupedMcpNames.has(server.serverName) ? 0 : 1), 0);
                         // 服务器搜索：任意一个可见字段命中即保留。
                         const mcpQuery = mcpFilter.trim().toLocaleLowerCase();
-                        const filteredServers = mcpQuery === "" ? servers : servers.filter((server) => {
+                        const filteredServers = mcpQuery === "" ? groupScopedServers : groupScopedServers.filter((server) => {
                                 const fields = [server.serverName, server.transport, server.url, server.command, server.cwd]
                                         .concat(Array.isArray(server.args) ? server.args : [])
                                         .concat(Array.isArray(server.headerKeys) ? server.headerKeys : [])
@@ -4093,13 +4706,19 @@ function mcpWireScalar(text) {
                                 });
                         };
                         const stateLabel = (server) => {
-                                if (!server.enabled) return t !== null ? "stateStopped" : "";
                                 const phase = server.fiberPhase;
-                                if (phase === "active") return "stateActive";
-                                if (phase === "loading" || phase === "unloading") return "stateLoading";
-                                if (phase === "failed") return "stateFailed";
-                                if (phase === "pending") return "statePending";
-                                return "stateUnknown";
+                                const key = !server.enabled
+                                        ? "stateStopped"
+                                        : phase === "active"
+                                                ? "stateActive"
+                                                : phase === "loading" || phase === "unloading"
+                                                        ? "stateLoading"
+                                                        : phase === "failed"
+                                                                ? "stateFailed"
+                                                                : phase === "pending"
+                                                                        ? "statePending"
+                                                                        : "stateUnknown";
+                                return t !== null ? t(key) : "";
                         };
                         const applySave = async (input, previousServerName, previousEntryId) => {
                                 setDialogBusy(true);
@@ -4205,54 +4824,136 @@ function mcpWireScalar(text) {
                                         setTesting(null);
                                 }
                         };
-                        // 点「OAuth 登录」：起流程 → 系统浏览器打开授权页 → 每 1.5s 轮询一次。
-                        // 授权页由外部浏览器承载，回调落在宿主进程监听的 127.0.0.1 端口上，因此这里
-                        // 只需要等轮询结果，不依赖任何外部回调服务。
-                        const applyOAuth = async (server) => {
-                        	if (!guardCard(server)) return;
-                        	setOauthBusy(server.serverName);
-                        	setOauthNotice(null);
-                        	try {
-                        		const start = await oauthStart({ serverName: server.serverName });
-                        		try {
-                        			window.open(start.authUrl, "_blank", "noopener,noreferrer");
-                        		} catch {
-                        			// 弹窗被拦时把授权地址直接给用户。
-                        			setOauthNotice({ serverName: server.serverName, ok: true, text: start.authUrl });
-                        		}
-                        		for (let attempt = 0; attempt < 240; attempt += 1) {
-                        			await new Promise((resolve) => setTimeout(resolve, 1500));
-                        			const poll = await oauthPoll({ flowId: start.flowId });
-                        			if (poll.status === "pending") continue;
-                        			if (poll.status === "failed") throw new Error(String(poll.error ?? t("oauthFailed")));
-                        			setOauthNotice({ serverName: server.serverName, ok: true, text: t("oauthDone") });
-                        			setData(await reloadMcp());
-                        			return;
-                        		}
-                        		throw new Error(t("oauthTimeout"));
-                        	} catch (error: any) {
-                        		setOauthNotice({ serverName: server.serverName, ok: false, text: String(error?.message ?? error) });
-                        	} finally {
-                        		setOauthBusy(null);
-                        	}
+                        // 在 Add/Edit 弹窗内部直接完成保存 + OAuth 授权流程（#80 & 用户反馈：不在首页堆积登录按钮）。
+                        const runOAuthFlowInDialog = async (input, previousServerName, previousEntryId, closeOnDone, onSaved) => {
+                                const savedRes = await saveMcp(input, previousServerName, previousEntryId);
+                                const savedName = savedRes?.server?.serverName ?? input.serverName;
+                                const savedEntryId = savedRes?.server?.entryId ?? previousEntryId;
+                                const savedInfo = { serverName: savedName, entryId: savedEntryId };
+                                if (typeof onSaved === "function") onSaved(savedInfo);
+                                const start = await oauthStart({ serverName: savedName });
+                                try {
+                                        window.open(start.authUrl, "_blank", "noopener,noreferrer");
+                                } catch {
+                                        // 弹窗拦截时不阻断，仍等待本地 loopback 回调
+                                }
+                                for (let attempt = 0; attempt < 240; attempt += 1) {
+                                        await new Promise((resolve) => setTimeout(resolve, 1500));
+                                        const poll = await oauthPoll({ flowId: start.flowId });
+                                        if (poll.status === "pending") continue;
+                                        if (poll.status === "failed") throw new Error(String(poll.error ?? t("oauthFailed")));
+                                        setOauthNotice({ serverName: savedName, ok: true, text: t("oauthDone") });
+                                        setData(await reloadMcp());
+                                        if (closeOnDone) setEditing(null);
+                                        return { saved: savedInfo, expiresAt: poll.expiresAt ?? null };
+                                }
+                                throw new Error(t("oauthTimeout"));
                         };
-                        const applyOAuthDisconnect = async (server) => {
-                        	if (!guardCard(server)) return;
-                        	setOauthBusy(server.serverName);
-                        	setOauthNotice(null);
-                        	try {
-                        		await oauthDisconnect({ serverName: server.serverName });
-                        		setOauthNotice({ serverName: server.serverName, ok: true, text: t("oauthDisconnected") });
-                        		setData(await reloadMcp());
-                        	} catch (error: any) {
-                        		setOauthNotice({ serverName: server.serverName, ok: false, text: String(error?.message ?? error) });
-                        	} finally {
-                        		setOauthBusy(null);
-                        	}
+                        const applyOAuthRefreshInDialog = async (serverName) => {
+                                const res = typeof oauthRefresh === "function" ? await oauthRefresh({ serverName }) : { ok: false, error: "unsupported" };
+                                if (res?.ok) setData(await reloadMcp());
+                                return res;
                         };
-                        // 单工具禁用：读「这一台的工具」+「全局禁用列表」，勾选后写回全局列表。
-                        // 宿主的 restrict() 只接受整份 deny，而面板按 agent 施加同一份列表，所以这一台的
-                        // 勾选要合并进同一份 deny，其它服务器的条目保持不动。
+                        const applyOAuthDisconnectInDialog = async (serverName) => {
+                                await oauthDisconnect({ serverName });
+                                setData(await reloadMcp());
+                        };
+                        const applyMcpGroupBulkToggle = async (group) => {
+                                if (group === undefined || groupToggleBusy) return;
+                                const members = servers.filter((srv) => Array.isArray(group.servers) && group.servers.includes(srv.serverName) && srv.disabledExpr !== true);
+                                if (members.length === 0) return;
+                                const targetEnabled = !members.every((srv) => srv.enabled === true);
+                                const pending = members.filter((srv) => srv.enabled !== targetEnabled);
+                                if (pending.length === 0) return;
+                                setGroupToggleBusy(true);
+                                let done = 0;
+                                try {
+                                        await Promise.all(pending.map(async (srv) => {
+                                                await setEnabledMcp(srv.serverName, targetEnabled, srv.entryId);
+                                                done += 1;
+                                        }));
+                                        setData(await reloadMcp());
+                                        setOauthNotice({ serverName: members[0].serverName, ok: true, text: t("groupBulkResult").replace("{done}", String(done)) });
+                                } finally {
+                                        setGroupToggleBusy(false);
+                                }
+                        };
+                        const applyMcpGroupSave = async () => {
+                                const dlg = mcpGroupDialog;
+                                if (dlg === null || dlg.busy || typeof saveMcpGroup !== "function") return;
+                                const trimmed = String(dlg.name ?? "").trim();
+                                if (trimmed === "") {
+                                        setMcpGroupDialog({ ...dlg, error: t("groupNameRequired") });
+                                        return;
+                                }
+                                setMcpGroupDialog({ ...dlg, busy: true, error: null });
+                                try {
+                                        const res = await saveMcpGroup({ id: dlg.id ?? undefined, name: trimmed, servers: [...dlg.servers] });
+                                        const groups = Array.isArray(res?.groups) ? res.groups : [];
+                                        setMcpGroups(groups);
+                                        const created = groups.find((g) => g.id === dlg.id) ?? groups.find((g) => g.name === trimmed);
+                                        if (created !== undefined) setMcpGroupFilter(created.id);
+                                        setMcpGroupDialog(null);
+                                } catch (err: any) {
+                                        setMcpGroupDialog({ ...dlg, busy: false, error: cleanMcpError(err) });
+                                }
+                        };
+                        const applyMcpGroupDelete = async () => {
+                                const dlg = mcpGroupDialog;
+                                if (dlg === null || dlg.busy || dlg.id === null || typeof deleteMcpGroup !== "function") return;
+                                setMcpGroupDialog({ ...dlg, busy: true, error: null });
+                                try {
+                                        const res = await deleteMcpGroup({ id: dlg.id });
+                                        setMcpGroups(Array.isArray(res?.groups) ? res.groups : []);
+                                        if (mcpGroupFilter === dlg.id) setMcpGroupFilter("all");
+                                        setMcpGroupDialog(null);
+                                } catch (err: any) {
+                                        setMcpGroupDialog({ ...dlg, busy: false, error: cleanMcpError(err) });
+                                }
+                        };
+                        // 单工具禁用 + 分层作用域覆盖（#44 / #55）：global / workspace / session / subagent。
+                        const workspaceChoices: Array<{ path: string; label: string }> = (() => {
+                                const seen = new Set<string>();
+                                const out: Array<{ path: string; label: string }> = [];
+                                if (typeof activeSessionCwd === "string" && activeSessionCwd !== "") {
+                                        seen.add(activeSessionCwd);
+                                        out.push({ path: activeSessionCwd, label: activeSessionCwd });
+                                }
+                                for (const ws of mcpWorkspaces) {
+                                        if (ws && typeof ws.path === "string" && ws.path !== "" && !seen.has(ws.path)) {
+                                                seen.add(ws.path);
+                                                out.push({ path: ws.path, label: ws.label || ws.path });
+                                        }
+                                }
+                                for (const wsKey of Object.keys(toolPolicy?.workspaces ?? {})) {
+                                        if (wsKey !== "" && !seen.has(wsKey)) {
+                                                seen.add(wsKey);
+                                                out.push({ path: wsKey, label: wsKey });
+                                        }
+                                }
+                                return out;
+                        })();
+                        const computeToolDisabledSet = (panel, scopeKind, scopeWs) => {
+                                const rows = panel?.tools ?? [];
+                                const globalDeny = panel.globalDeny ?? new Set();
+                                if (scopeKind === "global") {
+                                        return new Set(rows.filter((tool) => globalDeny.has(tool.name) || (Array.isArray(panel.rawDisabled) && panel.rawDisabled.includes(tool.name))).map((tool) => tool.name));
+                                }
+                                if (scopeKind === "workspace") {
+                                        const wsDeny = new Set(panel.policy?.workspaces?.[scopeWs] ?? []);
+                                        return new Set(rows.filter((tool) => wsDeny.has(tool.name)).map((tool) => tool.name));
+                                }
+                                if (scopeKind === "session") {
+                                        const ov = activeSessionId !== undefined ? panel.policy?.sessionOverrides?.[activeSessionId] : undefined;
+                                        const ovDeny = new Set(ov?.deny ?? []);
+                                        const ovAllow = new Set(ov?.allow ?? []);
+                                        const wsDeny = new Set(activeSessionCwd !== undefined ? (panel.policy?.workspaces?.[activeSessionCwd] ?? []) : []);
+                                        return new Set(rows.filter((tool) => (globalDeny.has(tool.name) || wsDeny.has(tool.name) || ovDeny.has(tool.name)) && !ovAllow.has(tool.name)).map((tool) => tool.name));
+                                }
+                                const subAllow = new Set(panel.policy?.roles?.subagentAllow ?? []);
+                                const subDeny = new Set(panel.policy?.roles?.subagentDeny ?? []);
+                                return new Set(rows.filter((tool) => (globalDeny.has(tool.name) && !subAllow.has(tool.name)) || subDeny.has(tool.name)).map((tool) => tool.name));
+                        };
                         const openTools = async (server) => {
                         	if (!guardCard(server)) return;
                         	if (toolsOpen === server.serverName) {
@@ -4265,18 +4966,56 @@ function mcpWireScalar(text) {
                         	try {
                         		const [tools, filter] = await Promise.all([listMcpTools({ serverName: server.serverName }), getToolFilter()]);
                         		const deny = new Set(Array.isArray(filter?.deny) ? filter.deny : []);
+                        		const policyObj = {
+                        			deny: [...deny],
+                        			workspaces: filter?.workspaces && typeof filter.workspaces === "object" ? filter.workspaces : {},
+                        			roles: {
+                        				subagentAllow: Array.isArray(filter?.roles?.subagentAllow) ? filter.roles.subagentAllow : [],
+                        				subagentDeny: Array.isArray(filter?.roles?.subagentDeny) ? filter.roles.subagentDeny : []
+                        			},
+                        			sessionOverrides: filter?.sessionOverrides && typeof filter.sessionOverrides === "object" ? filter.sessionOverrides : {}
+                        		};
                         		const rows = Array.isArray(tools?.tools) ? tools.tools : [];
-                        		setToolsPanel({
+                        		const rawDisabled = Array.isArray(tools?.disabled) ? tools.disabled : [];
+                        		const defaultWs = workspaceChoices[0]?.path ?? "";
+                        		const initialPanel = {
                         			serverName: server.serverName,
                         			loading: false,
                         			connected: tools?.connected !== false,
                         			tools: rows,
+                        			rawDisabled,
                         			globalDeny: deny,
-                        			disabled: new Set(rows.filter((tool) => Array.isArray(tools.disabled) && tools.disabled.includes(tool.name)).map((tool) => tool.name))
+                        			policy: policyObj,
+                        			scopeKind: "global",
+                        			scopeWs: defaultWs
+                        		};
+                        		setToolsPanel({
+                        			...initialPanel,
+                        			disabled: new Set(rows.filter((tool) => rawDisabled.includes(tool.name)).map((tool) => tool.name))
                         		});
                         	} catch (error: any) {
                         		setToolsPanel({ serverName: server.serverName, loading: false, error: String(error?.message ?? error) });
                         	}
+                        };
+                        const switchToolScope = (nextScope) => {
+                                setToolsPanel((prev) => {
+                                        if (prev === null || prev.loading || prev.error !== undefined) return prev;
+                                        return {
+                                                ...prev,
+                                                scopeKind: nextScope,
+                                                disabled: computeToolDisabledSet(prev, nextScope, prev.scopeWs)
+                                        };
+                                });
+                        };
+                        const switchToolWorkspace = (nextWs) => {
+                                setToolsPanel((prev) => {
+                                        if (prev === null || prev.loading || prev.error !== undefined) return prev;
+                                        return {
+                                                ...prev,
+                                                scopeWs: nextWs,
+                                                disabled: computeToolDisabledSet(prev, "workspace", nextWs)
+                                        };
+                                });
                         };
                         const toggleTool = (name) => {
                         	setToolsPanel((prev) => {
@@ -4290,12 +5029,65 @@ function mcpWireScalar(text) {
                         const saveTools = async () => {
                         	const panel = toolsPanel;
                         	if (panel === null || panel.globalDeny === undefined) return;
+                        	const scope = panel.scopeKind ?? "global";
+                        	if (scope === "workspace" && !panel.scopeWs) return;
+                        	if (scope === "session" && !activeSessionId) return;
                         	setToolsBusy(true);
                         	try {
                         		const mine = new Set((panel.tools ?? []).map((tool) => tool.name));
-                        		const deny = [...panel.globalDeny].filter((name) => !mine.has(name)).concat([...panel.disabled]).sort();
-                        		const result = await setToolFilter({ deny });
-                        		setOauthNotice({ serverName: panel.serverName, ok: true, text: t("toolsSaved").replace("{count}", String(deny.length)).replace("{applied}", String(result?.applied ?? 0)) });
+                        		let result;
+                        		if (scope === "global") {
+                        			const deny = [...panel.globalDeny].filter((name) => !mine.has(name)).concat([...panel.disabled]).sort();
+                        			result = await setToolFilter({ deny });
+                        			setToolDenyList(deny);
+                        			setOauthNotice({ serverName: panel.serverName, ok: true, text: t("toolsSaved").replace("{count}", String(deny.length)).replace("{applied}", String(result?.applied ?? 0)) });
+                        		} else if (scope === "workspace") {
+                        			const existingWs = panel.policy?.workspaces?.[panel.scopeWs] ?? [];
+                        			const deny = existingWs.filter((name) => !mine.has(name)).concat([...panel.disabled]).sort();
+                        			result = await setToolFilter({ scopeKind: "workspace", scopeKey: panel.scopeWs, deny });
+                        			setOauthNotice({ serverName: panel.serverName, ok: true, text: t("toolsSaved").replace("{count}", String(deny.length)).replace("{applied}", String(result?.applied ?? 0)) });
+                        		} else if (scope === "session") {
+                        			const prevOv = panel.policy?.sessionOverrides?.[activeSessionId] ?? { deny: [], allow: [] };
+                        			const otherDeny = (prevOv.deny ?? []).filter((name) => !mine.has(name));
+                        			const otherAllow = (prevOv.allow ?? []).filter((name) => !mine.has(name));
+                        			const wsDeny = new Set(activeSessionCwd !== undefined ? (panel.policy?.workspaces?.[activeSessionCwd] ?? []) : []);
+                        			const mineDeny: string[] = [];
+                        			const mineAllow: string[] = [];
+                        			for (const tool of panel.tools ?? []) {
+                        				const checked = !panel.disabled.has(tool.name);
+                        				const baseBlocked = panel.globalDeny.has(tool.name) || wsDeny.has(tool.name);
+                        				if (!checked && !baseBlocked) mineDeny.push(tool.name);
+                        				else if (checked && baseBlocked) mineAllow.push(tool.name);
+                        			}
+                        			const deny = [...otherDeny, ...mineDeny].sort();
+                        			const allow = [...otherAllow, ...mineAllow].sort();
+                        			result = await setToolFilter({ scopeKind: "session", scopeKey: activeSessionId, deny, allow });
+                        			setOauthNotice({ serverName: panel.serverName, ok: true, text: t("toolsSaved").replace("{count}", String(panel.disabled.size)).replace("{applied}", String(result?.applied ?? 0)) });
+                        		} else {
+                        			const prevRoles = panel.policy?.roles ?? { subagentAllow: [], subagentDeny: [] };
+                        			const otherAllow = (prevRoles.subagentAllow ?? []).filter((name) => !mine.has(name));
+                        			const otherDeny = (prevRoles.subagentDeny ?? []).filter((name) => !mine.has(name));
+                        			const mineAllow: string[] = [];
+                        			const mineDeny: string[] = [];
+                        			for (const tool of panel.tools ?? []) {
+                        				const checked = !panel.disabled.has(tool.name);
+                        				const baseBlocked = panel.globalDeny.has(tool.name);
+                        				if (checked && baseBlocked) mineAllow.push(tool.name);
+                        				else if (!checked && !baseBlocked) mineDeny.push(tool.name);
+                        			}
+                        			const allow = [...otherAllow, ...mineAllow].sort();
+                        			const deny = [...otherDeny, ...mineDeny].sort();
+                        			result = await setToolFilter({ scopeKind: "subagent", roles: { subagentAllow: allow, subagentDeny: deny } });
+                        			setOauthNotice({ serverName: panel.serverName, ok: true, text: t("toolsSaved").replace("{count}", String(panel.disabled.size)).replace("{applied}", String(result?.applied ?? 0)) });
+                        		}
+                        		if (result !== null && typeof result === "object") {
+                        			setToolPolicy({
+                        				deny: Array.isArray(result.deny) ? result.deny : toolDenyList,
+                        				workspaces: result.workspaces && typeof result.workspaces === "object" ? result.workspaces : toolPolicy.workspaces,
+                        				roles: result.roles && typeof result.roles === "object" ? result.roles : toolPolicy.roles,
+                        				sessionOverrides: result.sessionOverrides && typeof result.sessionOverrides === "object" ? result.sessionOverrides : toolPolicy.sessionOverrides
+                        			});
+                        		}
                         		setToolsOpen(null);
                         	} catch (error: any) {
                         		setOauthNotice({ serverName: panel.serverName, ok: false, text: String(error?.message ?? error) });
@@ -4329,16 +5121,46 @@ function mcpWireScalar(text) {
                         			return { ...prev, disabled: next };
                         		});
                         	};
+                        	const scope = panel.scopeKind ?? "global";
+                        	const scopeHintText = scope === "workspace"
+                        		? (panel.scopeWs ? t("toolScopeWorkspaceHint").replace("{ws}", panel.scopeWs) : t("toolScopeNoWorkspace"))
+                        		: scope === "session"
+                        			? (activeSessionId ? t("toolScopeSessionHint") : t("toolScopeNoSession"))
+                        			: scope === "subagent"
+                        				? t("toolScopeSubagentHint")
+                        				: t("toolScopeGlobalHint");
+                        	const scopeSaveDisabled = toolsBusy || (scope === "workspace" && !panel.scopeWs) || (scope === "session" && !activeSessionId);
+                        	const scopeTabsNode = (0, react_jsx_runtime.jsxs)("div", {
+                        		className: m.scopeTabs,
+                        		children: [
+                        			(0, react_jsx_runtime.jsx)("span", { className: m.hint, children: t("toolScopeLabel") }),
+                        			["global", "workspace", "session", "subagent"].map((key) => (0, react_jsx_runtime.jsx)("button", {
+                        				type: "button",
+                        				className: m.scopeTab,
+                        				"data-active": scope === key ? "true" : void 0,
+                        				onClick: () => switchToolScope(key),
+                        				children: t(key === "global" ? "toolScopeGlobal" : key === "workspace" ? "toolScopeWorkspace" : key === "session" ? "toolScopeSession" : "toolScopeSubagent")
+                        			}, key)),
+                        			scope === "workspace" && workspaceChoices.length > 0 ? (0, react_jsx_runtime.jsx)("select", {
+                        				className: c.select,
+                        				style: { width: "auto", height: "24px", fontSize: "11.5px" },
+                        				value: panel.scopeWs ?? "",
+                        				onChange: (event) => switchToolWorkspace(event.currentTarget.value),
+                        				children: workspaceChoices.map((ws) => (0, react_jsx_runtime.jsx)("option", { value: ws.path, children: ws.label }, ws.path))
+                        			}) : null
+                        		]
+                        	});
                         	if (rows.length === 0) {
                         		return (0, react_jsx_runtime.jsxs)("div", {
                         			className: m.toolsPanel,
-                        			children: [(0, react_jsx_runtime.jsx)("p", { className: m.hint, children: panel.connected === false ? t("toolsDisconnected") : t("toolsEmpty") }), (0, react_jsx_runtime.jsx)("p", { className: m.hint, children: t("toolsScopeHint") })]
+                        			children: [scopeTabsNode, (0, react_jsx_runtime.jsx)("p", { className: m.hint, children: panel.connected === false ? t("toolsDisconnected") : t("toolsEmpty") }), (0, react_jsx_runtime.jsx)("p", { className: m.hint, children: scopeHintText })]
                         		});
                         	}
                         	return (0, react_jsx_runtime.jsxs)("div", {
                         		className: m.toolsPanel,
                         		children: [
-                        			(0, react_jsx_runtime.jsx)("p", { className: m.hint, children: t("toolsScopeHint") }),
+                        			scopeTabsNode,
+                        			(0, react_jsx_runtime.jsx)("p", { className: m.hint, children: scopeHintText }),
                         			(0, react_jsx_runtime.jsxs)("div", {
                         				className: m.toolbar,
                         				children: [(0, react_jsx_runtime.jsx)("input", {
@@ -4349,21 +5171,42 @@ function mcpWireScalar(text) {
                         			}),
                         			(0, react_jsx_runtime.jsx)("div", {
                         				className: m.toolsList,
-                        				children: visibleTools.length === 0 ? (0, react_jsx_runtime.jsx)("p", { className: m.hint, children: t("toolsNoMatch") }) : visibleTools.map((tool) => (0, react_jsx_runtime.jsxs)("label", {
-                        					className: m.toolRow,
-                        					title: tool.description ?? tool.name,
-                        					children: [
-                        						(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: !panel.disabled.has(tool.name), onChange: () => toggleTool(tool.name) }),
-                        						(0, react_jsx_runtime.jsx)("span", { className: m.toolName, children: tool.name })
-                        					]
-                        				}, tool.name))
+                        				children: visibleTools.length === 0 ? (0, react_jsx_runtime.jsx)("p", { className: m.hint, children: t("toolsNoMatch") }) : visibleTools.map((tool) => {
+                        					const desc = typeof tool.description === "string" ? tool.description.trim() : "";
+                        					const inheritedGlobal = scope !== "global" && panel.globalDeny?.has?.(tool.name);
+                        					return (0, react_jsx_runtime.jsxs)("label", {
+                        						className: m.toolRow,
+                        						title: desc !== "" ? tool.name + " — " + desc : tool.name,
+                        						children: [
+                        							(0, react_jsx_runtime.jsx)("input", { type: "checkbox", checked: !panel.disabled.has(tool.name), onChange: () => toggleTool(tool.name) }),
+                        							(0, react_jsx_runtime.jsxs)("div", {
+                        								className: m.toolInfo,
+                        								children: [
+                        									(0, react_jsx_runtime.jsx)("span", { className: m.toolName, children: tool.name + (inheritedGlobal ? " " + t("toolScopeInheritedBlocked") : "") }),
+                        									desc !== "" ? (0, react_jsx_runtime.jsx)("span", { className: m.toolDesc, children: desc }) : null
+                        								]
+                        							})
+                        						]
+                        					}, tool.name);
+                        				})
                         			}),
                         			(0, react_jsx_runtime.jsxs)("div", {
                         				className: m.toolsActions,
                         				children: [
-                        					(0, react_jsx_runtime.jsx)("button", { type: "button", className: m.actionBtn, disabled: toolsBusy, onClick: saveTools, children: toolsBusy ? t("toolsSaving") : t("toolsSave") }),
+                        					(0, react_jsx_runtime.jsx)("button", { type: "button", className: m.actionBtn, disabled: scopeSaveDisabled, onClick: saveTools, children: toolsBusy ? t("toolsSaving") : t("toolsSave") }),
                         					(0, react_jsx_runtime.jsx)("button", { type: "button", className: m.actionBtn, disabled: toolsBusy, onClick: () => setToolsOpen(null), children: t("cancel") }),
-                        					(0, react_jsx_runtime.jsx)("span", { className: m.hint, children: (toolQuery === "" ? "" : t("toolsFilteredCount").replace("{visible}", String(visibleTools.length)).replace("{total}", String(rows.length)) + " · ") + t("toolsDisabledCount").replace("{count}", String(panel.disabled.size)) })
+                        					(0, react_jsx_runtime.jsx)("span", {
+                        						className: m.hint,
+                        						children: (toolQuery === "" ? "" : t("toolsFilteredCount").replace("{visible}", String(visibleTools.length)).replace("{total}", String(rows.length)) + " · ")
+                        							+ (server.enabled
+                        								? t("toolsVisibilitySummary")
+                        									.replace("{visible}", String(Math.max(0, rows.length - panel.disabled.size)))
+                        									.replace("{total}", String(rows.length))
+                        									.replace("{disabled}", String(panel.disabled.size))
+                        								: t("toolsVisibilityStopped")
+                        									.replace("{total}", String(rows.length))
+                        									.replace("{disabled}", String(panel.disabled.size)))
+                        					})
                         				]
                         			})
                         		]
@@ -4383,80 +5226,96 @@ function mcpWireScalar(text) {
                                         (0, react_jsx_runtime.jsx)("path", { d: "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" })
                                 ]
                         });
-                        const serverCard = (server) => {
+                        const cardMetaSummary = (server) => {
                                 const state = stateLabel(server);
+                                const prefix = typeof server.serverName === "string" && server.serverName !== "" ? "mcp__" + server.serverName + "__" : "";
+                                const filteredCount = prefix === "" ? 0 : toolDenyList.reduce((sum, name) => sum + (typeof name === "string" && name.startsWith(prefix) ? 1 : 0), 0);
+                                if (server.enabled !== true) {
+                                        return filteredCount > 0 ? state + " · " + t("toolsCardFilteredOnly").replace("{filtered}", String(filteredCount)) : state;
+                                }
+                                const total = server.toolCount ?? 0;
+                                if (server.fiberPhase !== "active" && total === 0) return state;
+                                if (filteredCount > 0) {
+                                        const visible = Math.max(0, total - filteredCount);
+                                        return state + " · " + t("toolsCardVisible").replace("{visible}", String(visible)).replace("{total}", String(total)).replace("{filtered}", String(filteredCount));
+                                }
+                                return state + " · " + t("toolCount").replace("{count}", String(total));
+                        };
+                        const serverCard = (server) => {
                                 const dotOn = server.enabled && server.fiberPhase === "active";
                                 const dotErr = server.fiberPhase === "failed";
-                                return (0, react_jsx_runtime.jsxs)("div", {
-                                        className: m.card,
-                                        children: [(0, react_jsx_runtime.jsxs)("div", {
-                                                className: m.cardTop,
-                                                children: [(0, react_jsx_runtime.jsx)("span", { className: m.name, children: server.serverName }), (0, react_jsx_runtime.jsxs)("span", {
-                                                        className: m.badges,
-                                                        children: [(0, react_jsx_runtime.jsx)("span", { className: m.badge, children: server.transport === "streamable-http" ? "HTTP" : "STDIO" }), server.disabledExpr === true ? (0, react_jsx_runtime.jsx)("span", { className: m.badge, title: t("disabledExprHint"), children: t("disabledExprBadge") }) : null, server.transport === "streamable-http" && (server.headerKeys ?? []).includes("Authorization") ? (0, react_jsx_runtime.jsx)("span", { className: m.badge, title: t("authBadgeHint"), children: t("authBadge") }) : null]
-                                                }), (0, react_jsx_runtime.jsx)("span", { className: m.spacer }), (0, react_jsx_runtime.jsx)("button", {
-                                                        type: "button",
-                                                        className: m.iconBtn,
-                                                        "aria-label": t("editTitle"),
-                                                        onClick: () => { if (!guardCard(server)) return; setDialogError(null); setEditing({ server }); },
-                                                        children: gearIcon
-                                                })]
-                                        }), (0, react_jsx_runtime.jsxs)("div", {
-                                                className: m.meta,
-                                                children: [(0, react_jsx_runtime.jsx)("span", {
-                                                        className: m.dot,
-                                                        "data-on": server.enabled ? "true" : "false",
-                                                        "data-err": server.fiberPhase === "failed" ? "true" : "false"
-                                                }), (0, react_jsx_runtime.jsx)("span", { children: t !== null ? t("toolCount").replace("{count}", String(server.toolCount ?? 0)) : "" })]
-                                        }), (0, react_jsx_runtime.jsxs)("div", {
-                                                className: m.actions,
-                                                children: [(0, react_jsx_runtime.jsxs)("span", {
-                                                        className: c.switchRow,
-                                                        children: [(0, react_jsx_runtime.jsx)("button", {
+                                        const oauthWarn = server.oauth?.needsReauth === true || (server.oauth?.expired === true && server.oauth?.canRefresh !== true);
+                                        return (0, react_jsx_runtime.jsxs)("div", {
+                                                className: m.card,
+                                                children: [(0, react_jsx_runtime.jsxs)("div", {
+                                                        className: m.cardTop,
+                                                        children: [(0, react_jsx_runtime.jsx)("span", { className: m.name, children: server.serverName }), (0, react_jsx_runtime.jsxs)("span", {
+                                                                className: m.badges,
+                                                                children: [
+                                                                        (0, react_jsx_runtime.jsx)("span", { className: m.badge, children: server.transport === "streamable-http" ? "HTTP" : "STDIO" }),
+                                                                        server.disabledExpr === true ? (0, react_jsx_runtime.jsx)("span", { className: m.badge, title: t("disabledExprHint"), children: t("disabledExprBadge") }) : null,
+                                                                        server.transport === "streamable-http" && oauthWarn ? (0, react_jsx_runtime.jsx)("button", {
+                                                                                type: "button",
+                                                                                className: m.badgeBtn,
+                                                                                title: server.oauth?.refreshError || t("oauthStatusNeedsReauth"),
+                                                                                onClick: () => { if (!guardCard(server)) return; setDialogError(null); setEditing({ server }); },
+                                                                                children: server.oauth?.needsReauth ? t("oauthStatusNeedsReauth") : t("oauthStatusExpired")
+                                                                        }) : (server.transport === "streamable-http" && (server.headerKeys ?? []).includes("Authorization") ? (0, react_jsx_runtime.jsx)("span", {
+                                                                                className: m.badge,
+                                                                                title: server.oauth?.expiresAt ? t("authBadgeHint") + t("oauthStatusExpiresAt") + formatExpiryShort(server.oauth.expiresAt) : t("authBadgeHint"),
+                                                                                children: t("authBadge")
+                                                                        }) : null)
+                                                                ]
+                                                        }), (0, react_jsx_runtime.jsx)("span", { className: m.spacer }), (0, react_jsx_runtime.jsx)("button", {
                                                                 type: "button",
-                                                                role: "switch",
-                                                                className: c.switch,
-                                                                "data-on": server.enabled ? "true" : void 0,
-                                                                "aria-checked": server.enabled,
-                                                                "aria-label": server.enabled ? t("disable") : t("enable"),
-                                                                disabled: server.disabledExpr === true,
-                                                                title: server.disabledExpr === true ? t("disabledExprHint") : void 0,
-                                                                onClick: () => applyToggle(server),
-                                                                children: (0, react_jsx_runtime.jsx)("span", { className: c.switchThumb })
-                                                        }), (0, react_jsx_runtime.jsx)("span", { className: c.switchText, children: t !== null ? (server.enabled ? t("stateEnabled") : t("stateDisabled")) : "" })]
-                                                }), (0, react_jsx_runtime.jsx)("span", { className: m.spacer }), (server.transport === "streamable-http") ? (0, react_jsx_runtime.jsx)("button", {
-                                                	type: "button",
-                                                	className: m.actionBtn,
-                                                	disabled: oauthBusy === server.serverName,
-                                                	title: t !== null ? t("oauthHint") : "",
-                                                	onClick: () => applyOAuth(server),
-                                                	children: oauthBusy === server.serverName ? (t !== null ? t("oauthWorking") : "") : ((server.headerKeys ?? []).includes("Authorization") ? (t !== null ? t("oauthRelogin") : "") : (t !== null ? t("oauthLogin") : ""))
-                                                }) : null, ((server.transport === "streamable-http") && (server.headerKeys ?? []).includes("Authorization")) ? (0, react_jsx_runtime.jsx)("button", {
-                                                	type: "button",
-                                                	className: m.actionBtn,
-                                                	disabled: oauthBusy === server.serverName,
-                                                	onClick: () => applyOAuthDisconnect(server),
-                                                	children: t !== null ? t("oauthDisconnect") : ""
-                                                }) : null, (0, react_jsx_runtime.jsx)("button", {
-                                                        type: "button",
-                                                        className: m.actionBtn,
-                                                        title: t !== null ? t("rawEditHint") : "",
-                                                        onClick: () => openRaw(server),
-                                                        children: t !== null ? t("rawEdit") : ""
-                                                }), (0, react_jsx_runtime.jsx)("button", {
-                                                        type: "button",
-                                                        className: m.actionBtn,
-                                                        disabled: testing === server.serverName,
-                                                        onClick: () => applyTest(server),
-                                                        children: testing === server.serverName ? t !== null ? t("testing") : "" : t !== null ? t("test") : ""
-                                                }), (0, react_jsx_runtime.jsx)("button", {
-                                                	type: "button",
-                                                	className: m.actionBtn,
-                                                	"data-active": toolsOpen === server.serverName ? "true" : void 0,
-                                                	title: t("toolsButtonHint"),
-                                                	onClick: () => { openTools(server); },
-                                                	children: t("toolsButton")
-                                                }), confirming === cardKey(server) ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
+                                                                className: m.iconBtn,
+                                                                "aria-label": t("editTitle"),
+                                                                onClick: () => { if (!guardCard(server)) return; setDialogError(null); setEditing({ server }); },
+                                                                children: gearIcon
+                                                        })]
+                                                }), (0, react_jsx_runtime.jsxs)("div", {
+                                                        className: m.meta,
+                                                        children: [(0, react_jsx_runtime.jsx)("span", {
+                                                                className: m.dot,
+                                                                "data-on": server.enabled ? "true" : "false",
+                                                                "data-err": dotErr ? "true" : "false"
+                                                        }), (0, react_jsx_runtime.jsx)("span", { children: t !== null ? cardMetaSummary(server) : "" })]
+                                                }), (0, react_jsx_runtime.jsxs)("div", {
+                                                        className: m.actions,
+                                                        children: [(0, react_jsx_runtime.jsxs)("span", {
+                                                                className: c.switchRow,
+                                                                children: [(0, react_jsx_runtime.jsx)("button", {
+                                                                        type: "button",
+                                                                        role: "switch",
+                                                                        className: c.switch,
+                                                                        "data-on": server.enabled ? "true" : void 0,
+                                                                        "aria-checked": server.enabled,
+                                                                        "aria-label": server.enabled ? t("disable") : t("enable"),
+                                                                        disabled: server.disabledExpr === true,
+                                                                        title: server.disabledExpr === true ? t("disabledExprHint") : void 0,
+                                                                        onClick: () => applyToggle(server),
+                                                                        children: (0, react_jsx_runtime.jsx)("span", { className: c.switchThumb })
+                                                                }), (0, react_jsx_runtime.jsx)("span", { className: c.switchText, children: t !== null ? (server.enabled ? t("stateEnabled") : t("stateDisabled")) : "" })]
+                                                        }), (0, react_jsx_runtime.jsx)("span", { className: m.spacer }), (0, react_jsx_runtime.jsx)("button", {
+                                                                type: "button",
+                                                                className: m.actionBtn,
+                                                                title: t !== null ? t("rawEditHint") : "",
+                                                                onClick: () => openRaw(server),
+                                                                children: t !== null ? t("rawEdit") : ""
+                                                        }), (0, react_jsx_runtime.jsx)("button", {
+                                                                type: "button",
+                                                                className: m.actionBtn,
+                                                                disabled: testing === server.serverName,
+                                                                onClick: () => applyTest(server),
+                                                                children: testing === server.serverName ? t !== null ? t("testing") : "" : t !== null ? t("test") : ""
+                                                        }), (0, react_jsx_runtime.jsx)("button", {
+                                                        	type: "button",
+                                                        	className: m.actionBtn,
+                                                        	"data-active": toolsOpen === server.serverName ? "true" : void 0,
+                                                        	title: t("toolsButtonHint"),
+                                                        	onClick: () => { openTools(server); },
+                                                        	children: t("toolsButton")
+                                                        }), confirming === cardKey(server) ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
                                                         children: [
                                                                 (0, react_jsx_runtime.jsx)("button", {
                                                                         type: "button",
@@ -4533,17 +5392,7 @@ function mcpWireScalar(text) {
                         docOpen ? (0, react_jsx_runtime.jsxs)("div", {
                                                         className: m.doc,
                                                         children: [(0, react_jsx_runtime.jsx)("h4", { children: t !== null ? t("docTitle") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("docLead") : "" }), (0, react_jsx_runtime.jsx)("pre", { className: m.docCode, children: t !== null ? t("docCode") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("docWhere") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("docTools") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("docEnv") : "" }), (0, react_jsx_runtime.jsx)("pre", { className: m.docCode, children: t !== null ? t("docEnvCode") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("docEnvNote") : "" }), (0, react_jsx_runtime.jsx)("p", { children: t !== null ? t("docSecret") : "" })]
-                                                }) : null, updateBanner !== null ? (0, react_jsx_runtime.jsxs)("div", {
-                                        className: c.notice,
-                                        "data-kind": "info",
-                                        role: "status",
-                                        children: [(0, react_jsx_runtime.jsx)("span", { className: c.noticeText, children: updateBanner }), (0, react_jsx_runtime.jsx)("button", {
-                                                type: "button",
-                                                className: c.noticeButton,
-                                                onClick: () => { setUpdateBanner(null); },
-                                                children: t !== null ? t("close") : ""
-                                        })]
-                                }) : null, patch?.ok === false ? (0, react_jsx_runtime.jsxs)("div", {
+                                                }) : null, patch?.ok === false ? (0, react_jsx_runtime.jsxs)("div", {
                                         className: c.notice,
                                         "data-kind": "error",
                                         children: [(0, react_jsx_runtime.jsx)("span", { className: c.noticeText, children: t !== null ? t("patchBroken") + " " + (patch.error ?? "") : "" }), (0, react_jsx_runtime.jsx)("button", {
@@ -4624,16 +5473,154 @@ function mcpWireScalar(text) {
                                                 className: m.hint,
                                                 children: t !== null ? t("filteredCount").replace("{visible}", String(filteredServers.length)).replace("{total}", String(servers.length)) : ""
                                         })]
-                                }), loadState.kind === "loading" && servers.length === 0 ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("loading") : "" }) : null, servers.length === 0 && loadState.kind === "ready" ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("empty") : "" }) : null, servers.length > 0 && filteredServers.length === 0 ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("noMatch") : "" }) : null, (0, react_jsx_runtime.jsx)("div", {
+                                }), typeof listMcpGroups === "function" ? (0, react_jsx_runtime.jsxs)("div", {
+                                        className: m.groupRow,
+                                        children: [
+                                                (0, react_jsx_runtime.jsxs)("button", {
+                                                        type: "button",
+                                                        className: m.groupChip,
+                                                        "data-active": mcpGroupFilter === "all" ? "true" : void 0,
+                                                        onClick: () => setMcpGroupFilter("all"),
+                                                        children: [t("groupAll"), (0, react_jsx_runtime.jsx)("span", { className: m.groupChipCount, children: String(servers.length) })]
+                                                }),
+                                                mcpGroups.map((grp) => {
+                                                        const count = servers.reduce((sum, srv) => sum + (Array.isArray(grp.servers) && grp.servers.includes(srv.serverName) ? 1 : 0), 0);
+                                                        return (0, react_jsx_runtime.jsxs)("button", {
+                                                                type: "button",
+                                                                className: m.groupChip,
+                                                                "data-active": mcpGroupFilter === grp.id ? "true" : void 0,
+                                                                onClick: () => setMcpGroupFilter(grp.id),
+                                                                children: [grp.name, (0, react_jsx_runtime.jsx)("span", { className: m.groupChipCount, children: String(count) })]
+                                                        }, grp.id);
+                                                }),
+                                                mcpGroups.length > 0 && ungroupedMcpCount > 0 ? (0, react_jsx_runtime.jsxs)("button", {
+                                                        type: "button",
+                                                        className: m.groupChip,
+                                                        "data-active": mcpGroupFilter === "" ? "true" : void 0,
+                                                        onClick: () => setMcpGroupFilter(""),
+                                                        children: [t("groupUngrouped"), (0, react_jsx_runtime.jsx)("span", { className: m.groupChipCount, children: String(ungroupedMcpCount) })]
+                                                }) : null,
+                                                (0, react_jsx_runtime.jsx)("button", {
+                                                        type: "button",
+                                                        className: m.groupChip,
+                                                        onClick: () => setMcpGroupDialog({ id: null, name: "", servers: new Set(), busy: false, error: null }),
+                                                        children: t("groupNew")
+                                                }),
+                                                activeMcpGroup !== undefined ? (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
+                                                        children: [
+                                                                (0, react_jsx_runtime.jsx)("button", {
+                                                                        type: "button",
+                                                                        className: m.actionBtn,
+                                                                        disabled: groupToggleBusy,
+                                                                        onClick: () => applyMcpGroupBulkToggle(activeMcpGroup),
+                                                                        children: servers.filter((srv) => Array.isArray(activeMcpGroup.servers) && activeMcpGroup.servers.includes(srv.serverName) && srv.disabledExpr !== true).every((srv) => srv.enabled === true) ? t("groupDisableAll") : t("groupEnableAll")
+                                                                }),
+                                                                (0, react_jsx_runtime.jsx)("button", {
+                                                                        type: "button",
+                                                                        className: m.actionBtn,
+                                                                        onClick: () => setMcpGroupDialog({ id: activeMcpGroup.id, name: activeMcpGroup.name, servers: new Set(activeMcpGroup.servers ?? []), busy: false, error: null }),
+                                                                        children: t("groupEdit")
+                                                                })
+                                                        ]
+                                                }) : null
+                                        ]
+                                }) : null, loadState.kind === "loading" && servers.length === 0 ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("loading") : "" }) : null, servers.length === 0 && loadState.kind === "ready" ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: t !== null ? t("empty") : "" }) : null, servers.length > 0 && filteredServers.length === 0 ? (0, react_jsx_runtime.jsx)("p", { className: m.sub, children: mcpQuery === "" && activeMcpGroup !== undefined ? t("groupEmpty") : t("noMatch") }) : null, (0, react_jsx_runtime.jsx)("div", {
                                         className: m.cards,
                                         children: filteredServers.map((server) => safeServerCard(server))
                                 }), editing !== null ? (0, react_jsx_runtime.jsx)(McpFormDialog, {
+                                        key: editing.server?.entryId ?? editing.server?.serverName ?? "__new__",
                                         t: t !== null ? t : (key) => key,
                                         initial: editing.server,
                                         onSave: applySave,
+                                        onOAuthFlow: runOAuthFlowInDialog,
+                                        onOAuthRefresh: applyOAuthRefreshInDialog,
+                                        onOAuthDisconnect: applyOAuthDisconnectInDialog,
                                         onCancel: () => setEditing(null),
                                         busy: dialogBusy,
                                         error: dialogError
+                                }) : null, mcpGroupDialog !== null ? (0, react_jsx_runtime.jsx)("div", {
+                                        className: c.scopeOverlay,
+                                        role: "dialog",
+                                        "aria-modal": "true",
+                                        onClick: closeOnBackdrop(() => setMcpGroupDialog(null), mcpGroupDialog.busy),
+                                        children: (0, react_jsx_runtime.jsxs)("div", {
+                                                className: c.scopeBox,
+                                                children: [
+                                                        (0, react_jsx_runtime.jsx)("h4", { children: mcpGroupDialog.id === null ? t("groupNew") : t("groupEdit") }),
+                                                        (0, react_jsx_runtime.jsxs)("label", {
+                                                                className: m.field,
+                                                                children: [
+                                                                        (0, react_jsx_runtime.jsx)("span", { className: m.label, children: t("groupName") }),
+                                                                        (0, react_jsx_runtime.jsx)("input", {
+                                                                                className: m.input,
+                                                                                value: mcpGroupDialog.name,
+                                                                                placeholder: t("groupName"),
+                                                                                onChange: (event) => {
+                                                                                        const val = event.currentTarget.value;
+                                                                                        setMcpGroupDialog((prev) => prev === null ? null : { ...prev, name: val, error: null });
+                                                                                }
+                                                                        })
+                                                                ]
+                                                        }),
+                                                        (0, react_jsx_runtime.jsxs)("div", {
+                                                                className: m.field,
+                                                                children: [
+                                                                        (0, react_jsx_runtime.jsx)("span", { className: m.label, children: t("groupServers") }),
+                                                                        (0, react_jsx_runtime.jsx)("div", {
+                                                                                className: m.toolsList,
+                                                                                children: servers.map((srv) => (0, react_jsx_runtime.jsxs)("label", {
+                                                                                        className: m.toolRow,
+                                                                                        children: [
+                                                                                                (0, react_jsx_runtime.jsx)("input", {
+                                                                                                        type: "checkbox",
+                                                                                                        checked: mcpGroupDialog.servers.has(srv.serverName),
+                                                                                                        onChange: () => setMcpGroupDialog((prev) => {
+                                                                                                                if (prev === null) return null;
+                                                                                                                const next = new Set(prev.servers);
+                                                                                                                if (next.has(srv.serverName)) next.delete(srv.serverName);
+                                                                                                                else next.add(srv.serverName);
+                                                                                                                return { ...prev, servers: next };
+                                                                                                        })
+                                                                                                }),
+                                                                                                (0, react_jsx_runtime.jsx)("span", { className: m.toolName, children: srv.serverName })
+                                                                                        ]
+                                                                                }, srv.entryId ?? srv.serverName))
+                                                                        })
+                                                                ]
+                                                        }),
+                                                        mcpGroupDialog.error !== null ? (0, react_jsx_runtime.jsx)("div", {
+                                                                className: c.notice,
+                                                                "data-kind": "error",
+                                                                children: (0, react_jsx_runtime.jsx)("span", { className: c.noticeText, children: mcpGroupDialog.error })
+                                                        }) : null,
+                                                        (0, react_jsx_runtime.jsxs)("div", {
+                                                                className: c.scopeActions,
+                                                                children: [
+                                                                        mcpGroupDialog.id !== null ? (0, react_jsx_runtime.jsx)("button", {
+                                                                                type: "button",
+                                                                                className: c.dangerBtn,
+                                                                                disabled: mcpGroupDialog.busy,
+                                                                                onClick: applyMcpGroupDelete,
+                                                                                children: t("groupDelete")
+                                                                        }) : null,
+                                                                        (0, react_jsx_runtime.jsx)("button", {
+                                                                                type: "button",
+                                                                                className: c.scopeAction + " " + c.scopeCancel,
+                                                                                disabled: mcpGroupDialog.busy,
+                                                                                onClick: () => setMcpGroupDialog(null),
+                                                                                children: t("cancel")
+                                                                        }),
+                                                                        (0, react_jsx_runtime.jsx)("button", {
+                                                                                type: "button",
+                                                                                className: c.scopeAction + " " + c.scopeConfirm,
+                                                                                disabled: mcpGroupDialog.busy,
+                                                                                onClick: applyMcpGroupSave,
+                                                                                children: t("save")
+                                                                        })
+                                                                ]
+                                                        })
+                                                ]
+                                        })
                                 }) : null, rawEdit !== null ? (0, react_jsx_runtime.jsx)("div", {
                                         className: c.scopeOverlay,
                                         role: "dialog",
@@ -4760,7 +5747,122 @@ function mcpWireScalar(text) {
 		function CombinedPanelPage(props) {
 			const t = props.t;
 			const mt = props.mt;
+			const checkUpdateRemote = props.checkUpdateRemote;
+			const applyUpdateRemote = props.applyUpdateRemote;
+			const tr = (key) => (t !== null && t !== undefined ? t(key) : "");
 			const [tab, setTab] = react.useState(readLastTab);
+			const [updateState, setUpdateState] = react.useState({
+				phase: "idle",
+				current: "",
+				latest: null,
+				updatedTo: null,
+				canSelfUpdate: true,
+				manual: false,
+				error: null
+			});
+			const applyCheckSnapshot = (snapshot, manual) => {
+				const s = snapshot !== null && typeof snapshot === "object" ? snapshot : null;
+				const current = s !== null && typeof s.current === "string" ? s.current : "";
+				const latest = s !== null && typeof s.latest === "string" ? s.latest : null;
+				const available = s !== null && s.updateAvailable === true && latest !== null;
+				const canSelfUpdate = s !== null && typeof s.canSelfUpdate === "boolean" ? s.canSelfUpdate : true;
+				const checkErr = s !== null && typeof s.error === "string" && s.error !== "" ? s.error : null;
+				setUpdateState((prev) => {
+					if (prev.phase === "updating" || prev.phase === "done") return prev;
+					if (available) {
+						return { phase: "available", current, latest, updatedTo: null, canSelfUpdate, manual, error: null };
+					}
+					if (manual && checkErr !== null) {
+						return { phase: "error", current, latest, updatedTo: null, canSelfUpdate, manual: true, error: checkErr };
+					}
+					return {
+						phase: current !== "" ? "latest" : "idle",
+						current,
+						latest,
+						updatedTo: null,
+						canSelfUpdate,
+						manual,
+						error: null
+					};
+				});
+			};
+			const runCheckUpdate = (manual = false) => {
+				if (typeof checkUpdateRemote !== "function") return;
+				if (manual) {
+					setUpdateState((prev) => ({ ...prev, phase: "checking", manual: true, error: null }));
+				}
+				Promise.resolve().then(() => checkUpdateRemote()).then((snapshot) => {
+					applyCheckSnapshot(snapshot, manual);
+				}, (err) => {
+					if (!manual) return;
+					const msg = err instanceof Error ? err.message : String(err ?? "network error");
+					setUpdateState((prev) => ({ ...prev, phase: "error", manual: true, error: msg }));
+				});
+			};
+			react.useEffect(() => {
+				let active = true;
+				if (typeof checkUpdateRemote !== "function") return;
+				Promise.resolve().then(() => checkUpdateRemote()).then((snapshot) => {
+					if (active) applyCheckSnapshot(snapshot, false);
+				}, () => {
+					// 启动静默检查遇到网络问题不弹窗，保留右上角按钮供手动检查/更新。
+				});
+				return () => { active = false; };
+			}, [checkUpdateRemote]);
+			const triggerApplyUpdate = (targetLatest) => {
+				setUpdateState((prev) => ({ ...prev, phase: "updating", manual: true, error: null }));
+				Promise.resolve().then(() => applyUpdateRemote()).then((res) => {
+					const r = res !== null && typeof res === "object" ? res : null;
+					if (r !== null && r.ok === true) {
+						const updatedTo = typeof r.updatedTo === "string" && r.updatedTo !== "" ? r.updatedTo : targetLatest;
+						setUpdateState((prev) => ({
+							...prev,
+							phase: r.alreadyLatest === true ? "latest" : "done",
+							current: r.alreadyLatest === true ? (updatedTo ?? prev.current) : prev.current,
+							latest: r.alreadyLatest === true ? updatedTo : prev.latest,
+							updatedTo,
+							manual: true,
+							error: null
+						}));
+						return;
+					}
+					const errMsg = r !== null && typeof r.error === "string" && r.error !== "" ? r.error : "unknown error";
+					setUpdateState((prev) => ({ ...prev, phase: "error", manual: true, error: errMsg }));
+				}, (err) => {
+					const msg = err instanceof Error ? err.message : String(err ?? "unknown error");
+					setUpdateState((prev) => ({ ...prev, phase: "error", manual: true, error: msg }));
+				});
+			};
+			const onUpdateClick = () => {
+				if (updateState.phase === "checking" || updateState.phase === "updating") return;
+				if ((updateState.phase === "available" || updateState.phase === "error") && updateState.latest !== null && typeof applyUpdateRemote === "function") {
+					triggerApplyUpdate(updateState.latest);
+					return;
+				}
+				runCheckUpdate(true);
+			};
+			const updateBtnLabel = updateState.phase === "checking"
+				? tr("updateCheckingBtn")
+				: updateState.phase === "updating"
+					? tr("updateApplyingBtn")
+					: updateState.phase === "done"
+						? tr("updateDoneBtn") + (updateState.updatedTo ?? updateState.latest ?? "")
+						: updateState.phase === "available"
+							? tr("updateApplyBtn") + (updateState.latest ?? "")
+							: updateState.phase === "error" && updateState.latest !== null
+								? tr("updateRetryBtn") + updateState.latest
+								: tr("updateCheckBtn");
+			const updateHintText = updateState.phase === "error"
+				? tr("updateFailed") + (updateState.error ?? "")
+				: updateState.phase === "done"
+					? tr("updateDoneHint")
+					: updateState.phase === "latest" && updateState.manual && (updateState.current !== "" || updateState.latest !== null)
+						? tr("updateUpToDate") + (updateState.current !== "" ? updateState.current : updateState.latest)
+						: updateState.phase === "available" && updateState.canSelfUpdate === false
+							? tr("updateCliHint")
+							: updateState.phase === "available" && updateState.current !== ""
+								? "v" + updateState.current + " → v" + updateState.latest
+								: "";
 			const select = (next) => {
 				setTab(next);
 				writeLastTab(next);
@@ -4780,13 +5882,30 @@ function mcpWireScalar(text) {
 			return (0, react_jsx_runtime.jsxs)("div", {
 				className: c.page,
 				"data-tab": tab,
-				children: [(0, react_jsx_runtime.jsx)("div", {
+				children: [(0, react_jsx_runtime.jsxs)("div", {
 					className: c.pageTop,
-					children: (0, react_jsx_runtime.jsx)(PageBack, { label: t !== null && t !== undefined ? t("back") : "", onBack: props.backToConversation })
+					children: [(0, react_jsx_runtime.jsx)(PageBack, { label: tr("back"), onBack: props.backToConversation }), (0, react_jsx_runtime.jsxs)("div", {
+						className: c.updateWrap,
+						children: [updateHintText !== "" ? (0, react_jsx_runtime.jsx)("span", {
+							className: c.updateHint,
+							"data-kind": updateState.phase === "error" ? "error" : "info",
+							title: updateState.error ?? updateHintText,
+							children: updateHintText
+						}) : null, (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: c.updateBtn,
+							"data-available": updateState.phase === "available" ? "true" : "false",
+							"data-done": updateState.phase === "done" ? "true" : "false",
+							disabled: updateState.phase === "checking" || updateState.phase === "updating",
+							title: updateState.current !== "" ? "v" + updateState.current : tr("updateCheckBtn"),
+							onClick: onUpdateClick,
+							children: updateBtnLabel
+						})]
+					})]
 				}), (0, react_jsx_runtime.jsxs)("div", {
 					className: c.tabs,
 					role: "tablist",
-					children: [tabButton("skills", t("nav")), tabButton("mcp", mt("nav"))]
+					children: [tabButton("skills", tr("nav")), tabButton("mcp", mt("nav"))]
 				}), tab === "mcp" ? (0, react_jsx_runtime.jsx)(McpSection, { ...props, t: mt }) : (0, react_jsx_runtime.jsx)(SkillsSection, { ...props })]
 			});
 		}
@@ -4879,6 +5998,7 @@ function mcpWireScalar(text) {
 				saveGroupSkill: (payload) => callRemote("saveGroup", payload),
 				deleteGroupSkill: (payload) => callRemote("deleteGroup", payload),
 				checkUpdateRemote: () => callRemote("checkUpdate"),
+				applyUpdateRemote: (payload) => callRemote("applyUpdate", payload),
 				removeSkill: (name, scope) => callRemote("deleteSkill", name, currentSessionId(), scope),
 				addSkill: (payload) => callRemote("addSkill", currentSessionId(), payload)
 			});
@@ -4894,10 +6014,14 @@ function mcpWireScalar(text) {
 				reloadMcp: () => callMcp("reload"),
 				oauthStart: (payload) => callMcp("oauthStart", payload),
 				oauthPoll: (payload) => callMcp("oauthPoll", payload),
+				oauthRefresh: (payload) => callMcp("oauthRefresh", payload),
 				oauthDisconnect: (payload) => callMcp("oauthDisconnect", payload),
 				listMcpTools: (payload) => callMcp("listTools", payload),
 				getToolFilter: () => callMcp("getToolFilter"),
 				setToolFilter: (payload) => callMcp("setToolFilter", payload),
+				listMcpGroups: () => callMcp("listGroups"),
+				saveMcpGroup: (payload) => callMcp("saveGroup", payload),
+				deleteMcpGroup: (payload) => callMcp("deleteGroup", payload),
 				evacuateForeign: () => callMcp("evacuateForeign"),
 			});
 			// 技能与 MCP 合成一个侧栏入口：注入面同时带两边的动作与字典绑定，

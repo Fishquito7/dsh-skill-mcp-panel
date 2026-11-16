@@ -304,5 +304,49 @@ const jsFlag = patchRowToView({
 assert.equal(jsFlag.disabledExpr, true);
 assert.equal(jsFlag.enabled, false);
 pass("!!js disabled is exposed as disabledExpr for the UI");
+
+// 21. #93：${credential:REF} 不得被裹进 !!js，URL 含模板可通过校验，inject 与 expandTemplates 完整保留
+assert.equal(parseWireScalar("Bearer ${credential:MY_TOKEN}"), "Bearer ${credential:MY_TOKEN}");
+assert.equal(parseWireScalar("https://example.com/${credential:PATH_KEY}/mcp"), "https://example.com/${credential:PATH_KEY}/mcp");
+assert.deepEqual(parseWireScalar("Bearer ${MY_ENV}"), { __jsExpr: "`Bearer ${process.env.MY_ENV}`" });
+const credNewInput = mcpServerInputSchema.parse({
+  serverName: "cred",
+  transport: "streamable-http",
+  url: "https://${credential:HOST}/mcp?k=${credential:QUERY_KEY}",
+  expandTemplates: true,
+  headers: { Authorization: "Bearer ${credential:API_KEY}" }
+});
+const credNewRow = toPatchRow(credNewInput);
+assert.deepEqual(credNewRow.inject, ["credentials"]);
+assert.equal(credNewRow.config.expandTemplates, true);
+assert.equal(credNewRow.config.headers.Authorization, "Bearer ${credential:API_KEY}");
+const credView = patchRowToView(credNewRow);
+assert.equal(credView.expandTemplates, true);
+assert.deepEqual(inputFromPatchRow(credNewRow).expandTemplates, true);
+
+// 22. #93：带 inject: [credentials, logger] 与密文头的旧行经表单编辑后，inject 与密文模板原样保留
+const prevCredRow = {
+  id: "panel-mcp-cred",
+  name: "@deepseek-ai/dsh-mcp-client",
+  inject: ["logger", "credentials"],
+  config: {
+    serverName: "cred",
+    transport: "streamable-http",
+    url: "https://old.example.com/mcp",
+    expandTemplates: true,
+    headers: { Authorization: "Bearer ${credential:SECRET_TOKEN}" }
+  }
+};
+const editedCredRow = applyServerEdit(prevCredRow, {
+  serverName: "cred",
+  transport: "streamable-http",
+  url: "https://new.example.com/mcp",
+  expandTemplates: true,
+  headers: {}
+});
+assert.deepEqual(editedCredRow.inject, ["logger", "credentials"]);
+assert.equal(editedCredRow.config.expandTemplates, true);
+assert.equal(editedCredRow.config.headers.Authorization, "Bearer ${credential:SECRET_TOKEN}");
+pass("${credential:REF}, expandTemplates and inject are preserved without !!js wrapping (#93)");
 console.log("\n" + passed + " passed, 0 failed");
 console.log("ALL MCP MODEL TESTS PASSED");

@@ -1,10 +1,20 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
-import { ToolFilterController, attachToolFilter, loadToolFilter, saveToolFilter, toolFilterFile } from "../lib/tool-filter.js";
+import {
+  ToolFilterController,
+  attachToolFilter,
+  loadToolFilter,
+  loadToolFilterPolicy,
+  profileToolFilterFile,
+  resolveEffectiveDeny,
+  saveToolFilter,
+  saveToolFilterPolicy,
+  toolFilterFile
+} from "../lib/tool-filter.js";
 
 let passed = 0;
 function pass(name) {
@@ -23,6 +33,22 @@ try {
   assert.equal(raw.version, 1);
   assert.equal(toolFilterFile(dshHome).includes(join("skills", ".system", "skill-viewer")), true, "配置要落在发现服务会跳过的隐藏区");
   pass("tool filter config round-trips");
+
+  // 1b. #91：按 profile 目录隔离持久化 + 首次懒迁移旧全局配置 + 清空后不再回流旧配置
+  const profileA = join(dir, "profiles", "web");
+  const profileB = join(dir, "profiles", "mobile");
+  // 懒迁移：profileA 首次缺失时继承 legacy（dshHome 里的 tool-filter.json）并写入 profileA，但旧文件保持完整
+  assert.deepEqual(await loadToolFilter(dshHome, profileA), ["mcp__demo__beta", "mcp__github__search"]);
+  assert.equal(existsSync(profileToolFilterFile(profileA)), true, "懒迁移应把旧配置落到 profileA 自己的目录");
+  assert.deepEqual(await loadToolFilter(dshHome, undefined), ["mcp__demo__beta", "mcp__github__search"], "旧配置文件保持原样");
+  // 不同 profile 互相隔离
+  await saveToolFilter(dshHome, ["mcp__only_b__tool"], profileB);
+  assert.deepEqual(await loadToolFilter(dshHome, profileA), ["mcp__demo__beta", "mcp__github__search"]);
+  assert.deepEqual(await loadToolFilter(dshHome, profileB), ["mcp__only_b__tool"]);
+  // profileA 显式清空为 [] 后不得再被 legacy 回填
+  await saveToolFilter(dshHome, [], profileA);
+  assert.deepEqual(await loadToolFilter(dshHome, profileA), []);
+  pass("profile-scoped tool filter isolates profiles and migrates legacy once (#91)");
 
   // 2. 名字未知时静默跳过（不能因为一个对不上的名字就把限制注册炸掉）
   const stub = new ToolFilterController({ get: () => undefined }, ["mcp__demo__beta"]);
@@ -220,6 +246,89 @@ try {
     assert.deepEqual([...applied], [], "清空禁用列表后限制要撤销");
     controller.dispose();
     assert.equal(listeners.size, 0, "dispose 要把订阅全部摘掉");
+
+    // 5. #55：分层作用域（global ∪ workspace ∪ sessionDeny \ sessionAllow + subagentAllow/Deny）及销毁清理
+    const layeredHome = join(dir, "layered-home");
+    const layeredProfile = join(dir, "layered-profile");
+    const basePolicy = {
+      version: 1,
+      deny: ["mcp__s__global_off", "mcp__s__sub_open"],
+      workspaces: { "C:/Work/ProjA/": ["mcp__s__ws_off"] },
+      roles: { subagentAllow: ["mcp__s__sub_open"], subagentDeny: ["mcp__s__sub_block"] }
+    };
+    await saveToolFilterPolicy(layeredHome, basePolicy, layeredProfile);
+    // saveToolFilter 仅改 global deny 时必须保留已配置的 workspaces 与 roles
+    await saveToolFilter(layeredHome, ["mcp__s__global_off", "mcp__s__sub_open"], layeredProfile);
+    const loadedPolicy = await loadToolFilterPolicy(layeredHome, layeredProfile);
+    assert.deepEqual(loadedPolicy.workspaces["C:/Work/ProjA"], ["mcp__s__ws_off"]);
+    assert.deepEqual(loadedPolicy.roles.subagentAllow, ["mcp__s__sub_open"]);
+
+    const ovMap = new Map([["sess-1", { deny: ["mcp__s__sess_off"], allow: ["mcp__s__global_off"] }]]);
+    const mainProjAgent = { id: "a1", session: { header: { id: "sess-1", cwd: "c:\\Work\\ProjA" } } };
+    assert.deepEqual(
+      resolveEffectiveDeny(loadedPolicy, ovMap, mainProjAgent),
+      ["mcp__s__sess_off", "mcp__s__sub_open", "mcp__s__ws_off"],
+      "主代理叠加 workspace + sessionDeny 并由 sessionAllow 放行 global"
+    );
+    const subAgent = {
+      id: "a2",
+      session: { header: { id: "sess-child", parentSession: "sess-1", origin: "subagent", delegationDepth: 1, cwd: "C:/Work/ProjA" } }
+    };
+    assert.deepEqual(
+      resolveEffectiveDeny(loadedPolicy, ovMap, subAgent),
+      ["mcp__s__sess_off", "mcp__s__sub_block", "mcp__s__ws_off"],
+      "子代理应继承父会话覆盖并应用 subagentAllow/subagentDeny"
+    );
+
+    const scListeners = new Map();
+    const restrictedByAgent = new Map();
+    const scAgents = [];
+    const scCtx = {
+      on: (ev, fn) => {
+        if (!scListeners.has(ev)) scListeners.set(ev, new Set());
+        scListeners.get(ev).add(fn);
+        return () => scListeners.get(ev)?.delete(fn);
+      },
+      get: (name) => name === "agents" ? { list: () => scAgents } : undefined
+    };
+    const makeScopedAgent = (id, sessionHeader) => {
+      let current = [];
+      return {
+        id,
+        session: { header: sessionHeader },
+        ctx: {
+          plugin(p) {
+            p.apply({
+              tools: {
+                view: () => ({ restrictableNames: ["mcp__s__global_off", "mcp__s__sub_open", "mcp__s__ws_off", "mcp__s__sess_off", "mcp__s__sub_block"] }),
+                restrict({ deny: list }) {
+                  current = [...list];
+                  restrictedByAgent.set(id, current);
+                  return () => restrictedByAgent.set(id, []);
+                }
+              },
+              effect() {}
+            });
+            return { dispose() { restrictedByAgent.set(id, []); } };
+          }
+        }
+      };
+    };
+    const aMain = makeScopedAgent("m1", { id: "s1", cwd: "C:/Work/ProjA" });
+    const aSub = makeScopedAgent("s1", { id: "s2", parentSession: "s1", origin: "subagent", delegationDepth: 1, cwd: "C:/Work/ProjA" });
+    scAgents.push(aMain, aSub);
+    const scController = attachToolFilter(scCtx, loadedPolicy);
+    assert.deepEqual(restrictedByAgent.get("m1"), ["mcp__s__global_off", "mcp__s__sub_open", "mcp__s__ws_off"]);
+    assert.deepEqual(restrictedByAgent.get("s1"), ["mcp__s__global_off", "mcp__s__sub_block", "mcp__s__ws_off"]);
+    scController.setSessionOverride("s1", { deny: ["mcp__s__sess_off"], allow: ["mcp__s__global_off"] });
+    assert.deepEqual(restrictedByAgent.get("m1"), ["mcp__s__sess_off", "mcp__s__sub_open", "mcp__s__ws_off"]);
+    assert.deepEqual(restrictedByAgent.get("s1"), ["mcp__s__sess_off", "mcp__s__sub_block", "mcp__s__ws_off"]);
+    for (const fn of scListeners.get("agent/disposed") ?? []) fn({ agent: aMain });
+    scAgents.length = 0;
+    for (const fn of scListeners.get("agent/disposed") ?? []) fn({ agent: aSub });
+    assert.equal(scController.sessionOverrides.has("s1"), false, "会话结束且无存活兄弟代理后应清理内存会话覆盖");
+    scController.dispose();
+    pass("layered tool-filter policy (workspace/session/subagentAllow) applies and cleans up cleanly (#55)");
   }
 } finally {
   await rm(dir, { recursive: true, force: true });

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TypertRemoteService } from "@deepseek-ai/dsh-typert-protocol";
-import { ToolFilterController, attachToolFilter, loadToolFilter } from "./tool-filter.js";
+import { ToolFilterController, attachToolFilter, loadToolFilterPolicy, profileDirOf } from "./tool-filter.js";
 import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join, resolve as resolvePath } from "node:path";
 import { homedir } from "node:os";
@@ -29,11 +29,19 @@ import {
   loadGroups,
   upsertGroup
 } from "./groups.js";
-import { compareVersions, currentVersion, fetchLatestVersion } from "./version.js";
+import { compareVersions, currentVersion, fetchUpdateCheck } from "./version.js";
+import {
+  electronBlockedMessage,
+  readProfile,
+  resolveDshCommand,
+  supportsDesktopCli
+} from "./profiles.js";
+import { installTargetForDeclaredSpec, updateProfilePlugin } from "./updater.js";
 import { McpManagerGateway } from "./mcp/gateway.js";
 import { ensureGlobalShim } from "./global-shim.js";
 import { MCP_MANIFEST } from "./mcp/wire.js";
 import { NestedSkillProvider, NESTED_SKILL_RANK, NESTED_PROVIDER_NAME } from "./provider.js";
+import { OAuthRefreshScheduler } from "./oauth-scheduler.js";
 
 /**
  * dsh-skill-mcp-panel —— 宿主半区。
@@ -96,7 +104,30 @@ const deleteGroupPayloadSchema = z.object({ id: z.string() });
 const checkUpdateResultSchema = z.object({
   current: z.string(),
   latest: z.string().nullable(),
-  updateAvailable: z.boolean()
+  updateAvailable: z.boolean(),
+  canSelfUpdate: z.boolean().optional(),
+  profile: z.string().optional(),
+  rateLimited: z.boolean().optional(),
+  error: z.string().optional()
+});
+const applyUpdatePayloadSchema = z
+  .object({
+    force: z.boolean().optional(),
+    channel: z.enum(["npm", "tarball", "github"]).optional()
+  })
+  .optional();
+const applyUpdateResultSchema = z.object({
+  ok: z.boolean(),
+  current: z.string(),
+  latest: z.string().nullable(),
+  updatedTo: z.string().nullable(),
+  profile: z.string().nullable(),
+  method: z.enum(["add", "remove+add", "none"]),
+  needsRestart: z.boolean(),
+  alreadyLatest: z.boolean().optional(),
+  fallbackUsed: z.string().optional(),
+  electronBlocked: z.boolean().optional(),
+  error: z.string().optional()
 });
 
 const listResultSchema = z.object({ skills: z.array(skillSummarySchema) });
@@ -223,6 +254,23 @@ const MANIFEST = {
       invocation: { kind: "direct" },
       parameters: [],
       result: strictCodec("dsh-skill-mcp-panel#CheckUpdateResult", checkUpdateResultSchema)
+    },
+    {
+      id: "dsh-skill-mcp-panel#skillsViewer/applyUpdate",
+      service: "skillsViewer",
+      namespace: "skillsViewer",
+      method: "applyUpdate",
+      invocation: { kind: "direct" },
+      parameters: [
+        {
+          name: "payload",
+          wire: "payload",
+          source: "json",
+          acceptsUndefined: true,
+          codec: strictCodec("dsh-skill-mcp-panel#ApplyUpdatePayload", applyUpdatePayloadSchema)
+        }
+      ],
+      result: strictCodec("dsh-skill-mcp-panel#ApplyUpdateResult", applyUpdateResultSchema)
     },
     {
       id: "dsh-skill-mcp-panel#skillsViewer/saveGroup",
@@ -453,6 +501,7 @@ export class SkillsViewerGateway extends TypertRemoteService {
    * 交给前端决定显示还是隐藏。
    */
   isPluginProvided(skill: any, roots: any[]) {
+    if (skill.source === "bundled" || skill.source === "runtime") return true;
     if (skill.provider === NESTED_PROVIDER_NAME) return false;
     if (typeof skill.path === "string" && roots.some((root) => this.isWithin(root.path, skill.path))) return false;
     return true;
@@ -584,12 +633,121 @@ export class SkillsViewerGateway extends TypertRemoteService {
     return { groups: this.groupRows(await loadGroups(this.homes().dshHome)) };
   }
 
-  /** 检查插件是否有新版本（对比 GitHub Release 最新版）。 */
+  resolveActiveProfile() {
+    const { dshHome } = this.homes();
+    const rawDir = profileDirOf(this.ctx);
+    const dirName = typeof rawDir === "string" && rawDir !== "" ? basename(resolvePath(rawDir)) : "";
+    const profile = dirName !== "" ? readProfile(dirName, dshHome) : undefined;
+    return { dshHome, profile };
+  }
+
+  /** 检查插件是否有新版本（GitHub Releases + npm fallback），并回报当前 profile 是否支持一键自更新。 */
   async checkUpdate() {
-    const current = currentVersion();
-    const latest = await fetchLatestVersion();
-    if (latest === undefined) return { current, latest: null, updateAvailable: false };
-    return { current, latest, updateAvailable: compareVersions(latest, current) > 0 };
+    const { profile } = this.resolveActiveProfile();
+    const current = profile?.installedVersion ?? currentVersion();
+    const info = await fetchUpdateCheck();
+    const canSelfUpdate =
+      profile !== undefined &&
+      resolveDshCommand() !== undefined &&
+      (!profile.electronOwned || supportsDesktopCli());
+    if (info.latest === null) {
+      return {
+        current,
+        latest: null,
+        updateAvailable: false,
+        canSelfUpdate,
+        ...(profile === undefined ? {} : { profile: profile.name }),
+        ...(info.rateLimited ? { rateLimited: true } : {}),
+        ...(info.error === undefined ? {} : { error: info.error })
+      };
+    }
+    return {
+      current,
+      latest: info.latest,
+      updateAvailable: compareVersions(info.latest, current) > 0,
+      canSelfUpdate,
+      ...(profile === undefined ? {} : { profile: profile.name })
+    };
+  }
+
+  /** 一键原地升级当前 profile 的插件（#96：直装失败时自动 remove + add 并保留挂载）。 */
+  async applyUpdate(payload?: { force?: boolean; channel?: "npm" | "tarball" | "github" }) {
+    const { dshHome, profile } = this.resolveActiveProfile();
+    const current = profile?.installedVersion ?? currentVersion();
+    if (profile === undefined) {
+      return {
+        ok: false,
+        current,
+        latest: null,
+        updatedTo: null,
+        profile: null,
+        method: "none" as const,
+        needsRestart: false,
+        error: "未定位到当前激活的 profile 目录，无法执行自更新。"
+      };
+    }
+    if (profile.electronOwned && !supportsDesktopCli()) {
+      return {
+        ok: false,
+        current,
+        latest: null,
+        updatedTo: null,
+        profile: profile.name,
+        method: "none" as const,
+        needsRestart: false,
+        electronBlocked: true,
+        error: electronBlockedMessage(profile.name)
+      };
+    }
+    const info = await fetchUpdateCheck();
+    if (info.latest === null) {
+      return {
+        ok: false,
+        current,
+        latest: null,
+        updatedTo: null,
+        profile: profile.name,
+        method: "none" as const,
+        needsRestart: false,
+        error: info.rateLimited
+          ? "无法获取最新版本：GitHub API 已限流且 npm 查询失败，请稍后重试。"
+          : "无法获取最新版本：" + (info.error ?? "网络不可达")
+      };
+    }
+    const latest = info.latest;
+    const force = payload?.force === true;
+    if (!force && compareVersions(latest, current) <= 0) {
+      return {
+        ok: true,
+        current,
+        latest,
+        updatedTo: current,
+        profile: profile.name,
+        method: "none" as const,
+        needsRestart: false,
+        alreadyLatest: true
+      };
+    }
+    const spec = installTargetForDeclaredSpec(profile.spec, latest, payload?.channel);
+    const res = await updateProfilePlugin({
+      profile,
+      spec,
+      latestVersion: latest,
+      streamOutput: false,
+      dshHome
+    });
+    return {
+      ok: res.ok,
+      current,
+      latest,
+      updatedTo: res.after ?? (res.ok ? latest : null),
+      profile: profile.name,
+      method: res.retriedWithRemove ? ("remove+add" as const) : ("add" as const),
+      needsRestart: res.ok,
+      ...(res.fallbackUsed === undefined ? {} : { fallbackUsed: res.fallbackUsed }),
+      ...(res.electronBlocked === undefined ? {} : { electronBlocked: res.electronBlocked }),
+      ...(res.error === undefined ? {} : { error: res.error })
+    };
   }
 
   /** 新建或更新分组（设置某工作区下的成员列表）。 */
@@ -726,9 +884,16 @@ export class SkillsViewerGateway extends TypertRemoteService {
     };
   }
 
-  assertEditable(skill) {
-    if (skill.source === "bundled") throw new Error('技能 "' + skill.name + '" 随部署附带，不可修改');
-    if (typeof skill.path !== "string" || skill.path.length === 0) throw new Error('技能 "' + skill.name + '" 没有可修改的文件');
+  assertEditable(skill: any, roots?: any[]) {
+    if (skill.source === "bundled" || skill.source === "runtime") {
+      throw new Error('技能 "' + skill.name + '" 随部署或运行时提供，不可修改');
+    }
+    if (typeof skill.path !== "string" || skill.path.length === 0) {
+      throw new Error('技能 "' + skill.name + '" 没有可修改的文件');
+    }
+    if (Array.isArray(roots) && this.isPluginProvided(skill, roots)) {
+      throw new Error('技能 "' + skill.name + '" 由插件提供，不可修改');
+    }
   }
 
   /** 文件条目的原地启停改名。 */
@@ -758,7 +923,7 @@ export class SkillsViewerGateway extends TypertRemoteService {
     if (located.kind === "missing") throw new Error('技能 "' + name + '" 不存在');
     if (located.kind === "live") {
       const skill = located.skill;
-      this.assertEditable(skill);
+      this.assertEditable(skill, await this.allRoots());
       if (enabled) return { name, enabled: true };
       const target = skill.path + DISABLED_SUFFIX;
       if (await pathExists(target)) throw new Error("目标文件已存在：" + target);
@@ -793,7 +958,7 @@ export class SkillsViewerGateway extends TypertRemoteService {
     if (located.kind === "missing") throw new Error('技能 "' + name + '" 不存在');
     if (located.kind === "live") {
       const skill = located.skill;
-      this.assertEditable(skill);
+      this.assertEditable(skill, await this.allRoots());
       if (basename(skill.path) === "SKILL.md") await rm(dirname(skill.path), { recursive: true, force: true });
       else await rm(skill.path, { force: true });
       return { name };
@@ -1062,23 +1227,26 @@ export class SkillsViewerGateway extends TypertRemoteService {
 export function apply(ctx: any) {
   ensureGlobalShim(ctx.logger);
   new SkillsViewerGateway(ctx);
-  // 单工具禁用（Issue #44）：控制器按 agent 作用域施加限制，网关只负责读写配置。
-  // 配置要异步读盘，所以先给网关一个转接器，控制器就位后它自动开始回话。
+  // 单工具禁用与作用域分层（Issue #44 / #55）：控制器按 agent 作用域施加限制，网关负责读写配置。
   const filterRef: { current: ToolFilterController | undefined } = { current: undefined };
   const toolFilterAdapter = {
     denyOf: () => filterRef.current?.deny,
     setDeny: (deny: string[]) => filterRef.current?.setDeny(deny),
+    policyOf: () => filterRef.current?.policyOf(),
+    setPolicy: (policy: any) => filterRef.current?.setPolicy(policy),
+    setSessionOverride: (sessionId: string, override: any) => filterRef.current?.setSessionOverride(sessionId, override),
+    sessionOverridesObject: () => filterRef.current?.sessionOverridesObject(),
     activeCount: () => filterRef.current?.activeCount() ?? 0
   };
-  new McpManagerGateway(ctx, toolFilterAdapter);
+  const mcpGateway = new McpManagerGateway(ctx, toolFilterAdapter);
   ctx.effect(() => {
     let cancelled = false;
     Promise.resolve()
-      .then(() => loadToolFilter(resolveDshHome()))
-      .then((deny) => {
+      .then(() => loadToolFilterPolicy(resolveDshHome(), profileDirOf(ctx)))
+      .then((policy) => {
         if (cancelled) return;
-        filterRef.current = attachToolFilter(ctx, deny);
-        ctx.logger?.debug?.("dsh-skill-mcp-panel: 单工具禁用生效 " + deny.length + " 条");
+        filterRef.current = attachToolFilter(ctx, policy);
+        ctx.logger?.debug?.("dsh-skill-mcp-panel: 单工具禁用生效 " + policy.deny.length + " 条");
       })
       .catch(() => {
         // 读不到配置就不启用过滤：宁可什么都不禁用，也不要报错挡住插件加载。
@@ -1089,6 +1257,20 @@ export function apply(ctx: any) {
       filterRef.current = undefined;
     };
   }, "dsh-skill-mcp-panel: 单工具禁用");
+  // OAuth 令牌后台主动续期（Issue #80）：提前刷新并将新头写回 cordis.patch.yml。
+  ctx.effect(() => {
+    const scheduler = new OAuthRefreshScheduler({
+      dshHome: resolveDshHome(),
+      onTokenRefreshed: (serverName, record) => mcpGateway.syncAuthHeaderFromOAuth(serverName, record),
+      logger: ctx.logger
+    });
+    mcpGateway.setOAuthScheduler(scheduler);
+    void scheduler.syncFromStore().catch(() => {});
+    return () => {
+      scheduler.dispose();
+      mcpGateway.setOAuthScheduler(undefined);
+    };
+  }, "dsh-skill-mcp-panel: OAuth 自动续期");
   ctx.effect(() => ctx.typert.register(PANEL_MANIFEST), "dsh-skill-mcp-panel: typert manifest");
   ctx.skills.registerProvider((control) => new NestedSkillProvider(NESTED_SKILL_RANK, control.signal, control.invalidate));
 }

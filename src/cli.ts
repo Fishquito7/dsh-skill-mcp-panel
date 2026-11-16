@@ -11,7 +11,7 @@
  * 名字必须已存在，错名一律拒绝（dsh plugin 会拿错名新建 profile，本工具不允许）。
  */
 import { fileURLToPath } from "node:url";
-import { resolve } from "node:path";
+import { isMainEntry } from "./fs-utils.js";
 import { runSkillCli } from "./cli-skill.js";
 import { runMcpCli } from "./cli-mcp.js";
 import { PACKAGE_NAME, currentVersion } from "./version.js";
@@ -22,8 +22,8 @@ function usage() {
     "用法:",
     "  dsh-panel skill <command> [args]    技能管理（list / enable / disable / delete / add / scope / migrate / update）",
     "  dsh-panel mcp <command> [args]      MCP 服务器管理（list / add / remove / enable / disable / test / update）",
-    "  dsh-panel update [--yes] [--profile <name>]",
-    "                                      检查并更新 dsh-skill-mcp-panel",
+    "  dsh-panel update [--yes] [--profile <name>] [--channel <npm|tarball|github>] [--force]",
+    "                                      检查并更新 dsh-skill-mcp-panel（失败时自动卸载重装恢复）",
     "                                      不带 --profile = 升级全部已安装本插件的 profile",
     "  dsh-panel profiles                  列出所有 profile 的安装状态、版本与安装 spec",
     "  dsh-panel --version                 显示当前入口的版本",
@@ -90,9 +90,7 @@ export async function runPanelCli(args: string[]): Promise<number> {
   return 2;
 }
 
-const directPath = process.argv[1] ? resolve(process.argv[1]) : undefined;
-const modulePath = fileURLToPath(import.meta.url);
-if (directPath !== undefined && (directPath === modulePath || resolve(directPath) === resolve(modulePath))) {
+if (isMainEntry(import.meta.url)) {
   runPanelCli(process.argv.slice(2)).then((code) => {
     if (code !== 0) process.exitCode = code;
   }).catch((error) => {

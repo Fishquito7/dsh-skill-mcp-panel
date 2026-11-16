@@ -60,11 +60,15 @@ export function expressionToDisplay(expression: string): string {
   return template[1].replace(ENV_REF_FROM_EXPRESSION_RE, (_match, name: string) => "${" + name + "}");
 }
 
+/** 匹配 ${credential:REF} 凭据模板引用（#93）。 */
+export const CREDENTIAL_REF_RE = /\$\{credential:([A-Za-z_][A-Za-z0-9_]*)\}/g;
+
 /**
- * 文本形式 → wire 值，三种写法都认：
- *   1. `${NAME}` / `Bearer ${NAME}` —— 直觉写法，自动包成 !!js 模板字面量；
- *   2. 已经写好的反引号模板 —— 同样补 process.env，不动其余内容；
- *   3. `!!js <表达式>` —— 进阶逃生口，原样透传（不解析、不重写）。
+ * 文本形式 → wire 值，四种写法都认：
+ *   1. `${NAME}` / `Bearer ${NAME}` —— 环境变量直觉写法，自动包成 !!js 模板字面量；
+ *   2. `${credential:REF}` —— 凭据模板引用（expandTemplates 机制），保持纯字符串不包 !!js；
+ *   3. 已经写好的反引号模板 —— 同样补 process.env，不动其余内容；
+ *   4. `!!js <表达式>` —— 进阶逃生口，原样透传（不解析、不重写）。
  */
 export function parseWireScalar(text: string): WireScalar {
   const raw = String(text);
@@ -73,7 +77,9 @@ export function parseWireScalar(text: string): WireScalar {
     const expression = trimmed.slice(JS_EXPR_PREFIX.length).trim();
     return expression === "" ? raw : { __jsExpr: expression };
   }
-  if (!trimmed.includes("${")) return raw;
+  const isBacktickTemplate = trimmed.length > 1 && trimmed.startsWith("`") && trimmed.endsWith("`") && trimmed.includes("${");
+  const hasEnvRef = new RegExp(ENV_REF_RE.source).test(raw) || raw.includes("${process.env.");
+  if (!isBacktickTemplate && !hasEnvRef) return raw;
   if (trimmed.length > 1 && trimmed.startsWith("`") && trimmed.endsWith("`")) return { __jsExpr: envRefsToExpression(trimmed) };
   return { __jsExpr: "`" + envRefsToExpression(raw) + "`" };
 }
@@ -93,8 +99,12 @@ function asWireScalar(value: unknown, fallback: WireScalar = ""): WireScalar {
   return fallback;
 }
 
-/** 地址：普通字符串必须是合法 URL；!!js 表达式由宿主求值后自行负责。 */
-const urlSchema = z.union([z.string().url("服务器地址必须是合法 URL"), jsExprSchema]);
+/** 地址：普通字符串必须是合法 URL（允许含 ${credential:REF}）；!!js 表达式由宿主求值后自行负责。 */
+const urlStringSchema = z.string().refine(
+  (value) => z.string().url().safeParse(value.replace(CREDENTIAL_REF_RE, "cred_ref")).success,
+  "服务器地址必须是合法 URL"
+);
+const urlSchema = z.union([urlStringSchema, jsExprSchema]);
 
 /** 命令：普通字符串不能为空；!!js 表达式里写什么由用户决定。 */
 const commandSchema = z.union([z.string().min(1, "命令不能为空"), jsExprSchema]);
@@ -118,6 +128,7 @@ export const stdioServerSchema = z.object({
   cwd: wireScalarSchema.default(""),
   toolCallTimeoutMs: z.number().int().min(1).default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
   failOnStartupError: z.boolean().default(false),
+  expandTemplates: z.boolean().optional(),
   reconnect: reconnectSchema
 });
 
@@ -128,6 +139,7 @@ export const httpServerSchema = z.object({
   headers: secretMapSchema,
   toolCallTimeoutMs: z.number().int().min(1).default(DEFAULT_TOOL_CALL_TIMEOUT_MS),
   failOnStartupError: z.boolean().default(false),
+  expandTemplates: z.boolean().optional(),
   reconnect: reconnectSchema
 });
 
@@ -203,12 +215,36 @@ function normalizeReconnect(input: McpServerInput): ReconnectConfig {
   };
 }
 
+function hasCredentialRef(value: unknown): boolean {
+  if (typeof value === "string") return new RegExp(CREDENTIAL_REF_RE.source).test(value);
+  if (Array.isArray(value)) return value.some((item) => hasCredentialRef(item));
+  if (value !== null && typeof value === "object" && !isJsExprValue(value)) {
+    return Object.values(value as Record<string, unknown>).some((item) => hasCredentialRef(item));
+  }
+  return false;
+}
+
+function ensureInjectService(existing: unknown, service: string): unknown {
+  if (Array.isArray(existing)) {
+    return existing.includes(service) ? existing : [...existing, service];
+  }
+  if (typeof existing === "string" && existing !== "") {
+    return existing === service ? [existing] : [existing, service];
+  }
+  if (existing !== null && typeof existing === "object") {
+    const map = existing as Record<string, unknown>;
+    return service in map ? map : { ...map, [service]: true };
+  }
+  return [service];
+}
+
 /** 面板输入 → 官方 @deepseek-ai/dsh-mcp-client 配置。 */
 export function toOfficialConfig(input: McpServerInput): Record<string, unknown> {
   const common = {
     serverName: input.serverName,
     toolCallTimeoutMs: input.toolCallTimeoutMs,
     failOnStartupError: input.failOnStartupError,
+    ...(input.expandTemplates === true ? { expandTemplates: true } : {}),
     reconnect: normalizeReconnect(input)
   };
   if (input.transport === "stdio") {
@@ -231,11 +267,14 @@ export function toOfficialConfig(input: McpServerInput): Record<string, unknown>
 
 /** 面板输入 → cordis.patch.yml 行。 */
 export function toPatchRow(input: McpServerInput, enabled = true): PatchRow {
+  const config = toOfficialConfig(input);
+  const needsCredentials = input.expandTemplates === true || hasCredentialRef(config);
   return {
     id: rowIdForServerName(input.serverName),
     name: MCP_PLUGIN_NAME,
     ...(enabled ? {} : { disabled: true }),
-    config: toOfficialConfig(input)
+    ...(needsCredentials ? { inject: ["credentials"] } : {}),
+    config
   };
 }
 
@@ -263,6 +302,7 @@ export interface McpServerView {
   headerKeys: string[];
   toolCallTimeoutMs: number;
   failOnStartupError: boolean;
+  expandTemplates?: boolean;
   reconnect: ReconnectConfig;
 }
 
@@ -321,6 +361,7 @@ export function patchRowToView(row: PatchRow): McpServerView | undefined {
     headerKeys: transport === "streamable-http" ? secretKeys(config.headers) : [],
     toolCallTimeoutMs: asNumber(config.toolCallTimeoutMs, DEFAULT_TOOL_CALL_TIMEOUT_MS),
     failOnStartupError: asBoolean(config.failOnStartupError, false),
+    ...(config.expandTemplates === true ? { expandTemplates: true } : {}),
     reconnect: {
       enabled: asBoolean(reconnectRaw.enabled, DEFAULT_RECONNECT.enabled),
       initialDelayMs: asNumber(reconnectRaw.initialDelayMs, DEFAULT_RECONNECT.initialDelayMs),
@@ -356,6 +397,7 @@ export function inputFromPatchRow(row: PatchRow): McpServerInput {
     serverName,
     toolCallTimeoutMs: asNumber(config.toolCallTimeoutMs, DEFAULT_TOOL_CALL_TIMEOUT_MS),
     failOnStartupError: asBoolean(config.failOnStartupError, false),
+    ...(config.expandTemplates === true ? { expandTemplates: true } : {}),
     reconnect: {
       enabled: asBoolean((config.reconnect as any)?.enabled, DEFAULT_RECONNECT.enabled),
       initialDelayMs: asNumber((config.reconnect as any)?.initialDelayMs, DEFAULT_RECONNECT.initialDelayMs),
@@ -393,6 +435,7 @@ const MODELED_CONFIG_KEYS = new Set([
   "headers",
   "toolCallTimeoutMs",
   "failOnStartupError",
+  "expandTemplates",
   "reconnect"
 ]);
 
@@ -427,8 +470,13 @@ export function applyServerEdit(previous: PatchRow | undefined, input: McpServer
   }
   row.config = config;
   for (const [key, value] of Object.entries(previous)) {
-    if (key === "id" || key === "name" || key === "disabled" || key === "config") continue;
+    if (key === "id" || key === "name" || key === "disabled" || key === "config" || key === "inject") continue;
     if (!(key in row)) row[key] = value;
+  }
+  if (previous.inject !== undefined) row.inject = previous.inject;
+  else delete row.inject;
+  if (config.expandTemplates === true || hasCredentialRef(config)) {
+    row.inject = ensureInjectService(row.inject, "credentials");
   }
   return row;
 }

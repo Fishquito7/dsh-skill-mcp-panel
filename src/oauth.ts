@@ -23,10 +23,25 @@
  * 发现服务会跳过的隐藏区，但仍属明文，`README` 里明确写清。
  */
 import { createServer } from "node:http";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
+import { writeFileAtomic } from "./fs-utils.js";
 import { groupsRoot } from "./groups.js";
+
+const storeLocks = new Map<string, Promise<unknown>>();
+
+/** 对同一个 oauth.json 文件的读写修改串行化，避免并发写互相覆盖。 */
+export function withOAuthStoreLock<T>(dshHome: any, fn: () => Promise<T>): Promise<T> {
+  const key = oauthFile(dshHome);
+  const prev = storeLocks.get(key) ?? Promise.resolve();
+  const next = prev.then(fn, fn);
+  const tail = next.then(() => undefined, () => undefined);
+  storeLocks.set(key, tail);
+  return next.finally(() => {
+    if (storeLocks.get(key) === tail) storeLocks.delete(key);
+  });
+}
 
 /** OAuth 令牌与客户端信息的持久化文件。 */
 export function oauthFile(dshHome) {
@@ -46,31 +61,40 @@ export async function loadOAuthStore(dshHome): Promise<Record<string, any>> {
   return {};
 }
 
+async function writeOAuthStore(dshHome: any, store: Record<string, any>): Promise<void> {
+  await writeFileAtomic(oauthFile(dshHome), JSON.stringify({ version: 1, servers: store }, null, 2) + "\n", { mode: 0o600, dirMode: 0o700 });
+}
+
+/** 在文件锁内原位读取并更新单条 OAuth 记录；回调返回 undefined 表示删除。 */
+export async function updateOAuthRecord<T = any>(
+  dshHome: any,
+  serverName: string,
+  updater: (current: any, store: Record<string, any>) => any | Promise<any>
+): Promise<T> {
+  return withOAuthStoreLock(dshHome, async () => {
+    const store = await loadOAuthStore(dshHome);
+    const next = await updater(store[serverName], store);
+    if (next === undefined) {
+      if (store[serverName] !== undefined) {
+        delete store[serverName];
+        await writeOAuthStore(dshHome, store);
+      }
+      return undefined as T;
+    }
+    store[serverName] = next;
+    await writeOAuthStore(dshHome, store);
+    return next as T;
+  });
+}
+
 /** 写入一个服务器的 OAuth 记录（原子写）。 */
 export async function saveOAuthRecord(dshHome, serverName: string, record: any): Promise<void> {
-  const store = await loadOAuthStore(dshHome);
-  store[serverName] = record;
-  const path = oauthFile(dshHome);
-  await mkdir(dirname(path), { recursive: true });
-  const body = JSON.stringify({ version: 1, servers: store }, null, 2) + "\n";
-  const temp = path + ".tmp-" + process.pid + "-" + Math.random().toString(36).slice(2, 8);
-  await writeFile(temp, body, "utf8");
-  try {
-    await rename(temp, path);
-  } catch (error) {
-    if (error === null || typeof error !== "object" || !["EPERM", "EEXIST", "EACCES"].includes((error as NodeJS.ErrnoException).code ?? "")) throw error;
-    await writeFile(path, body, "utf8");
-  }
+  await updateOAuthRecord(dshHome, serverName, () => record);
 }
 
 /** 删掉一个服务器的 OAuth 记录（断开连接）。 */
 export async function removeOAuthRecord(dshHome, serverName: string): Promise<void> {
-  const store = await loadOAuthStore(dshHome);
-  if (store[serverName] === undefined) return;
-  delete store[serverName];
-  const path = oauthFile(dshHome);
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, JSON.stringify({ version: 1, servers: store }, null, 2) + "\n", "utf8");
+  await updateOAuthRecord(dshHome, serverName, () => undefined);
 }
 
 /* ── 发现与注册 ─────────────────────────────────────────────────────────── */
@@ -110,6 +134,39 @@ export interface DiscoveryResult {
 export interface DiscoveryOptions {
   timeoutMs?: number;
   budgetMs?: number;
+  /** 已知的 `WWW-Authenticate` 响应头，直接按其中的 `resource_metadata` URL 发现。 */
+  wwwAuthenticate?: string;
+  /** 常规 well-known 路径都失败时，向端点发探针读取 401 `WWW-Authenticate` 头。 */
+  probeChallenge?: boolean;
+}
+
+/** 从 RFC 9728 `WWW-Authenticate` 头提取 `resource_metadata` URL。 */
+export function parseResourceMetadataHeader(header: string | null | undefined, baseUrl?: string): string | undefined {
+  if (typeof header !== "string" || header.trim() === "") return undefined;
+  const match = header.match(/(?:^|[\s,])resource_metadata\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s,;]+))/i);
+  const raw = (match?.[1] ?? match?.[2] ?? match?.[3] ?? "").trim();
+  if (raw === "") return undefined;
+  try {
+    const resolved = baseUrl !== undefined ? new URL(raw, baseUrl) : new URL(raw);
+    return isHttpUrl(resolved) ? resolved.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function readHeaderValue(headers: any, targetName: string): string | undefined {
+  if (headers === null || headers === undefined) return undefined;
+  if (typeof headers.get === "function") {
+    const val = headers.get(targetName);
+    return typeof val === "string" ? val : undefined;
+  }
+  if (typeof headers === "object") {
+    const lower = targetName.toLowerCase();
+    for (const [k, v] of Object.entries(headers)) {
+      if (k.toLowerCase() === lower && typeof v === "string") return v;
+    }
+  }
+  return undefined;
 }
 
 function trimTrailingSlash(value: string): string {
@@ -336,18 +393,7 @@ export async function discoverMetadataDetailed(serverUrl: string, fetchImpl: any
     }
   };
 
-  for (const target of candidates) {
-    const body = await fetchJson(target);
-    if (body === undefined) continue;
-    const verdict = validateAuthorizationServerMetadata(body, target);
-    if (verdict.metadata !== undefined) {
-      annotate(target, { kind: "as", note: verdict.note });
-      return { metadata: verdict.metadata, attempts };
-    }
-    if (!Array.isArray(body.authorization_servers)) {
-      mark(target, verdict.reason ?? "不是有效的 AS 元数据");
-      continue;
-    }
+  const resolvePrmTarget = async (target: string, body: any): Promise<DiscoveryResult | undefined> => {
     // 这是 PRM：`kind` 记录「本 URL 是 PRM」，resource 的采用 / 忽略写进 note；
     // 真正的失败原因（找不到可用 AS）在二次发现结束后才写，避免把成功信息塞进 reason。
     annotate(target, { kind: "prm", note: "PRM：authorization_servers 驱动二次发现" });
@@ -378,6 +424,86 @@ export async function discoverMetadataDetailed(serverUrl: string, fetchImpl: any
       }
     }
     mark(target, "PRM 未找到可用的授权服务器元数据");
+    return undefined;
+  };
+
+  if (options.wwwAuthenticate !== undefined) {
+    const prmTarget = parseResourceMetadataHeader(options.wwwAuthenticate, discoveryEndpoint(serverUrl).endpoint);
+    if (prmTarget !== undefined) {
+      const prmBody = await fetchJson(prmTarget);
+      if (prmBody !== undefined) {
+        if (Array.isArray(prmBody.authorization_servers)) {
+          annotate(prmTarget, { note: "来源：WWW-Authenticate resource_metadata" });
+          const found = await resolvePrmTarget(prmTarget, prmBody);
+          if (found !== undefined) return found;
+        } else {
+          const verdict = validateAuthorizationServerMetadata(prmBody, prmTarget);
+          if (verdict.metadata !== undefined) {
+            annotate(prmTarget, { kind: "as", note: verdict.note });
+            return { metadata: verdict.metadata, attempts };
+          }
+          mark(prmTarget, verdict.reason ?? "不是有效的 PRM/AS 元数据");
+        }
+      }
+    }
+  }
+
+  for (const target of candidates) {
+    const body = await fetchJson(target);
+    if (body === undefined) continue;
+    const verdict = validateAuthorizationServerMetadata(body, target);
+    if (verdict.metadata !== undefined) {
+      annotate(target, { kind: "as", note: verdict.note });
+      return { metadata: verdict.metadata, attempts };
+    }
+    if (!Array.isArray(body.authorization_servers)) {
+      mark(target, verdict.reason ?? "不是有效的 AS 元数据");
+      continue;
+    }
+    const found = await resolvePrmTarget(target, body);
+    if (found !== undefined) return found;
+  }
+
+  if (options.probeChallenge === true && deadline - Date.now() > 0) {
+    const challengeUrl = normalizeServerUrl(serverUrl);
+    for (const init of [
+      { method: "GET", headers: { accept: "application/json, text/event-stream" } },
+      {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json, text/event-stream" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize" })
+      }
+    ]) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      try {
+        const response = await fetchImpl(challengeUrl, {
+          ...init,
+          signal: AbortSignal.timeout(Math.max(1, Math.min(timeoutMs, remaining)))
+        });
+        const header = readHeaderValue(response?.headers, "www-authenticate");
+        const prmTarget = parseResourceMetadataHeader(header, challengeUrl);
+        if (prmTarget !== undefined) {
+          const prmBody = await fetchJson(prmTarget);
+          if (prmBody !== undefined && Array.isArray(prmBody.authorization_servers)) {
+            annotate(prmTarget, { note: "来源：WWW-Authenticate resource_metadata" });
+            const found = await resolvePrmTarget(prmTarget, prmBody);
+            if (found !== undefined) return found;
+          } else if (prmBody !== undefined) {
+            const verdict = validateAuthorizationServerMetadata(prmBody, prmTarget);
+            if (verdict.metadata !== undefined) {
+              annotate(prmTarget, { kind: "as", note: verdict.note });
+              return { metadata: verdict.metadata, attempts };
+            }
+            mark(prmTarget, verdict.reason ?? "不是有效的 PRM 文档（缺少 authorization_servers）");
+          }
+          break;
+        }
+        if (response?.status === 401) break;
+      } catch {
+        // 探针失败，保留既有的 discovery 诊断
+      }
+    }
   }
 
   return { attempts };
@@ -541,28 +667,97 @@ export async function exchangeCode(metadata: any, clientId: string, code: string
   return normalizeTokenResponse(await response.json());
 }
 
+const PERMANENT_OAUTH_ERROR_CODES = new Set([
+  "invalid_grant",
+  "invalid_client",
+  "unauthorized_client"
+]);
+
+/** 抹掉错误文本中的令牌/密钥，防止写进日志或 UI 状态。 */
+export function redactOAuthText(text: string): string {
+  return String(text ?? "")
+    .replace(/(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]{4,}/gi, "$1 [REDACTED]")
+    .replace(/("(?:access_token|refresh_token|id_token|client_secret|code_verifier)"\s*:\s*)"[^"]*"/gi, "$1\"[REDACTED]\"")
+    .replace(/\b(access_token|refresh_token|id_token|client_secret|code_verifier)=([^\s&]+)/gi, "$1=[REDACTED]");
+}
+
+/** 带永久性失败分类的 OAuth 刷新错误。 */
+export class OAuthRefreshError extends Error {
+  permanent: boolean;
+  status?: number;
+  errorCode?: string;
+
+  constructor(message: string, opts: { permanent: boolean; status?: number; errorCode?: string }) {
+    super(redactOAuthText(message));
+    this.name = "OAuthRefreshError";
+    this.permanent = opts.permanent;
+    this.status = opts.status;
+    this.errorCode = opts.errorCode;
+  }
+}
+
+/** 解析 OAuth token endpoint 的失败响应并判定是否为永久错误（不可重试）。 */
+export function parseOAuthErrorBody(status: number | undefined, rawText: string): { errorCode?: string; summary: string; permanent: boolean } {
+  let errorCode: string | undefined;
+  let description: string | undefined;
+  const trimmed = String(rawText ?? "").trim();
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed: any = JSON.parse(trimmed);
+      if (typeof parsed?.error === "string" && parsed.error !== "") errorCode = parsed.error.trim();
+      if (typeof parsed?.error_description === "string" && parsed.error_description !== "") description = parsed.error_description.trim();
+    } catch {
+      // ignore non-JSON
+    }
+  }
+  const clientStatus = status === 400 || status === 401 || status === 403;
+  const codePermanent = errorCode !== undefined && PERMANENT_OAUTH_ERROR_CODES.has(errorCode.toLowerCase());
+  const textPermanent = errorCode === undefined && clientStatus && /\b(invalid_grant|invalid_client|unauthorized_client)\b/i.test(trimmed);
+  const permanent = clientStatus && (codePermanent || textPermanent);
+  const base = errorCode !== undefined ? (description !== undefined ? errorCode + ": " + description : errorCode) : trimmed;
+  const clean = redactOAuthText(base);
+  const summary = clean.length > 200 ? clean.slice(0, 200) + "…" : clean;
+  return { errorCode, summary, permanent };
+}
+
 /** 刷新令牌；resource 与授权/换令牌时保持一致。 */
 export async function refreshTokens(metadata: any, clientId: string, refreshToken: string, resourceOrFetch?: any, fetchImpl: any = fetch): Promise<any> {
+  const endpoint = metadata?.token_endpoint;
+  if (typeof endpoint !== "string" || endpoint === "") {
+    throw new OAuthRefreshError("刷新令牌失败：缺少 token_endpoint", { permanent: false });
+  }
   const resource = typeof resourceOrFetch === "string" ? resourceOrFetch : undefined;
   const fetchFn = typeof resourceOrFetch === "function" ? resourceOrFetch : fetchImpl;
-  const body = new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken, client_id: clientId });
+  const body = new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken });
+  if (typeof clientId === "string" && clientId !== "") body.set("client_id", clientId);
   if (resource !== undefined && resource !== "") body.set("resource", resource);
-  const response = await fetchFn(metadata.token_endpoint, {
+  const response = await fetchFn(endpoint, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
     body: body.toString()
   });
-  if (response?.ok !== true) throw new Error("刷新令牌失败（HTTP " + String(response?.status ?? "?") + "）：" + String(await safeText(response)));
+  if (response?.ok !== true) {
+    const raw = await rawResponseText(response);
+    const parsed = parseOAuthErrorBody(typeof response?.status === "number" ? response.status : undefined, raw);
+    throw new OAuthRefreshError(
+      "刷新令牌失败（HTTP " + String(response?.status ?? "?") + "）：" + parsed.summary,
+      { permanent: parsed.permanent, status: typeof response?.status === "number" ? response.status : undefined, errorCode: parsed.errorCode }
+    );
+  }
   return normalizeTokenResponse(await response.json(), { refreshToken });
 }
 
-async function safeText(response: any): Promise<string> {
+async function rawResponseText(response: any): Promise<string> {
   try {
-    const text = await response.text();
-    return text.length > 200 ? text.slice(0, 200) + "…" : text;
+    return String(await response.text());
   } catch {
     return "";
   }
+}
+
+async function safeText(response: any): Promise<string> {
+  const clean = redactOAuthText(await rawResponseText(response));
+  return clean.length > 200 ? clean.slice(0, 200) + "…" : clean;
 }
 
 /** 令牌是否已经/即将过期（默认提前 60 秒视为过期）。 */

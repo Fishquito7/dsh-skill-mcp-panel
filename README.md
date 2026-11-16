@@ -69,24 +69,22 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 
 ## 安装
 
-1. 安装本包，二选一（桌面端用户请在内置插件安装器中输入'...add'后面的内容）：
+1. 安装本包（推荐通过 npm 安装，可在 DSH 内置「插件」页一键更新；桌面端用户在内置插件安装器里直接填 `dsh-skill-mcp-panel`）：
 
-   **方式一：GitHub Release tarball**（推荐，恒定指向最新版）
-
-   ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/latest/download/dsh-skill-mcp-panel.tgz
-   ```
-
-   这是**无版本号的稳定链接**：每次发版都同时上传别名 `dsh-skill-mcp-panel.tgz`（恒定指向最新版）与带版本号的
-   `dsh-skill-mcp-panel-<版本>.tgz`，所以这条命令不随版本改。需要锁定具体版本时，把 `latest/download/dsh-skill-mcp-panel.tgz`
-   换成 `download/v<版本>/dsh-skill-mcp-panel-<版本>.tgz` 即可。
-
-   **方式二：npm（预构建，插件市场同款通道）**
+   **方式一：npm（推荐，支持 DSH 桌面端/Web 内置「插件」页直接更新）**
 
    ```bash
    dsh plugin --profile web add dsh-skill-mcp-panel
    ```
 
+   **方式二：GitHub Release tarball**（离线或无法访问 npm 镜像时使用）
+
+   ```bash
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/latest/download/dsh-skill-mcp-panel.tgz
+   ```
+
+   > **重要提示**：DSH 内置插件管理器仅对 npm 包（如 `dsh-skill-mcp-panel`）或固定 40 位 commit 的 Git 依赖开放界面更新按钮。若通过 `.tgz` 链接安装，桌面端「插件」页无法就地更新（再输一次同一 `.tgz` 链接也会被 pnpm 缓存跳过），需要先卸载再改用 `dsh-skill-mcp-panel` 重装；非桌面 profile（如 `web`）也可在终端用 `dsh-panel update` 按版本化 tarball 升级。需要锁定具体版本时，可改用 `download/v<版本>/dsh-skill-mcp-panel-<版本>.tgz`。
+   >
    > 两种方式都安装预构建产物，无需本地构建。也可以从 Git 安装（Git 来源的依赖默认禁止运行 prepare 构建脚本；若报
    > `git-hosted plugins build on install...`，把 pnpm 在上面打印的 key 加到 profile 目录 `pnpm-workspace.yaml`
    > 的 `allowBuilds` 下再重跑）：
@@ -127,7 +125,7 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 确需在老宿主上使用，用宿主打印的精确版本豁免：
 
 ```bash
-dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.12 --dsh-version <宿主版本> --accept-risk
+dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.16 --dsh-version <宿主版本> --accept-risk
 ```
 
 ## 命令行
@@ -227,8 +225,7 @@ dsh-panel mcp update                      # 等价于 dsh-panel update
 - 更新**保持该 profile 原本的安装渠道**：tarball 装的仍走 tarball（换成对应版本的版本化 URL），npm 装的仍走 npm 并钉到该版本，
   Git（或来源未知）装的仍用 `github:Fishquito7/dsh-skill-mcp-panel#v<版本>`。
 - 已经是最新的 profile 会被跳过，不会被重装。
-- `desktop` 由 DSH 桌面应用独占，宿主的 `dsh plugin --profile desktop` 会直接报错；自动枚举时跳过并说明，
-  显式 `--profile desktop` 时以退出码 2 报错。
+- `desktop` 在旧版独立 CLI 下会由宿主拒绝管理（自动枚举时跳过、显式指定时报错），而在 **DSH 0.2.2+ 桌面端自带 CLI** 下以及面板右上角**更新按钮**均已支持直接原地升级（v2.3.16 起直装失败时自动执行卸载重装恢复并保留 `bundles` 挂载，无需手工卸载再重装）。
 - 更新完成后：客户端 bundle 热更新（刷新页面即可），服务端改动需要重启对应 profile 的网关。
 
 CLI 只扫描当前目录锚定的项目根与用户根；管理其他工作区的技能请加 `--cwd <工作区路径>`。
@@ -268,6 +265,12 @@ dsh plugin --profile web remove dsh-skill-mcp-panel
 
 只列**会改变使用方式**的版本要点；完整改动见 [Releases](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases)。
 
+- **v2.3.16** —— **更新闭环与 MCP / 技能 / OAuth 全面增强**：
+  - **更新自愈与顶部更新按钮（#96）**：面板顶部右上角常驻更新按钮（替代原被动横幅），点击即可检查并在面板内一键原地升级；统一更新执行器（`updater.ts`）修复 npm semver range（`^` / `~` / 精确版本）误走 Git 渠道的问题、自动识别 DSH 0.2.2+ 桌面端自带 CLI（支持 `desktop` profile，提供 `--channel` / `--force` / `-y`），直接 `add` 失败时自动 `remove` + `add` 并保留 `dsh.profile.bundles` 挂载（npm 受 `minimum-release-age` 阻塞时回退 GitHub Release `.tgz`），GitHub API 限流时自动回退 npm registry 查询最新版。
+  - **MCP 分组与分层工具过滤（#55 / #91 / #92 / #99 第一阶段）**：新增 MCP 逻辑分组（`mcp-groups.json`，不修改 `cordis.patch.yml`）；`tool-filter.json` 按激活 DSH profile 隔离持久化并一次迁移旧配置，支持全局 / 工作区 / 当前会话（纯内存） / 子代理例外四层作用域；工具清单直接展示每个工具的描述与模型可见数量。
+  - **OAuth 主动自动刷新与弹窗闭环（#80）**：新增到期前主动自动刷新调度器 `OAuthRefreshScheduler`（持久轮换 `refresh_token` 并热更新请求头，错误脱敏）、支持 `WWW-Authenticate` `resource_metadata` 发现；OAuth 登录 / 重认证 / 刷新 / 断开移入服务器添加/编辑弹窗内一次完成，首页卡片精简并保留「需重新认证」跳转徽章。
+  - **技能分组、拖拽与插件只读保护（#83 / #78 / #76 / #90）**：保留工具栏「新建分组」图标并让中栏底部「＋ 新建分组」直接打开完整分组编辑器；支持中栏分组行内联开关全组、批量栏「分组…」快速增删成员，以及将技能卡片直接拖拽进中栏分组或左轨工作区；所有插件自带技能（含 `source: "custom"` 等包内技能）统一只读展示并由前后端双重拦截修改与删除。
+  - **凭证模板与符号链接 CLI 修复（#93 / #94 / #95）**：MCP 表单保留 `inject` 等条目级扩展字段与原始 `${credential:REF}` 模板并自动开启 `expandTemplates`；面板「测试连接」与 `dsh-panel mcp test` 支持解析 `${credential:REF}` 并在报错信息中脱敏；`dsh-panel` 通过 `.bin` 符号链接 / Windows junction 执行时正确解析真实入口。
 - **v2.3.12** —— **修「关掉 MCP 之后卡片信息全丢、再开报『启用参数无效』」**（严重回归，感谢用户反馈）：启停接口的返回是信封 `{ server, reconciled }`，前端却把它当成卡片本身塞回了列表槽位，于是**这张卡的名字、传输方式、命令/地址、工具数全部变空**；再点开关时发出去的 `serverName` 已经是 `undefined`，宿主自然只回一句「启用参数无效」。现在只取信封里的 `server` 替换卡片（取不到就退回「原卡片 + 开关状态」），并且加了道闸：任何动作发现卡片身份已坏，就刷新列表自愈，**绝不把 `undefined` 发给宿主**。顺带说明：文件是干净的，`cordis.patch.yml` 里的配置一直在——坏的只是界面里的那张卡，刷新面板即可。
 - **v2.3.11** —— **修「启停 MCP 之后主区整片黑」**（PR [#87](https://github.com/Fishquito7/dsh-skill-mcp-panel/pull/87)，感谢 [@gezi-wen](https://github.com/gezi-wen)）：卡片里的守卫写成 `oauthNotice?.serverName === server.serverName`，当两边都是 `undefined` 时相等成立，于是进分支去读 `null.ok` → 抛 TypeError → 宿主把整个 `main` 槽位当一棵树卸载，主区全黑、连「返回会话」都点不到（`Ctrl+R` 也救不回来）。现在两处守卫改成显式判空，「测试连接」拿到 `null` 信封时归一化成 `{ ok: false, error: "empty result" }`。另外加了**单卡兜底**：任意一张卡片渲染期间出错，只把这一张换成写着原因的「渲染失败」卡（含原始错误信息，方便反馈），其它卡片和页面外壳照常可用——同样的数据最多显示难看，不再整片黑。
 - **v2.3.10** —— **兼容 DSH 0.2.2**（#85 / #81）：`@deepseek-ai/dsh-typert-protocol` 从 dependencies 挪进 peerDependencies——预发布版的范围写法（`^0.2.0-rc.1 || ^0.2.1-rc.1`，乃至 issue 里建议的 `>=0.2.0-rc.1 <0.3.0-0`）在 semver 下都匹配不到下一条 patch 线的预发布包，于是 profile 里被装进第二份协议包（0.2.1 线）与宿主 0.2.2 混版本，对版本一致性敏感的插件（例如 multi-root-workspace）会直接拒绝加载；现在协议包由宿主提供，安装树里不再有第二份。同时把面板注册的宿主服务从 `mcpManager` 改名为 `skillMcpPanel`，不再与 DSH 0.2.2 内置的 `@deepseek-ai/dsh-mcp-manager` 抢同一个服务名（#81）。易用性：**添加技能菜单、分组编辑器、批量迁移、MCP 表单与原文编辑**现在点遮罩空白处或按 Esc 都会关闭（#82）；技能搜索同时匹配**描述**（#79）；MCP 卡片里可按工具名/描述筛选工具并一键全选/全不选（#77），**MCP 页顶栏新增服务器搜索**（按服务器名 / 地址 / 命令 / 头名 / 环境变量名筛卡片）

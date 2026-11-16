@@ -8,6 +8,7 @@ import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { deleteGroup, groupsFile, groupsForSkill, loadGroups, upsertGroup } from "../lib/groups.js";
+import { deleteMcpGroup, loadMcpGroups, mcpGroupsFile, upsertMcpGroup } from "../lib/mcp/groups.js";
 
 let passed = 0;
 let failed = 0;
@@ -78,6 +79,17 @@ async function main() {
   // 8) 文件损坏 → 空配置
   await writeFile(groupsFile(home), "{ not json !!!", "utf8");
   check(Object.keys(await loadGroups(home)).length === 0, "corrupted file loads as empty");
+
+  // 9) MCP 分组 CRUD（#55）
+  check(Object.keys(await loadMcpGroups(home)).length === 0, "missing mcp-groups loads empty");
+  const { id: mg1, groups: mgMap1 } = await upsertMcpGroup(home, { name: "研究工具", servers: ["gh", "gh", "pg"] });
+  check(mgMap1[mg1]?.name === "研究工具", "mcp group name persisted");
+  check(JSON.stringify(mgMap1[mg1]?.servers) === JSON.stringify(["gh", "pg"]), "mcp group deduplicates server names");
+  await writeFile(mcpGroupsFile(home), "broken json", "utf8");
+  check(Object.keys(await loadMcpGroups(home)).length === 0, "corrupted mcp-groups falls back to empty");
+  await upsertMcpGroup(home, { id: "g-a", name: "A组", servers: ["s1"] });
+  const afterDel = await deleteMcpGroup(home, "g-a");
+  check(afterDel["g-a"] === undefined, "deleteMcpGroup removes entry");
 
   await rm(home, { recursive: true, force: true });
   console.log("---");

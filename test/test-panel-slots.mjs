@@ -190,8 +190,11 @@ const pageProps = (row) => ({ ...(row.options.inject ?? {})() });
 const renderBackButton = (page) => {
   const top = page.props.children[0];
   assert.equal(top.props.className, "SKV_pageTop", "the back control must sit in the page's top-left row");
-  const back = top.props.children;
+  const children = Array.isArray(top.props.children) ? top.props.children : [top.props.children];
+  const back = children[0];
+  const updateWrap = children[1];
   assert.equal(typeof back.type, "function", "top row should hold the shared back control");
+  assert.equal(updateWrap?.props?.className, "SKV_updateWrap", "top row should include the top-right update control");
   const button = back.type(back.props);
   assert.equal(button.type, "button");
   return button;

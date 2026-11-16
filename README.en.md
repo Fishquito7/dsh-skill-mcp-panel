@@ -69,26 +69,23 @@ A DSH plugin that brings **skill** and **MCP server** management into the DSH we
 
 ## Install
 
-1. Install the package (its bundle layer auto-mounts it — no config editing). Pick either:
+1. Install the package (npm is recommended so DSH's built-in Plugins manager can update it in one click; in DSH Desktop, enter `dsh-skill-mcp-panel` in the plugin installer):
 
-   **Option 1: GitHub Release tarball** (recommended — always the latest)
-
-   ```bash
-   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/latest/download/dsh-skill-mcp-panel.tgz
-   ```
-
-   This is the **version-less stable link**: every release uploads both the `dsh-skill-mcp-panel.tgz` alias (always
-   pointing at the latest build) and a versioned `dsh-skill-mcp-panel-<version>.tgz`, so this command never
-   needs editing. To pin a specific version, swap `latest/download/dsh-skill-mcp-panel.tgz` for
-   `download/v<version>/dsh-skill-mcp-panel-<version>.tgz`.
-
-   **Option 2: npm (prebuilt, same channel as the plugin marketplace)**
+   **Option 1: npm (recommended — supports one-click in-app updates in DSH Plugins)**
 
    ```bash
    dsh plugin --profile web add dsh-skill-mcp-panel
    ```
 
-   > Both install prebuilt artifacts — no local build needed. Installing from git also works
+   **Option 2: GitHub Release tarball** (offline or fallback without npm registry access)
+
+   ```bash
+   dsh plugin --profile web add https://github.com/Fishquito7/dsh-skill-mcp-panel/releases/latest/download/dsh-skill-mcp-panel.tgz
+   ```
+
+   > **Important:** DSH's built-in Plugins manager only allows UI updates for npm packages (such as `dsh-skill-mcp-panel`) or pinned 40-character Git commits. If you install via a `.tgz` URL, DSH Desktop refuses in-place UI updates (and re-entering the same `.tgz` URL is skipped by pnpm); remove it once and reinstall as `dsh-skill-mcp-panel` to get one-click updates, or use `dsh-panel update` for CLI profiles like `web`. To pin a specific version, replace `latest/download/dsh-skill-mcp-panel.tgz` with `download/v<version>/dsh-skill-mcp-panel-<version>.tgz`.
+   >
+   > Both options install prebuilt artifacts — no local build needed. Installing from git also works
    > (git-hosted dependencies are blocked from running their prepare build scripts by default; if you see
    > `git-hosted plugins build on install...`, add the key pnpm printed under `allowBuilds` in the profile's
    > `pnpm-workspace.yaml` and re-run):
@@ -131,7 +128,7 @@ Only **DSH `0.2.x`** is supported (peer declaration `>=0.2.0-rc.1 <0.3.0-0`). DS
 If you really need it on an older host, grant the exemption the host prints:
 
 ```bash
-dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.12 --dsh-version <host-version> --accept-risk
+dsh plugin --profile web allow-version dsh-skill-mcp-panel@2.3.16 --dsh-version <host-version> --accept-risk
 ```
 
 ## CLI
@@ -220,7 +217,7 @@ dsh-panel mcp update                      # same as dsh-panel update
   tarball URL, an npm install updates from npm pinned to that version, and a git (or unknown) install keeps
   using `github:Fishquito7/dsh-skill-mcp-panel#v<version>`.
 - Profiles already on the latest version are skipped, never reinstalled.
-- `desktop` is owned exclusively by the DSH desktop app — the host rejects `dsh plugin --profile desktop`; it is skipped with an explanation during an automatic sweep, and exits with code 2 when named explicitly.
+- Under older standalone CLIs, `desktop` is skipped during an automatic sweep and exits with code 2 when named explicitly; with **DSH 0.2.2+ Desktop's bundled CLI** or via the **top-right update button inside the panel**, `desktop` now upgrades directly in place (as of v2.3.16, failed direct upgrades automatically run `remove` + `add` while preserving `bundles`, without manual uninstall/reinstall).
 - After an update: client bundles hot-swap (just refresh the page); server-side changes need that profile's gateway restarted.
 
 The CLI only scans the cwd-anchored project roots and the user roots; add `--cwd <workspace-path>` to manage a different workspace's skills. If a skill name exists in several scopes, `enable`/`disable`/`delete` require `--global`/`--project`/`--workspace` to pick which copy to operate on.
@@ -257,6 +254,12 @@ dsh plugin --profile web remove dsh-skill-mcp-panel
 
 Only version notes that **change how you use the plugin**; see [Releases](https://github.com/Fishquito7/dsh-skill-mcp-panel/releases) for the full history.
 
+- **v2.3.16** — **Self-healing updates + MCP groups/scoped filtering, proactive OAuth refresh, skill drag/batch groups, plugin read-only guards & credential fixes**:
+  - **Self-updating & top-right update button (#96)**: replaced passive update banners with a dedicated top-right update button in the panel header (`skillsViewer/applyUpdate`); unified updater (`updater.ts`) preserves npm semver channels (`^`/`~`/exact), auto-detects DSH 0.2.2+ Desktop bundled CLI (supporting `desktop` profile plus `--channel`/`--force`/`-y`), recovers from direct-`add` errors via `remove` + `add` while keeping `dsh.profile.bundles` mounted (falling back to GitHub Release `.tgz` on npm `minimum-release-age`), and falls back to npm registry metadata when the GitHub API is rate-limited.
+  - **MCP server groups & layered tool visibility (#55 / #91 / #92 / #99 phase 1)**: added MCP server groups (`mcp-groups.json`, leaving `cordis.patch.yml` untouched), per-profile `tool-filter.json` persistence with one-time legacy migration, 4-layer visibility overrides (`global` / `workspace` / in-memory `session` / `subagent`), inline tool descriptions and model-visible counts.
+  - **Proactive OAuth refresh & streamlined auth dialog (#80)**: added `OAuthRefreshScheduler` to refresh tokens before expiry (rotating `refresh_token`, hot-reloading auth headers, redacting tokens in logs), `WWW-Authenticate` `resource_metadata` discovery, and moved OAuth sign-in/re-auth/refresh/disconnect into the Add/Edit server modal (keeping a compact "Needs re-auth" card badge).
+  - **Skill group ergonomics & plugin read-only enforcement (#83 / #78 / #76 / #90)**: both toolbar and middle-pane `+ New Group` open the full group modal; added inline group enable/disable toggles, batch `Group…` menu, drag-and-drop onto groups or workspaces, and strict UI + backend read-only enforcement for all `pluginProvided` skills regardless of `source`.
+  - **Credential templates & CLI symlink execution (#93 / #94 / #95)**: MCP form preserves unmodeled entry-level keys (`inject`, `expandTemplates`) and `${credential:REF}` templates; panel test connection and `dsh-panel mcp test` resolve `${credential:REF}` with secret redaction; `dsh-panel` resolves `.bin` symlinks/junctions via `realpathSync`.
 - **v2.3.12** — **fixes "toggling an MCP server wipes the card, and turning it back on says invalid parameters"** (severe regression, reported by a user): the toggle call returns an envelope `{ server, reconciled }`, but the UI put that **whole envelope** into the card slot, so the card lost its name, transport, command/URL and tool count; the next toggle then sent `serverName: undefined` and the host could only answer with an invalid-parameter error. Now only the `server` inside the envelope replaces the card (falling back to "the same card with the new switch state"), plus a guard: if an action finds a card without a usable identity it reloads the list to self-heal and **never sends `undefined` to the host**. Note the file was never damaged — the config stays in `cordis.patch.yml`; only the in-memory card broke, so a panel refresh heals it.
 - **v2.3.11** — **fixes "the whole main area goes black after toggling an MCP server"** (PR [#87](https://github.com/Fishquito7/dsh-skill-mcp-panel/pull/87), thanks [@gezi-wen](https://github.com/gezi-wen)): a card guard written as `oauthNotice?.serverName === server.serverName` is `true` when both sides are `undefined`, so it entered the branch and read `null.ok` — TypeError, and the host unmounted the entire `main` slot as one tree: black main area, the back-to-conversation button unusable, and `Ctrl+R` could not recover it. Both guards are explicit null checks now, and a `null` envelope from "test connection" is normalized to `{ ok: false, error: "empty result" }`. On top of that every card has its **own fallback**: if a card throws while rendering, only that card becomes a "render failed" card carrying the underlying message (handy to report), while the other cards and the page shell stay usable — bad data can look ugly, but it no longer blacks out the panel.
 - **v2.3.10** — **DSH 0.2.2 compatibility** (#85 / #81): `@deepseek-ai/dsh-typert-protocol` moves from `dependencies` to `peerDependencies`. Under semver a prerelease range (`^0.2.0-rc.1 || ^0.2.1-rc.1`, and even the `>=0.2.0-rc.1 <0.3.0-0` suggested in the issue) can never match the prerelease of the **next** patch line, so the profile received a second protocol copy (the 0.2.1 line) next to the host's 0.2.2; plugins that check release consistency (multi-root-workspace, for example) then refuse to load. The protocol package now comes from the host and no second copy is installed. The host service the panel registers is renamed from `mcpManager` to `skillMcpPanel`, so it no longer competes with DSH 0.2.2's built-in `@deepseek-ai/dsh-mcp-manager` for the same service name (#81). Usability: the **add-skill menu, group editor, batch-migrate dialog, MCP form and raw editor** now close when you click the backdrop or press Escape (#82); skill search also matches the **description** (#79); the MCP card's tool list can be filtered by tool name/description with select-all / clear-all (#77), and the **MCP page gains a server search** in its toolbar (matches server name, URL, command, header names and env keys)

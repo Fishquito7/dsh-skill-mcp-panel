@@ -12,6 +12,7 @@ export const PACKAGE_NAME = "dsh-skill-mcp-panel";
 export const REPO_SLUG = "Fishquito7/dsh-skill-mcp-panel";
 export const INSTALL_SPEC = `github:${REPO_SLUG}`;
 export const RELEASES_LATEST_URL = `https://api.github.com/repos/${REPO_SLUG}/releases/latest`;
+export const NPM_LATEST_URL = `https://registry.npmjs.org/${PACKAGE_NAME}/latest`;
 
 export interface UpdateCheckInfo {
   latest: string | null;
@@ -37,6 +38,25 @@ export function currentVersion(): string {
  * GH_TOKEN 提升额度并读取私有仓库。403/429 明确标记 rateLimited，由 UI/CLI
  * 提示“限流”，而不是误报“已是最新版本”。
  */
+async function fetchNpmLatestVersion(signal: AbortSignal): Promise<string | undefined> {
+  try {
+    const res = await fetch(NPM_LATEST_URL, {
+      headers: { "User-Agent": PACKAGE_NAME, Accept: "application/json" },
+      redirect: "follow",
+      signal
+    });
+    if (!res.ok) {
+      await res.body?.cancel().catch(() => {});
+      return undefined;
+    }
+    const data: any = await res.json().catch(() => undefined);
+    const v = typeof data?.version === "string" ? data.version.trim().replace(/^v/, "") : "";
+    return v !== "" ? v : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function fetchUpdateCheck(): Promise<UpdateCheckInfo> {
   // 手动 AbortController + finally 清理：AbortSignal.timeout 的隐式定时器在
   // Windows 上退出时可能触发 libuv 断言（UV_HANDLE_CLOSING）。
@@ -44,41 +64,56 @@ export async function fetchUpdateCheck(): Promise<UpdateCheckInfo> {
   const timer = setTimeout(() => controller.abort(), 15000);
   try {
     const token = process.env.GITHUB_TOKEN?.trim() || process.env.GH_TOKEN?.trim();
-    const response = await fetch(RELEASES_LATEST_URL, {
-      headers: {
-        "User-Agent": PACKAGE_NAME,
-        "Accept": "application/vnd.github+json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      redirect: "follow",
-      signal: controller.signal
-    });
-    if (response.status === 403 || response.status === 429) {
-      await response.body?.cancel().catch(() => {});
-      return { latest: null, updateAvailable: false, rateLimited: true };
+    let githubOutcome: UpdateCheckInfo;
+    try {
+      const response = await fetch(RELEASES_LATEST_URL, {
+        headers: {
+          "User-Agent": PACKAGE_NAME,
+          "Accept": "application/vnd.github+json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        redirect: "follow",
+        signal: controller.signal
+      });
+      if (response.status === 403 || response.status === 429) {
+        await response.body?.cancel().catch(() => {});
+        githubOutcome = { latest: null, updateAvailable: false, rateLimited: true };
+      } else if (!response.ok) {
+        await response.body?.cancel().catch(() => {});
+        githubOutcome = { latest: null, updateAvailable: false, rateLimited: false, error: `GitHub API ${response.status}` };
+      } else {
+        const data: any = await response.json().catch(() => undefined);
+        const tag = typeof data?.tag_name === "string" ? data.tag_name : "";
+        const latest = tag.replace(/^v/, "");
+        if (latest === "") {
+          githubOutcome = { latest: null, updateAvailable: false, rateLimited: false, error: "missing tag_name" };
+        } else {
+          return {
+            latest,
+            updateAvailable: compareVersions(latest, currentVersion()) > 0,
+            rateLimited: false
+          };
+        }
+      }
+    } catch (error) {
+      githubOutcome = {
+        latest: null,
+        updateAvailable: false,
+        rateLimited: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
     }
-    if (!response.ok) {
-      await response.body?.cancel().catch(() => {});
-      return { latest: null, updateAvailable: false, rateLimited: false, error: `GitHub API ${response.status}` };
+
+    // GitHub API 限流 / 不可达时自动回退 npm registry，避免国内网络或匿名限流把检查更新卡死。
+    const npmLatest = await fetchNpmLatestVersion(controller.signal);
+    if (npmLatest !== undefined) {
+      return {
+        latest: npmLatest,
+        updateAvailable: compareVersions(npmLatest, currentVersion()) > 0,
+        rateLimited: false
+      };
     }
-    const data: any = await response.json().catch(() => undefined);
-    const tag = typeof data?.tag_name === "string" ? data.tag_name : "";
-    const latest = tag.replace(/^v/, "");
-    if (latest === "") {
-      return { latest: null, updateAvailable: false, rateLimited: false, error: "missing tag_name" };
-    }
-    return {
-      latest,
-      updateAvailable: compareVersions(latest, currentVersion()) > 0,
-      rateLimited: false
-    };
-  } catch (error) {
-    return {
-      latest: null,
-      updateAvailable: false,
-      rateLimited: false,
-      error: error instanceof Error ? error.message : String(error)
-    };
+    return githubOutcome;
   } finally {
     clearTimeout(timer);
   }

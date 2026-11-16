@@ -669,33 +669,34 @@ const assert = (cond, message) => { if (!cond) throw new Error(message); };
   });
   skillRows = before;
   const filled = await mount(undefined);
-  byClass(filled.section, "SKV_paneNew")[0].props.onClick();
-  const editing = await mount();
-  check("inline new-group input appears with a placeholder", () => {
-    const field = byClass(editing.section, "SKV_paneNewInput")[0];
-    assert(field !== undefined, "inline input missing");
-    assert(field.props.placeholder === "分组名称", "placeholder wrong: " + field.props.placeholder);
+  const dialogNodeOf = (section) => findAll(section, (n) => typeof n.type === "function" && n.type.name === "GroupDialog")[0];
+  check("toolbar keeps 新建分组 button alongside pane 新建分组 (#83)", () => {
+    assert(byClass(filled.section, "SKV_toolButton").some((n) => n.props["aria-label"] === "新建分组"), "toolbar new-group button must remain");
+    assert(byClass(filled.section, "SKV_paneNew").length === 1, "pane new-group button missing");
   });
-  const field = byClass(editing.section, "SKV_paneNewInput")[0];
-  field.props.onChange({ currentTarget: { value: "新组" } });
-  const typed = await mount();
-  byClass(typed.section, "SKV_paneNewInput")[0].props.onKeyDown({ key: "Enter" });
+  byClass(filled.section, "SKV_paneNew")[0].props.onClick();
+  const openedDlg = await mount();
+  check("pane 新建分组 opens full GroupDialog instead of inline text input (#83)", () => {
+    assert(byClass(openedDlg.section, "SKV_paneNewInput").length === 0, "old inline input should not appear");
+    const dlg = dialogNodeOf(openedDlg.section);
+    assert(dlg !== undefined && dlg.props.scope === "global", "GroupDialog must open with current scope prefilled");
+  });
+  dialogNodeOf(openedDlg.section).props.setName("新组");
+  const namedDlg = await mount();
+  dialogNodeOf(namedDlg.section).props.onSave();
   await flush();
   const afterCreate = await mount();
-  check("Enter creates the group through saveGroupSkill and selects it", () => {
+  check("saving GroupDialog creates the group through saveGroupSkill and selects it (#83)", () => {
+    assert(dialogNodeOf(afterCreate.section) === undefined, "GroupDialog must close after saving");
     const labels = byClass(afterCreate.section, "SKV_paneItem").map((n) => n.props.children[0].props.children);
     assert(labels.some((label) => String(label).includes("新组")), "created group missing from the pane: " + JSON.stringify(labels));
   });
-  const field2 = (() => {
-    byClass(afterCreate.section, "SKV_paneNew")[0].props.onClick();
-    return null;
-  })();
-  void field2;
-  const editing2 = await mount();
-  byClass(editing2.section, "SKV_paneNewInput")[0].props.onKeyDown({ key: "Escape" });
+  byClass(afterCreate.section, "SKV_paneNew")[0].props.onClick();
+  const openedDlg2 = await mount();
+  dispatchDocument("keydown", { key: "Escape" });
   const escaped = await mount();
-  check("Escape closes the inline input without creating anything", () => {
-    assert(byClass(escaped.section, "SKV_paneNewInput").length === 0, "inline input should be gone");
+  check("Escape closes GroupDialog cleanly (#83)", () => {
+    assert(dialogNodeOf(escaped.section) === undefined, "GroupDialog must stay closed after Escape");
   });
 }
 
@@ -1422,6 +1423,455 @@ const renderChild = (element) => {
   check("卡片身份坏了：不发无效请求，改成刷新列表自愈", () => {
     assert(brokenCalls.length === 0, "must not call setEnabled with a missing serverName, got " + JSON.stringify(brokenCalls));
     assert(brokenListCalls > listCallsBefore, "expected a list reload to self-heal, got " + brokenListCalls + " (was " + listCallsBefore + ")");
+  });
+  store.delete("dsh-skill-mcp-panel:last-tab");
+}
+
+// ── 15. #90 / #97：pluginProvided 且 source=custom 的插件自带技能一律只读 ──────
+{
+  const toggled = [];
+  const customSkills = [
+    ...skills,
+    { name: "agent-experience", description: "插件体验指南", provider: "dsh-agent-preset", source: "custom", enabled: true, pluginProvided: true, rel: "", scope: { kind: "global" } }
+  ];
+  const guardedFace = {
+    ...rpc,
+    listSkills: async () => ({ skills: customSkills.map((s) => ({ ...s })) }),
+    setSkillEnabled: async (name) => { toggled.push(name); return { ok: true }; }
+  };
+  reset(customSkills, "skills");
+  const view = await mount(guardedFace);
+  const pluginCard = byClass(view.section, "SKV_card").find((c) => c.props["data-skill-name"] === "agent-experience");
+  check("pluginProvided custom 技能不渲染开关与删除按钮（#90/#97）", () => {
+    assert(pluginCard !== undefined, "agent-experience card missing");
+    assert(byClass(pluginCard, "SKV_traffic").length === 0, "pluginProvided skill must not show traffic toggle");
+    assert(byClass(pluginCard, "SKV_rowDelete").length === 0, "pluginProvided skill must not show delete button");
+    assert(byClass(pluginCard, "SKV_configTag").length === 1, "pluginProvided skill must show readonly tag");
+  });
+  // 点全部开关：只能向可编辑技能发 RPC，绝不能动到 agent-experience。
+  const bulkBtn = byClass(view.section, "SKV_groupBulkBtn")[0];
+  bulkBtn.props.onClick();
+  await flush();
+  check("整组开关跳过 pluginProvided custom 技能（#90/#97）", () => {
+    assert(!toggled.includes("agent-experience"), "bulk toggle must skip pluginProvided skill, got " + JSON.stringify(toggled));
+    assert(toggled.length > 0, "expected editable skills to be toggled");
+  });
+  store.delete("dsh-skill-mcp-panel:last-tab");
+}
+
+// ── 16. #92：MCP 工具描述直接展示、卡片/抽屉给出模型可见计数；停用卡不误报 0 个工具 ─
+{
+  const visFace = {
+    ...mcpFace,
+    listMcp: async () => ({
+      servers: [
+        { serverName: "gh", transport: "stdio", enabled: true, fiberPhase: "active", toolCount: 3, envKeys: [] },
+        { serverName: "stopped", transport: "stdio", enabled: false, fiberPhase: null, toolCount: 0, envKeys: [] }
+      ],
+      externalServers: [],
+      patch: { path: "C:/p/cordis.patch.yml", ok: true, error: null, foreign: [] }
+    }),
+    getToolFilter: async () => ({ deny: ["mcp__gh__beta_tool"] }),
+    listMcpTools: async ({ serverName }) => ({
+      serverName,
+      connected: true,
+      tools: [
+        { name: "mcp__gh__alpha_tool", description: "Alpha 工具描述" },
+        { name: "mcp__gh__beta_tool", description: "Beta 工具描述" },
+        { name: "mcp__gh__gamma_tool", description: "Gamma 工具描述" }
+      ],
+      disabled: ["mcp__gh__beta_tool"]
+    })
+  };
+  reset(skills, "mcp");
+  let view = await mount(visFace);
+  const cards = () => byClass(view.section, "MCP_card");
+  check("MCP 卡片区分已停用与已连接工具可见数（#92）", () => {
+    const ghMeta = byClass(cards()[0], "MCP_meta")[0];
+    const ghText = findAll(ghMeta, (n) => typeof n.props.children === "string").map((n) => n.props.children).join("");
+    assert(ghText.includes("2/3") && ghText.includes("1"), "expected visible/total and filtered count on active card, got: " + ghText);
+    const stoppedMeta = byClass(cards()[1], "MCP_meta")[0];
+    const stoppedText = findAll(stoppedMeta, (n) => typeof n.props.children === "string").map((n) => n.props.children).join("");
+    assert(stoppedText.includes("已停用") && !stoppedText.includes("0 个工具"), "stopped card must not say 0 tools: " + stoppedText);
+  });
+  const toolsBtn = findAll(cards()[0], (n) => n.type === "button" && n.props.children === "工具")[0];
+  toolsBtn.props.onClick();
+  await flush();
+  view = await mount(visFace);
+  check("工具清单直接渲染每个工具的描述与模型可见总数（#92）", () => {
+    const descs = byClass(view.section, "MCP_toolDesc").map((n) => n.props.children);
+    assert(descs.includes("Alpha 工具描述") && descs.includes("Beta 工具描述"), "expected visible descriptions, got " + JSON.stringify(descs));
+    const hints = byClass(view.section, "MCP_hint").map((n) => String(n.props.children ?? ""));
+    assert(hints.some((h) => h.includes("对模型可见 2/3") && h.includes("已过滤 1")), "expected agent visibility summary, got " + JSON.stringify(hints));
+  });
+  store.delete("dsh-skill-mcp-panel:last-tab");
+}
+
+// ── 17. #93：MCP 表单输入 ${credential:REF} 不裹 !!js 且自动启用 expandTemplates ─
+{
+  const savedPayloads = [];
+  const formFace = {
+    ...mcpFace,
+    saveMcp: async (payload) => { savedPayloads.push(payload); return { server: { ...payload.input, enabled: true, fiberPhase: "active", toolCount: 0, envKeys: [], headerKeys: [] }, reconciled: true }; }
+  };
+  reset(skills, "mcp");
+  let view = await mount(formFace);
+  const mcpDialogEl = () => findAll(view.section, (n) => typeof n.type === "function" && n.type.name === "McpFormDialog")[0];
+  const renderMcpDialog = () => renderChild(mcpDialogEl()).tree;
+  const addBtn = byClass(view.section, "MCP_add")[0];
+  addBtn.props.onClick();
+  view = await mount(formFace);
+  let d = renderMcpDialog();
+  findAll(d, (n) => n.type === "input")[0].props.onChange({ target: { value: "cred-ui" } });
+  findAll(d, (n) => n.type === "button" && n.props.children === "HTTP")[0].props.onClick();
+  view = await mount(formFace);
+  d = renderMcpDialog();
+  findAll(d, (n) => n.type === "input")[1].props.onChange({ target: { value: "https://example.com/${credential:MY_PATH}/mcp" } });
+  findAll(d, (n) => n.type === "button" && n.props.children === "Bearer 令牌")[0].props.onClick();
+  view = await mount(formFace);
+  d = renderMcpDialog();
+  const bearerInput = findAll(d, (n) => n.type === "input" && n.props.placeholder === "eyJ… 或 ${MCP_TOKEN}")[0];
+  bearerInput.props.onChange({ target: { value: "${credential:MY_API_TOKEN}" } });
+  view = await mount(formFace);
+  d = renderMcpDialog();
+  const saveBtn = findAll(d, (n) => n.type === "button" && n.props.children === "保存")[0];
+  saveBtn.props.onClick();
+  await flush();
+  check("MCP 表单保存 ${credential:REF} 保持纯字符串且自动开启 expandTemplates（#93）", () => {
+    assert(savedPayloads.length === 1, "expected 1 save call, got " + savedPayloads.length);
+    const inp = savedPayloads[0];
+    assert(inp.url === "https://example.com/${credential:MY_PATH}/mcp", "url must not be wrapped in __jsExpr: " + JSON.stringify(inp.url));
+    assert(inp.headers.Authorization === "Bearer ${credential:MY_API_TOKEN}", "header must stay plain string: " + JSON.stringify(inp.headers));
+    assert(inp.expandTemplates === true, "expandTemplates should auto-enable for credential templates: " + JSON.stringify(inp));
+  });
+  store.delete("dsh-skill-mcp-panel:last-tab");
+}
+
+// ── 18. #76 & #78：批量分组操作 / 中栏直接开关组 / 卡片拖拽分组与移工作区 ────
+{
+  const savedGroupPayloads = [];
+  const toggledSkills = [];
+  const dragFace = {
+    ...rpc,
+    saveGroupSkill: async (payload) => { savedGroupPayloads.push(payload); return { groups: [{ id: "g1", name: "办公", scopes: { global: payload.names } }] }; },
+    setSkillEnabled: async (name, enabled, scope) => { toggledSkills.push({ name, enabled, scope }); return { ok: true }; }
+  };
+  reset(skills, "skills");
+  let view = await mount(dragFace);
+
+  // 中栏组行内联开关 + ✎ 编辑入口 (#76)
+  const paneToggle = byClass(view.section, "SKV_paneGroupToggle")[0];
+  check("中栏分组行附带内联启停按钮（#76）", () => {
+    assert(paneToggle !== undefined, "SKV_paneGroupToggle missing");
+    assert(paneToggle.props.children === "0/1", "expected 0/1 count for 办公(beta disabled), got " + paneToggle.props.children);
+  });
+  paneToggle.props.onClick({ stopPropagation() {} });
+  await flush();
+  check("点击中栏内联启停按钮直接开关组内可编辑技能（#76）", () => {
+    assert(toggledSkills.some((t) => t.name === "beta" && t.enabled === true), "expected beta enabled via pane toggle");
+  });
+
+  // 批量模式「分组…」菜单 (#76)
+  byClass(view.section, "SKV_toolButton")[1].props.onClick();
+  view = await mount(dragFace);
+  const alphaRow = findAll(view.section, (n) => n.props["data-skill-name"] === "alpha")[0];
+  byClass(alphaRow, "SKV_rowText")[0].props.onClick();
+  view = await mount(dragFace);
+  const groupMenu = findAll(view.section, (n) => Array.isArray(n.props?.items) && n.props.anchor?.props?.children === "分组…")[0];
+  check("批量操作栏提供「分组…」菜单且包含新建及加减项（#76）", () => {
+    assert(groupMenu !== undefined, "batch group menu missing");
+    const labels = groupMenu.props.items.map((item) => item.label);
+    assert(labels.some((l) => l.includes("新建分组")) && labels.some((l) => l.includes("添加到「办公」")), "unexpected items: " + JSON.stringify(labels));
+  });
+  groupMenu.props.onSelect("add:g1");
+  await flush();
+  check("批量选择「添加到「办公」」调用 saveGroupSkill 合并成员（#76）", () => {
+    assert(savedGroupPayloads.some((p) => p.id === "g1" && p.names.includes("alpha") && p.names.includes("beta")), "expected alpha+beta saved");
+  });
+
+  // 内部拖拽：不触发文件导入蒙层；拖到中栏分组写入分组；拖到左轨工作区移动并跳过只读（#78）
+  reset(skills, "skills");
+  batchCalls.length = 0;
+  savedGroupPayloads.length = 0;
+  view = await mount(dragFace);
+  const alphaCard = findAll(view.section, (n) => n.props["data-skill-name"] === "alpha")[0];
+  check("技能卡片开启 draggable 拖拽（#78）", () => {
+    assert(alphaCard.props.draggable === true, "card must be draggable");
+  });
+  alphaCard.props.onDragStart({ dataTransfer: { effectAllowed: "", setData() {} } });
+  view = await mount(dragFace);
+  view.section.props.onDragOver({ preventDefault() {}, dataTransfer: {} });
+  view = await mount(dragFace);
+  check("内部拖卡时根容器 onDragOver 不激活文件导入拖放区（#78）", () => {
+    assert(byClass(view.section, "SKV_dropHint").length === 0, "file drop hint must stay hidden during internal card drag");
+  });
+  const groupRow = byClass(view.section, "SKV_paneRow").find((r) => byClass(r, "SKV_paneGroupToggle").length > 0);
+  groupRow.props.onDrop({ preventDefault() {}, stopPropagation() {} });
+  await flush();
+  check("拖放技能卡片到中栏分组将技能加入该分组（#78）", () => {
+    assert(savedGroupPayloads.some((p) => p.id === "g1" && p.names.includes("alpha")), "drop on group should add alpha");
+  });
+
+  // 拖到左轨非当前工作区：移动可编辑技能，跳过只读 pluginProvided 技能
+  reset(skills, "skills");
+  batchCalls.length = 0;
+  view = await mount(dragFace);
+  const editableCard = findAll(view.section, (n) => n.props["data-skill-name"] === "alpha")[0];
+  editableCard.props.onDragStart({ dataTransfer: { effectAllowed: "", setData() {} } });
+  view = await mount(dragFace);
+  const wsOneRail = byClass(view.section, "SKV_railItem").find((n) => n.props.children[0].props.children === "one");
+  wsOneRail.props.onDragOver({ preventDefault() {} });
+  view = await mount(dragFace);
+  const hoveredRail = byClass(view.section, "SKV_railItem").find((n) => n.props.children[0].props.children === "one");
+  check("拖拽经过其他工作区显示放置高亮（#78）", () => {
+    assert(hoveredRail.props["data-drop-hover"] === "true", "rail item must highlight on dragover");
+  });
+  hoveredRail.props.onDrop({ preventDefault() {}, stopPropagation() {} });
+  await flush();
+  check("拖放可编辑技能卡片到目标工作区调用 batchMigrateSkill move（#78）", () => {
+    assert(batchCalls.some((b) => b.mode === "move" && b.targets[0] === "C:/proj/one" && b.names.includes("alpha")), "drop on rail should move alpha");
+  });
+
+  batchCalls.length = 0;
+  view = await mount(dragFace);
+  const pluginCard = findAll(view.section, (n) => n.props["data-skill-name"] === "gamma")[0];
+  pluginCard.props.onDragStart({ dataTransfer: { effectAllowed: "", setData() {} } });
+  view = await mount(dragFace);
+  const wsTwoRail = byClass(view.section, "SKV_railItem").find((n) => n.props.children[0].props.children === "two");
+  wsTwoRail.props.onDrop({ preventDefault() {}, stopPropagation() {} });
+  await flush();
+  view = await mount(dragFace);
+  check("拖放只读技能到其他工作区时给出提示并跳过（#78）", () => {
+    assert(batchCalls.length === 0, "read-only skill must not call batchMigrateSkill");
+    const toast = byClass(view.section, "SKV_toastText")[0];
+    assert(toast && String(toast.props.children).includes("只读"), "expected read-only toast, got " + toast?.props?.children);
+  });
+}
+
+// ── 19. OAuth 弹窗完成 + 首页精简（#80）& MCP 分组/作用域工具过滤（#55）──────
+{
+  const oauthCalls = [];
+  const tfSaved = [];
+  const mcpModalFace = {
+    ...mcpFace,
+    listMcp: async () => ({
+      servers: [
+        { serverName: "oa1", entryId: "row-1", transport: "streamable-http", url: "https://mcp.example.com/mcp", enabled: true, fiberPhase: "active", toolCount: 2, envKeys: [], headerKeys: ["Authorization"], oauth: { connected: true, needsReauth: true, canRefresh: true, refreshError: "invalid_grant" } },
+        { serverName: "local1", entryId: "row-2", transport: "stdio", enabled: false, fiberPhase: null, toolCount: 0, envKeys: [], headerKeys: [] }
+      ],
+      externalServers: [],
+      patch: { path: "C:/p/cordis.patch.yml", ok: true, error: null, foreign: [] }
+    }),
+    reloadMcp: async () => ({
+      servers: [
+        { serverName: "oa1", entryId: "row-1", transport: "streamable-http", url: "https://mcp.example.com/mcp", enabled: true, fiberPhase: "active", toolCount: 2, envKeys: [], headerKeys: ["Authorization"], oauth: { connected: true, needsReauth: false, canRefresh: true } },
+        { serverName: "local1", entryId: "row-2", transport: "stdio", enabled: true, fiberPhase: "active", toolCount: 0, envKeys: [], headerKeys: [] }
+      ],
+      externalServers: [],
+      patch: { path: "C:/p/cordis.patch.yml", ok: true, error: null, foreign: [] }
+    }),
+    saveMcp: async (inp) => ({ server: { ...inp, entryId: "row-new", enabled: true }, reconciled: true }),
+    oauthStart: async (p) => { oauthCalls.push("start:" + p.serverName); return { flowId: "f1", authUrl: "https://auth.example.com/a", redirectUri: "http://127.0.0.1:9999/callback", expiresInSeconds: 300 }; },
+    oauthPoll: async () => { oauthCalls.push("poll"); return { status: "done", serverName: "new-oa", expiresAt: Date.now() + 3600000 }; },
+    oauthRefresh: async (p) => { oauthCalls.push("refresh:" + p.serverName); return { ok: true, serverName: p.serverName, expiresAt: Date.now() + 3600000 }; },
+    oauthDisconnect: async (p) => { oauthCalls.push("disconnect:" + p.serverName); return { disconnected: true }; },
+    listMcpGroups: async () => ({ groups: [{ id: "mg1", name: "后端", servers: ["oa1"] }] }),
+    saveMcpGroup: async (p) => ({ groups: [{ id: p.id || "mg1", name: p.name, servers: p.servers || [] }] }),
+    deleteMcpGroup: async () => ({ groups: [] }),
+    listWorkspaces: async () => ({ workspaces: [{ path: "C:/proj/one", label: "one" }] }),
+    currentSessionId: () => "sess-active-1",
+    getToolFilter: async () => ({ deny: ["mcp__oa1__alpha_tool"], workspaces: { "C:/proj/one": ["mcp__oa1__beta_tool"] }, roles: { subagentAllow: ["mcp__oa1__alpha_tool"], subagentDeny: [] }, sessionOverrides: {} }),
+    setToolFilter: async (p) => { tfSaved.push(p); return { deny: p.deny ?? [], workspaces: p.workspaces ?? {}, roles: p.roles ?? { subagentAllow: [], subagentDeny: [] }, sessionOverrides: {}, applied: 1 }; },
+    listMcpTools: async () => ({
+      serverName: "oa1",
+      connected: true,
+      tools: [
+        { name: "mcp__oa1__alpha_tool", description: "A" },
+        { name: "mcp__oa1__beta_tool", description: "B" }
+      ],
+      disabled: ["mcp__oa1__alpha_tool"]
+    })
+  };
+  reset(skills, "mcp");
+  let view = await mount(mcpModalFace);
+
+  check("MCP 首页卡片移除 OAuth 按钮，需要重认证时显示提示徽章并点开设置", () => {
+    const cardBtns = byClass(view.section, "MCP_actionBtn").map((n) => n.props.children);
+    assert(!cardBtns.includes("OAuth 登录") && !cardBtns.includes("重新登录") && !cardBtns.includes("断开登录"), "home card should not clutter with OAuth buttons: " + JSON.stringify(cardBtns));
+    const warnBadge = byClass(view.section, "MCP_badgeBtn")[0];
+    assert(warnBadge !== undefined && warnBadge.props.children === "需重新认证", "needsReauth badge missing");
+  });
+
+  // 点「需重新认证」直接进设置弹窗并显示重新认证 / 刷新令牌 / 断开登录
+  byClass(view.section, "MCP_badgeBtn")[0].props.onClick();
+  view = await mount(mcpModalFace);
+  let mcpDlg = findAll(view.section, (n) => typeof n.type === "function" && n.type.name === "McpFormDialog")[0];
+  let renderedDlg = renderChild(mcpDlg).tree;
+  check("点开已有 OAuth 服务器设置直接选中 OAuth 并提供重新认证/刷新/断开", () => {
+    const btnTexts = findAll(renderedDlg, (n) => n.type === "button").map((n) => n.props.children);
+    assert(btnTexts.includes("重新认证") && btnTexts.includes("刷新令牌") && btnTexts.includes("断开登录"), "expected OAuth settings controls, got " + JSON.stringify(btnTexts));
+  });
+  findAll(renderedDlg, (n) => n.type === "button" && n.props.children === "刷新令牌")[0].props.onClick();
+  await flush();
+  check("设置弹窗内点击「刷新令牌」调用 oauthRefresh (#80)", () => {
+    assert(oauthCalls.includes("refresh:oa1"), "oauthRefresh not triggered: " + JSON.stringify(oauthCalls));
+  });
+
+  // 新建服务器选择 OAuth 时显示「保存并 OAuth 登录」直接完成授权（重置槽位模拟全新弹窗挂载）
+  reset(skills, "mcp");
+  view = await mount(mcpModalFace);
+  byClass(view.section, "MCP_add")[0].props.onClick();
+  view = await mount(mcpModalFace);
+  mcpDlg = findAll(view.section, (n) => typeof n.type === "function" && n.type.name === "McpFormDialog")[0];
+  renderedDlg = renderChild(mcpDlg).tree;
+  findAll(renderedDlg, (n) => n.type === "input")[0].props.onChange({ target: { value: "new-oa" } });
+  findAll(renderedDlg, (n) => n.type === "button" && n.props.children === "HTTP")[0].props.onClick();
+  view = await mount(mcpModalFace);
+  mcpDlg = findAll(view.section, (n) => typeof n.type === "function" && n.type.name === "McpFormDialog")[0];
+  renderedDlg = renderChild(mcpDlg).tree;
+  findAll(renderedDlg, (n) => n.type === "input")[1].props.onChange({ target: { value: "https://new.example.com/mcp" } });
+  findAll(renderedDlg, (n) => n.type === "button" && n.props.children === "OAuth 登录")[0].props.onClick();
+  view = await mount(mcpModalFace);
+  mcpDlg = findAll(view.section, (n) => typeof n.type === "function" && n.type.name === "McpFormDialog")[0];
+  renderedDlg = renderChild(mcpDlg).tree;
+  check("添加服务器选择 OAuth 时主按钮变为「保存并 OAuth 登录」", () => {
+    const btns = findAll(renderedDlg, (n) => n.type === "button").map((n) => n.props.children);
+    assert(btns.includes("保存并 OAuth 登录") && btns.includes("仅保存"), "expected saveAndOAuth + saveOnly buttons, got " + JSON.stringify(btns));
+  });
+  // 点「保存并 OAuth 登录」：在同一弹窗内顺序执行 saveMcp → oauthStart → oauthPoll 并闭环。
+  oauthCalls.length = 0;
+  findAll(renderedDlg, (n) => n.type === "button" && n.props.children === "保存并 OAuth 登录")[0].props.onClick();
+  await new Promise((resolve) => setTimeout(resolve, 1650));
+  await flush();
+  view = await mount(mcpModalFace);
+  check("点「保存并 OAuth 登录」无需关闭弹窗即可直接完成 OAuth 授权", () => {
+    assert(oauthCalls.includes("start:new-oa") && oauthCalls.includes("poll"), "expected inline save + oauthStart + oauthPoll, got " + JSON.stringify(oauthCalls));
+  });
+
+  // MCP 分组 chip 筛选 (#55)
+  const closeIfOpen = findAll(view.section, (n) => typeof n.type === "function" && n.type.name === "McpFormDialog")[0];
+  if (closeIfOpen !== undefined) {
+    findAll(renderChild(closeIfOpen).tree, (n) => n.type === "button" && n.props.children === "取消")[0].props.onClick();
+    view = await mount(mcpModalFace);
+  }
+  const groupChip = byClass(view.section, "MCP_groupChip").find((c) => Array.isArray(c.props.children) && c.props.children[0] === "后端");
+  groupChip.props.onClick();
+  view = await mount(mcpModalFace);
+  check("MCP 分组 chip 筛选服务器卡片 (#55)", () => {
+    const names = byClass(view.section, "MCP_name").map((n) => n.props.children);
+    assert(names.length === 1 && names[0] === "oa1", "expected only oa1 under group 后端, got " + JSON.stringify(names));
+  });
+
+  // 工具面板作用域 tab（子代理例外放行全局禁用工具 #55）
+  findAll(byClass(view.section, "MCP_card")[0], (n) => n.type === "button" && n.props.children === "工具")[0].props.onClick();
+  await flush();
+  view = await mount(mcpModalFace);
+  const subTab = byClass(view.section, "MCP_scopeTab").find((b) => b.props.children === "子代理例外");
+  check("工具面板渲染全局/工作区/会话/子代理作用域标签（#55）", () => {
+    assert(subTab !== undefined, "subagent scope tab missing");
+  });
+  subTab.props.onClick();
+  view = await mount(mcpModalFace);
+  const saveToolsBtn = findAll(view.section, (n) => n.type === "button" && n.props.children === "保存禁用列表")[0];
+  saveToolsBtn.props.onClick();
+  await flush();
+  check("子代理作用域保存发送 scopeKind=subagent 角色覆盖（#55）", () => {
+    assert(tfSaved.some((p) => p.scopeKind === "subagent" && Array.isArray(p.roles?.subagentAllow)), "expected subagent setToolFilter call");
+  });
+  store.delete("dsh-skill-mcp-panel:last-tab");
+}
+
+// ── 20. 顶部更新按钮（替代被动横幅）+ 一键自更新交互 ────────────────────────
+{
+  let applyCalls = 0;
+  let checkCalls = 0;
+  let shouldFailApply = false;
+  const updateFace = {
+    ...mcpFace,
+    checkUpdateRemote: async () => {
+      checkCalls++;
+      return { current: "2.3.12", latest: "2.4.0", updateAvailable: true, canSelfUpdate: true, profile: "desktop" };
+    },
+    applyUpdateRemote: async () => {
+      applyCalls++;
+      if (shouldFailApply) return { ok: false, current: "2.3.12", latest: "2.4.0", updatedTo: null, profile: "desktop", method: "remove+add", needsRestart: false, error: "boom" };
+      return { ok: true, current: "2.3.12", latest: "2.4.0", updatedTo: "2.4.0", profile: "desktop", method: "remove+add", needsRestart: true };
+    }
+  };
+  reset(skills, "skills");
+  let view = await mount(updateFace);
+  check("有新版本时技能页与 MCP 页都不再显示被动 SKV_notice 横幅", () => {
+    const notices = byClass(view.section, "SKV_noticeText").map((n) => String(n.props.children));
+    assert(!notices.some((txt) => txt.includes("2.4.0")), "unexpected passive update banner in skills tab: " + JSON.stringify(notices));
+  });
+  check("顶部右侧渲染「更新到 v2.4.0」按钮与版本对比提示", () => {
+    const btn = byClass(view.page, "SKV_updateBtn")[0];
+    const hint = byClass(view.page, "SKV_updateHint")[0];
+    assert(btn !== undefined && btn.props.children === "更新到 v2.4.0", "expected top update button, got " + JSON.stringify(btn?.props));
+    assert(btn.props["data-available"] === "true", "button should highlight available state");
+    assert(hint !== undefined && hint.props.children === "v2.3.12 → v2.4.0", "expected version hint, got " + JSON.stringify(hint?.props));
+  });
+
+  // 切到 MCP 页签也应保留顶部更新按钮且不显示被动横幅。
+  view.page.props.children[1].props.children[1].props.onClick();
+  await flush();
+  view = paint(updateFace);
+  check("MCP 页签同样保留顶部更新按钮且无被动更新横幅", () => {
+    const notices = byClass(view.section, "SKV_noticeText").map((n) => String(n.props.children));
+    assert(!notices.some((txt) => txt.includes("2.4.0")), "unexpected passive update banner in mcp tab: " + JSON.stringify(notices));
+    const btn = byClass(view.page, "SKV_updateBtn")[0];
+    assert(btn !== undefined && btn.props.children === "更新到 v2.4.0", "top update button lost on mcp tab");
+  });
+
+  // 失败路径：展示重试文案与错误提示。
+  shouldFailApply = true;
+  byClass(view.page, "SKV_updateBtn")[0].props.onClick();
+  await flush();
+  view = paint(updateFace);
+  check("点击更新失败时顶部提示错误并提供重试按钮", () => {
+    assert(applyCalls === 1, "expected 1 applyUpdate call");
+    const btn = byClass(view.page, "SKV_updateBtn")[0];
+    const hint = byClass(view.page, "SKV_updateHint")[0];
+    assert(btn.props.children === "重试更新 v2.4.0", "expected retry label, got " + btn.props.children);
+    assert(hint?.props["data-kind"] === "error" && hint.props.children === "更新失败：boom", "expected error hint, got " + JSON.stringify(hint?.props));
+  });
+
+  // 成功路径：点击重试触发 applyUpdateRemote 并切换已更新状态。
+  shouldFailApply = false;
+  byClass(view.page, "SKV_updateBtn")[0].props.onClick();
+  await flush();
+  view = paint(updateFace);
+  check("点击更新成功后切换为「已更新 v2.4.0」与重开提示", () => {
+    assert(applyCalls === 2, "expected retry applyUpdate call");
+    const btn = byClass(view.page, "SKV_updateBtn")[0];
+    const hint = byClass(view.page, "SKV_updateHint")[0];
+    assert(btn.props["data-done"] === "true" && btn.props.children === "已更新 v2.4.0", "expected done label, got " + JSON.stringify(btn?.props));
+    assert(hint?.props.children === "已安装新版本，重开面板或重启应用生效", "expected done hint, got " + JSON.stringify(hint?.props));
+  });
+
+  // 已是最新时：点击「检查更新」主动触发 checkUpdateRemote 并显示「已是最新」。
+  reset(skills, "skills");
+  checkCalls = 0;
+  const latestFace = {
+    ...rpc,
+    checkUpdateRemote: async () => {
+      checkCalls++;
+      return { current: "2.3.12", latest: "2.3.12", updateAvailable: false, canSelfUpdate: true };
+    }
+  };
+  view = await mount(latestFace);
+  check("已是最新时顶部显示「检查更新」按钮且静默不吵", () => {
+    const btn = byClass(view.page, "SKV_updateBtn")[0];
+    assert(btn?.props.children === "检查更新", "expected Check updates label, got " + btn?.props.children);
+    assert(byClass(view.page, "SKV_updateHint").length === 0, "idle/latest initial check should stay quiet");
+  });
+  byClass(view.page, "SKV_updateBtn")[0].props.onClick();
+  await flush();
+  view = paint(latestFace);
+  check("手动点击「检查更新」重查并反馈「已是最新 v2.3.12」", () => {
+    assert(checkCalls >= 2, "manual click should re-run checkUpdateRemote");
+    const hint = byClass(view.page, "SKV_updateHint")[0];
+    assert(hint?.props.children === "已是最新 v2.3.12", "expected up-to-date hint, got " + JSON.stringify(hint?.props));
   });
   store.delete("dsh-skill-mcp-panel:last-tab");
 }

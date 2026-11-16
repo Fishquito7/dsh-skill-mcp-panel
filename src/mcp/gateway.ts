@@ -5,7 +5,17 @@ import { TypertRemoteService } from "@deepseek-ai/dsh-typert-protocol";
 import { fileURLToPath } from "node:url";
 import { join, resolve } from "node:path";
 import { resolveDshHome } from "../host-paths.js";
-import { loadToolFilter, saveToolFilter } from "../tool-filter.js";
+import {
+  emptyToolFilterPolicy,
+  loadToolFilterPolicy,
+  normalizeToolNames,
+  normalizeWorkspaceKey,
+  profileDirOf,
+  saveToolFilterPolicy,
+  type ToolFilterPolicy
+} from "../tool-filter.js";
+import { locatorOfRow, readPatchRows, resolvePatchRow } from "./rows.js";
+import { deleteMcpGroup, loadMcpGroups, upsertMcpGroup } from "./groups.js";
 import {
   authorizationHeader,
   buildAuthorizationUrl,
@@ -21,14 +31,12 @@ import {
   saveOAuthRecord,
   startLoopbackServer
 } from "../oauth.js";
+import { OAuthRefreshScheduler } from "../oauth-scheduler.js";
 import {
   MCP_PLUGIN_NAME,
   isJsExprValue,
   isManagedRow,
-  listMcpPatchRows,
-  readManagedBlock,
   readMcpEntryText,
-  readPatchFile,
   removeMcpEntry,
   replaceMcpEntryText,
   replaceMcpEntryWithRow,
@@ -49,6 +57,8 @@ import {
   type McpServerInput
 } from "./model.js";
 import {
+  mcpGroupDeletePayloadSchema,
+  mcpGroupSavePayloadSchema,
   mcpOAuthPollPayloadSchema,
   mcpOAuthServerPayloadSchema,
   mcpOAuthStartPayloadSchema,
@@ -109,10 +119,57 @@ const OAUTH_FLOWS = new Map<string, any>();
 
 export class McpManagerGateway extends TypertRemoteService {
   toolFilter: any;
+  oauthScheduler: OAuthRefreshScheduler | undefined;
+  fetchImpl: any = fetch;
 
   constructor(ctx: any, toolFilter?: any) {
     super(ctx, "skillMcpPanel");
     this.toolFilter = toolFilter;
+  }
+
+  setOAuthScheduler(scheduler: OAuthRefreshScheduler | undefined) {
+    this.oauthScheduler = scheduler;
+  }
+
+  private filterMcpNames(raw: unknown): string[] {
+    return normalizeToolNames(Array.isArray(raw) ? raw.filter((v) => typeof v === "string" && v.startsWith("mcp__")) : []);
+  }
+
+  private livePolicy(): ToolFilterPolicy | undefined {
+    const policy = this.toolFilter?.policyOf?.();
+    if (policy !== null && typeof policy === "object" && Array.isArray(policy.deny)) return policy;
+    const deny = this.liveDeny();
+    if (deny !== undefined) return emptyToolFilterPolicy(deny);
+    return undefined;
+  }
+
+  private liveSessionOverrides(): Record<string, { deny: string[]; allow: string[] }> {
+    const map = this.toolFilter?.sessionOverridesObject?.();
+    return map !== null && typeof map === "object" ? map : {};
+  }
+
+  private applyLivePolicy(policy: ToolFilterPolicy) {
+    if (this.toolFilter === undefined) return;
+    if (typeof this.toolFilter.setPolicy === "function") this.toolFilter.setPolicy(policy);
+    else if (typeof this.toolFilter.setDeny === "function") this.toolFilter.setDeny(policy.deny);
+  }
+
+  private oauthSummaryOf(serverName: string, headerKeys: string[], oauthStore?: Record<string, any>) {
+    const record = oauthStore?.[serverName];
+    if (record === null || typeof record !== "object") return undefined;
+    return stripUndefined({
+      connected: headerKeys.includes("Authorization"),
+      expiresAt: typeof record.expiresAt === "number" ? record.expiresAt : null,
+      expired: isExpired(record),
+      needsReauth: record.needsReauth === true ? true : undefined,
+      refreshError: typeof record.refreshError === "string" ? record.refreshError : undefined,
+      canRefresh:
+        typeof record.refreshToken === "string" &&
+        record.refreshToken !== "" &&
+        typeof record.tokenEndpoint === "string" &&
+        record.tokenEndpoint !== "",
+      updatedAt: typeof record.updatedAt === "number" ? record.updatedAt : undefined
+    });
   }
 
   get C(): any {
@@ -134,84 +191,52 @@ export class McpManagerGateway extends TypertRemoteService {
   }
 
   async readRows() {
-    const path = this.patchPath();
-    const raw = await readPatchFile(path);
-    // managed 仍是「受管块重写器认领的行」，只用于新建时追加。
-    // 启停 / 编辑 / 删除看 all：每一条 mcp-client 行，不论在不在块里。
-    const { managed, foreign } = readManagedBlock(raw);
-    const all = listMcpPatchRows(raw);
-    return { path, raw, managed, all, foreign };
+    return readPatchRows(this.patchPath());
   }
 
   serverNameOf(row: PatchRow): string | undefined {
     return serverNameOfRow(row);
   }
 
-  /**
-   * 按 payload 里的 serverName + entryId 定位唯一的 MCP 行。
-   *
-   * 同时给两个字段时按「都对上」匹配：文件里 id 重复（不同 serverName）或
-   * serverName 重复（不同 id）都能唯一定位到用户点的那一条；手写行没有 id
-   * 时只用 serverName。缺一个字段时退回单字段匹配，命中多条就报错。
-   */
   resolveRow(rows: PatchRow[], ref: { serverName?: string; entryId?: string }): PatchRow {
-    const name = typeof ref.serverName === "string" && ref.serverName !== "" ? ref.serverName : undefined;
-    const entryId = typeof ref.entryId === "string" && ref.entryId !== "" ? ref.entryId : undefined;
-    const both = rows.filter(
-      (row) => (name === undefined || this.serverNameOf(row) === name) && (entryId === undefined || row.id === entryId)
-    );
-    if (both.length === 1) return both[0];
-    const label = name ?? entryId ?? "";
-    if (both.length > 1) {
-      throw new Error('MCP 行 "' + label + '" 在 cordis.patch.yml 里不唯一（id 或 serverName 重复）。'
-        + "请用原文按 id 逐条修正，让每一行的 id 和 config.serverName 都唯一");
-    }
-    if (name !== undefined) {
-      const byName = rows.filter((row) => this.serverNameOf(row) === name);
-      if (byName.length === 1) return byName[0];
-      if (byName.length > 1) {
-        throw new Error('serverName "' + name + '" 对应多条 MCP 行：请从卡片进入（面板会带上 entryId），'
-          + "或在 CLI 里加 --id <entryId>；也可以直接改 cordis.patch.yml 消掉重名");
-      }
-    }
-    if (entryId !== undefined) {
-      const byId = rows.filter((row) => row.id === entryId);
-      if (byId.length === 1) return byId[0];
-      if (byId.length > 1) throw new Error('id "' + entryId + '" 对应多条 MCP 行，请用原文按 id 逐条修正');
-    }
-    throw new Error('MCP 行 "' + label + '" 不存在');
+    return resolvePatchRow(rows, ref, "gateway");
   }
 
   /** 这一行的 patch-editor 定位器（id + serverName，缺 id 时只给 serverName）。 */
   locatorOf(row: PatchRow): { id?: string; serverName?: string } {
-    return { id: typeof row.id === "string" ? row.id : undefined, serverName: this.serverNameOf(row) };
+    return locatorOfRow(row);
   }
 
-  decorate(row: PatchRow, managed: boolean, entry: any, enabled: boolean) {
+  decorate(row: PatchRow, managed: boolean, entry: any, enabled: boolean, oauthStore?: Record<string, any>) {
     const view: any = patchRowToView(row);
     if (view === undefined) return undefined;
     const fiberPhase = fiberPhaseOf(entry?.fiber?.state);
+    const oauth = view.transport === "streamable-http" ? this.oauthSummaryOf(view.serverName, view.headerKeys ?? [], oauthStore) : undefined;
     return stripUndefined({
       ...view,
       enabled,
       managed,
       fiberPhase,
       // 不按 enabled 归零：!!js 的 disabled 由宿主求值，行可能正在跑，显示真实工具数。
-      toolCount: mcpToolCount(this.C, view.serverName)
+      toolCount: mcpToolCount(this.C, view.serverName),
+      oauth
     });
   }
 
   async list() {
     let patch = { path: this.patchPath(), ok: false, error: null as string | null, foreign: [] as { id?: string; name?: string; managed: boolean }[] };
     try {
-      const { path, all, foreign } = await this.readRows();
+      const [{ path, all, foreign }, oauthStore] = await Promise.all([
+        this.readRows(),
+        loadOAuthStore(this.dshHomeOf()).catch(() => ({} as Record<string, any>))
+      ]);
       // 非 MCP 的外来行仍要报给界面（ADR-0003）。MCP 行已经在 servers 里，不再当成「未管理」。
       const foreignEntries = foreign.entries.filter((entry) => entry.name !== MCP_PLUGIN_NAME);
       patch = { path, ok: true, error: null, foreign: foreignEntries };
       const servers: any[] = [];
       for (const row of all) {
         const entry = typeof row.id === "string" ? getLoaderEntry(this.C, row.id) : undefined;
-        const view = this.decorate(row, true, entry, rowEnabled(row));
+        const view = this.decorate(row, true, entry, rowEnabled(row), oauthStore);
         if (view !== undefined) servers.push(view);
       }
       return { servers, externalServers: [], patch };
@@ -324,15 +349,34 @@ export class McpManagerGateway extends TypertRemoteService {
     return { server, reconciled };
   }
 
+  private probeOptions() {
+    return {
+      dshHome: this.dshHomeOf(),
+      resolveCredential: async (ref: string) => {
+        try {
+          const svc = typeof this.C?.get === "function" ? this.C.get("credentials") : undefined;
+          if (svc && typeof svc.resolve === "function") {
+            const result = await svc.resolve(ref);
+            return typeof result?.value === "string" && result.value !== "" ? result.value : undefined;
+          }
+        } catch {
+          // fall back to local credentials/env lookup inside probeMcpServer
+        }
+        return undefined;
+      }
+    };
+  }
+
   async test(rawPayload: unknown) {
     const payload = parseWirePayload(mcpTestPayloadSchema, rawPayload, "测试参数无效");
+    const opts = this.probeOptions();
     if (payload !== null && typeof payload === "object" && !("transport" in payload) && "serverName" in payload) {
       const { all } = await this.readRows();
       const entryId = typeof (payload as any).entryId === "string" ? String((payload as any).entryId) : undefined;
       const row = this.resolveRow(all, { serverName: String(payload.serverName), entryId });
-      return probeMcpServer(this.configInputFromRow(row));
+      return probeMcpServer(this.configInputFromRow(row), opts);
     }
-    return probeMcpServer(payload);
+    return probeMcpServer(payload, opts);
   }
 
   /**
@@ -370,7 +414,7 @@ export class McpManagerGateway extends TypertRemoteService {
   async listTools(rawPayload: unknown) {
     const payload = parseWirePayload(mcpToolsPayloadSchema, rawPayload, "工具查询参数无效");
     const tools = this.serverToolRows(payload.serverName);
-    const deny = this.liveDeny() ?? await loadToolFilter(this.dshHomeOf());
+    const deny = this.liveDeny() ?? (await loadToolFilterPolicy(this.dshHomeOf(), profileDirOf(this.C))).deny;
     return {
       serverName: payload.serverName,
       tools,
@@ -388,21 +432,117 @@ export class McpManagerGateway extends TypertRemoteService {
     return { moved: result.moved };
   }
 
-  /** 读取单工具禁用列表。 */
+  /** 读取全部分层单工具禁用策略与当前内存会话覆盖（Issue #44 / #55 / #91）。 */
   async getToolFilter() {
-    const deny = this.liveDeny() ?? await loadToolFilter(this.dshHomeOf());
-    return { deny: [...deny].sort(), applied: this.appliedAgentCount() };
+    const policy = this.livePolicy() ?? await loadToolFilterPolicy(this.dshHomeOf(), profileDirOf(this.C));
+    return {
+      deny: [...policy.deny].sort(),
+      applied: this.appliedAgentCount(),
+      workspaces: policy.workspaces,
+      roles: policy.roles,
+      sessionOverrides: this.liveSessionOverrides()
+    };
   }
 
-  /** 写入单工具禁用列表并立刻重新施加到所有 agent（Issue #44）。 */
+  /** 写入全局 / 工作区 / 会话 / 子代理工具过滤规则并立刻重新施加到所有 agent。 */
   async setToolFilter(rawPayload: unknown) {
     const payload = parseWirePayload(mcpToolFilterPayloadSchema, rawPayload, "工具过滤参数无效");
-    const deny: string[] = [
-      ...new Set<string>(payload.deny.filter((value: unknown): value is string => typeof value === "string" && value.startsWith("mcp__")))
-    ].sort();
-    await saveToolFilter(this.dshHomeOf(), deny);
-    if (this.toolFilter !== undefined && typeof this.toolFilter.setDeny === "function") this.toolFilter.setDeny(deny);
-    return { deny, applied: this.appliedAgentCount() };
+    const current = this.livePolicy() ?? await loadToolFilterPolicy(this.dshHomeOf(), profileDirOf(this.C));
+    const nextPolicy: ToolFilterPolicy = {
+      version: current.version,
+      deny: [...current.deny],
+      workspaces: { ...current.workspaces },
+      roles: {
+        subagentAllow: [...current.roles.subagentAllow],
+        subagentDeny: [...current.roles.subagentDeny]
+      }
+    };
+
+    const scopeKind = payload.scopeKind;
+    if (scopeKind === "session") {
+      const sessionId = typeof payload.scopeKey === "string" ? payload.scopeKey.trim() : "";
+      if (sessionId === "") throw new Error("会话级工具覆盖缺少当前会话 ID");
+      if (this.toolFilter !== undefined && typeof this.toolFilter.setSessionOverride === "function") {
+        this.toolFilter.setSessionOverride(sessionId, {
+          deny: this.filterMcpNames(payload.deny),
+          allow: this.filterMcpNames(payload.allow)
+        });
+      }
+      return {
+        deny: nextPolicy.deny,
+        applied: this.appliedAgentCount(),
+        workspaces: nextPolicy.workspaces,
+        roles: nextPolicy.roles,
+        sessionOverrides: this.liveSessionOverrides()
+      };
+    }
+
+    if (scopeKind === "workspace") {
+      const wsKey = typeof payload.scopeKey === "string" ? normalizeWorkspaceKey(payload.scopeKey) : "";
+      if (wsKey === "") throw new Error("工作区级工具覆盖缺少工作区路径");
+      const wsDeny = this.filterMcpNames(payload.deny);
+      if (wsDeny.length === 0) delete nextPolicy.workspaces[wsKey];
+      else nextPolicy.workspaces[wsKey] = wsDeny;
+    } else if (scopeKind === "subagent") {
+      if (payload.roles !== undefined) {
+        if (payload.roles.subagentAllow !== undefined) nextPolicy.roles.subagentAllow = this.filterMcpNames(payload.roles.subagentAllow);
+        if (payload.roles.subagentDeny !== undefined) nextPolicy.roles.subagentDeny = this.filterMcpNames(payload.roles.subagentDeny);
+      } else {
+        if (payload.allow !== undefined) nextPolicy.roles.subagentAllow = this.filterMcpNames(payload.allow);
+        if (payload.deny !== undefined) nextPolicy.roles.subagentDeny = this.filterMcpNames(payload.deny);
+      }
+    } else {
+      if (payload.deny !== undefined) nextPolicy.deny = this.filterMcpNames(payload.deny);
+      if (payload.workspaces !== undefined) {
+        const nextWs: Record<string, string[]> = {};
+        for (const [k, v] of Object.entries(payload.workspaces)) {
+          const wsKey = normalizeWorkspaceKey(k);
+          const list = this.filterMcpNames(v);
+          if (wsKey !== "" && list.length > 0) nextWs[wsKey] = list;
+        }
+        nextPolicy.workspaces = nextWs;
+      }
+      if (payload.roles !== undefined) {
+        nextPolicy.roles = {
+          subagentAllow: payload.roles.subagentAllow !== undefined ? this.filterMcpNames(payload.roles.subagentAllow) : nextPolicy.roles.subagentAllow,
+          subagentDeny: payload.roles.subagentDeny !== undefined ? this.filterMcpNames(payload.roles.subagentDeny) : nextPolicy.roles.subagentDeny
+        };
+      }
+    }
+
+    const saved = await saveToolFilterPolicy(this.dshHomeOf(), nextPolicy, profileDirOf(this.C));
+    this.applyLivePolicy(saved);
+    return {
+      deny: saved.deny,
+      applied: this.appliedAgentCount(),
+      workspaces: saved.workspaces,
+      roles: saved.roles,
+      sessionOverrides: this.liveSessionOverrides()
+    };
+  }
+
+  private groupRowsResult(groups: Record<string, { name: string; servers: string[] }>) {
+    return {
+      groups: Object.entries(groups).map(([id, g]) => ({ id, name: g.name, servers: g.servers }))
+    };
+  }
+
+  /** 读取 MCP 服务器逻辑分组（存于 mcp-groups.json）。 */
+  async listGroups() {
+    return this.groupRowsResult(await loadMcpGroups(this.dshHomeOf()));
+  }
+
+  /** 新建或更新 MCP 服务器逻辑分组。 */
+  async saveGroup(rawPayload: unknown) {
+    const payload = parseWirePayload(mcpGroupSavePayloadSchema, rawPayload, "MCP 分组参数无效");
+    const { groups } = await upsertMcpGroup(this.dshHomeOf(), payload);
+    return this.groupRowsResult(groups);
+  }
+
+  /** 删除 MCP 服务器逻辑分组（不动 cordis.patch.yml 里的服务器）。 */
+  async deleteGroup(rawPayload: unknown) {
+    const payload = parseWirePayload(mcpGroupDeletePayloadSchema, rawPayload, "MCP 分组删除参数无效");
+    return this.groupRowsResult(await deleteMcpGroup(this.dshHomeOf(), payload.id));
   }
 
   appliedAgentCount(): number {
@@ -415,21 +555,60 @@ export class McpManagerGateway extends TypertRemoteService {
   }
 
   /** 把 Authorization 头写进那一行（其它 header、未建模字段、所在位置都保留）。 */
-  async writeAuthHeader(serverName: string, value: string | undefined) {
+  async writeAuthHeader(serverName: string, value: string | undefined): Promise<boolean> {
     const { all } = await this.readRows();
-    const row = this.resolveRow(all, { serverName });
+    const row = this.managedRow(all, serverName);
+    if (row === undefined) return false;
     const config: any = { ...(row.config ?? {}) };
-    const headers = config.headers !== null && typeof config.headers === "object" && !Array.isArray(config.headers) ? { ...config.headers } : {};
+    const headers: Record<string, any> =
+      config.headers !== null && typeof config.headers === "object" && !Array.isArray(config.headers) ? { ...config.headers } : {};
+    if (value === undefined && !("Authorization" in headers)) return false;
+    if (value !== undefined && headers.Authorization === value) return false;
     if (value === undefined) delete headers.Authorization;
     else headers.Authorization = value;
     const nextConfig = { ...config };
     if (Object.keys(headers).length === 0) delete nextConfig.headers;
     else nextConfig.headers = headers;
     await replaceMcpEntryWithRow(this.patchPath(), this.locatorOf(row), { ...row, config: nextConfig });
+    return true;
   }
 
   /**
-   * 开始一次 OAuth 登录（Issue #45 的面板入口）。
+   * 自动刷新后热同步 Authorization 头：
+   *   - 行不存在则跳过（不抛错）；
+   *   - 用户把 Authorization 改写为 `${...}` 凭据/环境模板或 `!!js` 表达式时绝不覆盖；
+   *   - header 值未变化时不改写 YAML，避免无意义的 HMR 抖动。
+   */
+  async syncAuthHeaderFromOAuth(serverName: string, record: any): Promise<boolean> {
+    const { all } = await this.readRows();
+    const row = this.managedRow(all, serverName);
+    if (row === undefined) return false;
+    const existing = (row.config as any)?.headers?.Authorization;
+    if (isJsExprValue(existing)) return false;
+    if (typeof existing === "string" && /\$\{[^}]+\}/.test(existing)) return false;
+    const nextHeader = authorizationHeader(record);
+    if (existing === nextHeader) return false;
+    const changed = await this.writeAuthHeader(serverName, nextHeader);
+    if (changed && typeof row.id === "string") {
+      await waitForLoaderState(this.C, row.id, (entry: any) => entry !== undefined).catch(() => {});
+    }
+    return changed;
+  }
+
+  private getOrCreateScheduler(): OAuthRefreshScheduler {
+    if (this.oauthScheduler !== undefined) return this.oauthScheduler;
+    const created = new OAuthRefreshScheduler({
+      dshHome: this.dshHomeOf(),
+      fetchImpl: this.fetchImpl,
+      onTokenRefreshed: (serverName, record) => this.syncAuthHeaderFromOAuth(serverName, record),
+      logger: this.C?.logger
+    });
+    this.oauthScheduler = created;
+    return created;
+  }
+
+  /**
+   * 开始一次 OAuth 登录（Issue #45 / #80 的面板入口）。
    * 返回授权地址：前端交给浏览器打开，然后轮询 `oauthPoll`。
    */
   async oauthStart(rawPayload: unknown) {
@@ -441,7 +620,7 @@ export class McpManagerGateway extends TypertRemoteService {
     if (config.transport !== "streamable-http" || typeof config.url !== "string" || config.url === "") {
       throw new Error("只有 streamable-http 的服务器能用 OAuth 登录（stdio 由本地进程自己管凭据）");
     }
-    const discovery: any = await discoverMetadataDetailed(config.url);
+    const discovery: any = await discoverMetadataDetailed(config.url, this.fetchImpl, { probeChallenge: true });
     const metadata = discovery.metadata;
     if (metadata === undefined) throw new Error(discoveryFailureMessage(discovery.attempts));
     const configuredUrl = normalizeServerUrl(config.url);
@@ -452,7 +631,7 @@ export class McpManagerGateway extends TypertRemoteService {
     const timeoutMs = Math.max(30, Math.min(900, Number(payload.timeoutSeconds ?? 300))) * 1000;
     const loopback = await startLoopbackServer(state, timeoutMs);
     const previous = (await loadOAuthStore(this.dshHomeOf()))[payload.serverName];
-    const clientId = payload.clientId ?? previous?.clientId ?? (await registerClient(metadata, loopback.redirectUri))?.client_id;
+    const clientId = payload.clientId ?? previous?.clientId ?? (await registerClient(metadata, loopback.redirectUri, this.fetchImpl))?.client_id;
     if (typeof clientId !== "string" || clientId === "") {
       await loopback.close();
       throw new Error("拿不到 client_id：服务器既不支持动态注册，也没有指定 clientId");
@@ -503,13 +682,19 @@ export class McpManagerGateway extends TypertRemoteService {
     }
     flow.status = "exchanging";
     try {
-      const tokens = await exchangeCode(flow.metadata, flow.clientId, flow.code, flow.verifier, flow.redirectUri, flow.url);
-      await saveOAuthRecord(this.dshHomeOf(), flow.serverName, {
+      const tokens = await exchangeCode(flow.metadata, flow.clientId, flow.code, flow.verifier, flow.redirectUri, flow.url, this.fetchImpl);
+      const now = Date.now();
+      const record = {
         ...tokens,
         clientId: flow.clientId,
         serverUrl: flow.url,
-        tokenEndpoint: flow.metadata.token_endpoint
-      });
+        resource: flow.url,
+        tokenEndpoint: flow.metadata.token_endpoint,
+        obtainedAt: now,
+        updatedAt: now
+      };
+      await saveOAuthRecord(this.dshHomeOf(), flow.serverName, record);
+      this.oauthScheduler?.schedule(flow.serverName, record);
       const header = authorizationHeader(tokens);
       await this.writeAuthHeader(flow.serverName, header);
       flow.status = "done";
@@ -538,17 +723,40 @@ export class McpManagerGateway extends TypertRemoteService {
     const row = this.managedRow(all, payload.serverName);
     const config: any = row?.config ?? {};
     const headers = config.headers !== null && typeof config.headers === "object" && !Array.isArray(config.headers) ? config.headers : {};
-    return {
+    return stripUndefined({
       connected: typeof headers.Authorization === "string" && headers.Authorization.indexOf("Bearer ") === 0,
       headerReady: typeof record.accessToken === "string",
       expiresAt: typeof record.expiresAt === "number" ? record.expiresAt : null,
-      expired: isExpired(record)
-    };
+      expired: isExpired(record),
+      needsReauth: record.needsReauth === true ? true : undefined,
+      refreshError: typeof record.refreshError === "string" ? record.refreshError : undefined,
+      canRefresh:
+        typeof record.refreshToken === "string" &&
+        record.refreshToken !== "" &&
+        typeof record.tokenEndpoint === "string" &&
+        record.tokenEndpoint !== "",
+      updatedAt: typeof record.updatedAt === "number" ? record.updatedAt : undefined
+    });
   }
 
-  /** 断开 OAuth：删掉 Authorization 头与本地令牌记录。 */
+  /** 手动立即刷新一次 OAuth 令牌（卡片上的「刷新令牌」按钮或自动续期入口）。 */
+  async oauthRefresh(rawPayload: unknown) {
+    const payload = parseWirePayload(mcpOAuthServerPayloadSchema, rawPayload, "OAuth 刷新参数无效");
+    const res = await this.getOrCreateScheduler().refreshServer(payload.serverName, { force: true });
+    return stripUndefined({
+      ok: res.ok,
+      serverName: payload.serverName,
+      expiresAt: res.expiresAt ?? null,
+      syncedFromDisk: res.syncedFromDisk,
+      needsReauth: res.needsReauth,
+      error: res.error
+    });
+  }
+
+  /** 断开 OAuth：停掉自动续期并删掉 Authorization 头与本地令牌记录。 */
   async oauthDisconnect(rawPayload: unknown) {
     const payload = parseWirePayload(mcpOAuthServerPayloadSchema, rawPayload, "OAuth 参数无效");
+    this.oauthScheduler?.unschedule(payload.serverName);
     await this.writeAuthHeader(payload.serverName, undefined);
     await removeOAuthRecord(this.dshHomeOf(), payload.serverName);
     const row = this.managedRow((await this.readRows()).all, payload.serverName);

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { Context } from "@deepseek-ai/cordis";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PANEL_MANIFEST, SkillsViewerGateway } from "../lib/index.js";
@@ -61,6 +62,29 @@ try {
   assert.ok(listInvocation, "list invocation must be registered");
   assert.doesNotThrow(() => listInvocation.result.create().parse(result), "the payload must pass the strict wire codec");
   pass("list() tags every row and still satisfies the strict wire codec");
+
+  // #90 / #97：插件自带技能即便带了真实可读写的 path（如 custom/node_modules 路径），
+  // 宿主也绝不能对它执行改名停用或删除，文件必须原封不动留在盘上。
+  const pluginSkillDir = join(dir, "node_modules", "@deepseek-ai", "dsh-agent-preset", "skills", "agent-experience");
+  const pluginSkillFile = join(pluginSkillDir, "SKILL.md");
+  await mkdir(pluginSkillDir, { recursive: true });
+  await writeFile(pluginSkillFile, "---\nname: agent-experience\ndescription: plugin doc\n---\n\nkeep\n");
+  const ctxWithCustomPlugin = new Context();
+  const pluginList = [
+    { name: "agent-experience", description: "plugin doc", provider: "dsh-agent-preset", source: "custom", path: pluginSkillFile, invocation: { modelInvocable: true, userInvocable: true } }
+  ];
+  ctxWithCustomPlugin.provide("skills", {
+    list: async () => pluginList,
+    get: async (name) => pluginList.find((s) => s.name === name)
+  });
+  ctxWithCustomPlugin.provide("sessions", { list: () => [], get: () => undefined });
+  ctxWithCustomPlugin.provide("agents", { get: () => undefined });
+  const customGw = new SkillsViewerGateway(ctxWithCustomPlugin);
+  await assert.rejects(() => customGw.setEnabled("agent-experience", undefined, false, "global"), /插件提供|不可修改/);
+  await assert.rejects(() => customGw.deleteSkill("agent-experience", undefined, "global"), /插件提供|不可修改/);
+  assert.equal(existsSync(pluginSkillFile), true, "plugin skill file must remain untouched on disk");
+  assert.equal(await readFile(pluginSkillFile, "utf8"), "---\nname: agent-experience\ndescription: plugin doc\n---\n\nkeep\n");
+  pass("plugin-provided custom skills reject setEnabled and deleteSkill without touching files (#90/#97)");
 } finally {
   if (previousHome === undefined) delete process.env.DSH_HOME;
   else process.env.DSH_HOME = previousHome;

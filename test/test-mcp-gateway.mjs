@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { Context } from "@deepseek-ai/cordis";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { McpManagerGateway } from "../lib/mcp/gateway.js";
 import { MCP_MANIFEST, mcpListResultSchema } from "../lib/mcp/wire.js";
+import { saveOAuthRecord } from "../lib/oauth.js";
 
 let passed = 0;
 function pass(name) {
@@ -345,6 +347,172 @@ assert.equal(exprOnDisk.includes("\"`Bearer"), false, "expression must not degra
   assert.equal(jsExprList.servers[0].disabledExpr, true, "!!js disabled 必须标记给界面");
   assert.equal(mcpListResultSchema.parse(jsExprList).servers[0].disabledExpr, true);
   pass("gateway exposes disabledExpr for !!js rows");
+
+  // 14. #93：gateway save/edit 保留 ${credential:REF}、expandTemplates 与 inject: [credentials]
+  await writeFile(join(dir, "cordis.patch.yml"), "[]\n");
+  const credSaved = await gateway.save({
+    input: {
+      serverName: "cred-srv",
+      transport: "streamable-http",
+      url: "https://${credential:HOST_SEG}/mcp",
+      expandTemplates: true,
+      headers: { Authorization: "Bearer ${credential:API_TOK}" }
+    },
+    enabled: false
+  });
+  assert.equal(credSaved.server.expandTemplates, true);
+  const credPatch1 = await readFile(join(dir, "cordis.patch.yml"), "utf8");
+  assert.equal(credPatch1.includes("!!js"), false, "${credential:...} must stay a plain string without !!js");
+  assert.equal(credPatch1.includes("credentials"), true, "inject: [credentials] must be saved");
+  const credEdited = await gateway.save({
+    input: {
+      serverName: "cred-srv",
+      transport: "streamable-http",
+      url: "https://updated.example.com/mcp",
+      expandTemplates: true,
+      headers: {}
+    },
+    previousServerName: "cred-srv",
+    previousEntryId: credSaved.server.entryId,
+    enabled: false
+  });
+  assert.equal(credEdited.server.expandTemplates, true);
+  const credPatch2 = await readFile(join(dir, "cordis.patch.yml"), "utf8");
+  assert.equal(credPatch2.includes("Bearer ${credential:API_TOK}"), true, "existing secret credential header must survive form save");
+  assert.equal(credPatch2.includes("credentials"), true, "inject: [credentials] must survive form save");
+  pass("gateway save and edit preserve credential templates and inject: [credentials] (#93)");
+
+  // 15. #94：gateway.test 按 entryId 定位重复行，并用 ctx.credentials.resolve() 的 { value } 展开 ${credential:REF}
+  const fixture = fileURLToPath(new URL("./mcp-server-fixture.mjs", import.meta.url));
+  const testCtx = new Context();
+  testCtx.baseUrl = pathToFileURL(dir).href + "/";
+  testCtx.provide("loader", { entries: function* () {} });
+  testCtx.provide("tools", { schemas: () => [] });
+  testCtx.provide("credentials", {
+    resolve: async (ref) => (ref === "FIXTURE_ARG" ? { value: fixture } : undefined)
+  });
+  const testProfileDir = join(dir, "profile-ctx");
+  await mkdir(testProfileDir, { recursive: true });
+  testCtx.provide("profileContext", { name: "custom-profile", dir: testProfileDir });
+  const credGateway = new McpManagerGateway(testCtx);
+  const dupTestPatch = [
+    "- id: dup-bad",
+    "  name: '@deepseek-ai/dsh-mcp-client'",
+    "  config:",
+    "    serverName: dupcred",
+    "    transport: stdio",
+    "    command: " + JSON.stringify(process.execPath),
+    "    args: [" + JSON.stringify(fixture + ".missing") + "]",
+    "- id: dup-good",
+    "  name: '@deepseek-ai/dsh-mcp-client'",
+    "  inject: [credentials]",
+    "  config:",
+    "    serverName: dupcred",
+    "    transport: stdio",
+    "    command: " + JSON.stringify(process.execPath),
+    "    args: ['${credential:FIXTURE_ARG}']",
+    "    expandTemplates: true",
+    ""
+  ].join("\n");
+  await writeFile(join(dir, "cordis.patch.yml"), dupTestPatch);
+  const testedSecond = await credGateway.test({ serverName: "dupcred", entryId: "dup-good" });
+  assert.equal(testedSecond.ok, true, testedSecond.error);
+  assert.equal(testedSecond.tools.length, 1);
+  pass("gateway.test preserves entryId and expands ${credential:REF} via credentials service (#94)");
+
+  // 16. #91：profileContext 存在时 setToolFilter 写入 <profileContext.dir>/.dsh-skill-mcp-panel/tool-filter.json
+  await credGateway.setToolFilter({ deny: ["mcp__dupcred__hello"] });
+  assert.equal(existsSync(join(testProfileDir, ".dsh-skill-mcp-panel", "tool-filter.json")), true);
+  assert.deepEqual((await credGateway.getToolFilter()).deny, ["mcp__dupcred__hello"]);
+  pass("gateway toolFilter uses active profileContext dir (#91)");
+
+  // 17. #55：MCP 分组 CRUD 落盘 mcp-groups.json，且完全不改动 cordis.patch.yml；分层 tool-filter 支持 workspace/session/subagent
+  const patchBeforeGroups = await readFile(join(dir, "cordis.patch.yml"), "utf8");
+  const g1 = await credGateway.saveGroup({ name: "研发", servers: ["dupcred"] });
+  assert.equal(g1.groups.length, 1);
+  assert.equal(g1.groups[0].name, "研发");
+  assert.deepEqual(g1.groups[0].servers, ["dupcred"]);
+  assert.equal((await credGateway.listGroups()).groups.length, 1);
+  assert.equal(await readFile(join(dir, "cordis.patch.yml"), "utf8"), patchBeforeGroups, "MCP 分组绝不能改写 cordis.patch.yml");
+  await credGateway.deleteGroup({ id: g1.groups[0].id });
+  assert.equal((await credGateway.listGroups()).groups.length, 0);
+
+  const policyWrites = [];
+  const sessionOverridesSet = [];
+  credGateway.toolFilter = {
+    policy: { version: 1, deny: [], workspaces: {}, roles: { subagentAllow: [], subagentDeny: [] } },
+    policyOf() { return this.policy; },
+    denyOf() { return this.policy.deny; },
+    setPolicy(p) { this.policy = p; policyWrites.push(p); },
+    setSessionOverride(id, o) { sessionOverridesSet.push({ id, o }); },
+    sessionOverridesObject() { return Object.fromEntries(sessionOverridesSet.map((x) => [x.id, x.o])); },
+    activeCount() { return 1; }
+  };
+  await credGateway.setToolFilter({ scopeKind: "workspace", scopeKey: "C:/ws/demo/", deny: ["mcp__dupcred__hello"] });
+  await credGateway.setToolFilter({ scopeKind: "subagent", roles: { subagentAllow: ["mcp__dupcred__hello"], subagentDeny: ["mcp__dupcred__bye"] } });
+  await credGateway.setToolFilter({ scopeKind: "session", scopeKey: "sess-9", deny: ["mcp__dupcred__tmp"], allow: ["mcp__dupcred__hello"] });
+  const tfSnap = await credGateway.getToolFilter();
+  assert.deepEqual(tfSnap.workspaces["C:/ws/demo"], ["mcp__dupcred__hello"]);
+  assert.deepEqual(tfSnap.roles.subagentAllow, ["mcp__dupcred__hello"]);
+  assert.deepEqual(tfSnap.sessionOverrides["sess-9"], { deny: ["mcp__dupcred__tmp"], allow: ["mcp__dupcred__hello"] });
+  pass("gateway manages MCP groups without touching patch YAML and layers tool-filter scopes (#55)");
+
+  // 18. #80：oauthRefresh 刷新令牌并更新 Authorization 头，不覆盖凭据模板，且保留 oauth 摘要在 list() 上
+  const oauthHome = join(dir, "oauth-home");
+  await mkdir(oauthHome, { recursive: true });
+  await writeFile(join(dir, "cordis.patch.yml"), [
+    "- id: panel-mcp-o1",
+    "  name: '@deepseek-ai/dsh-mcp-client'",
+    "  config:",
+    "    serverName: oauthsrv",
+    "    transport: streamable-http",
+    "    url: https://mcp.example.com/mcp",
+    "    headers:",
+    "      Authorization: Bearer old-token",
+    "- id: panel-mcp-o2",
+    "  name: '@deepseek-ai/dsh-mcp-client'",
+    "  config:",
+    "    serverName: credauth",
+    "    transport: streamable-http",
+    "    url: https://cred.example.com/mcp",
+    "    headers:",
+    "      Authorization: Bearer ${credential:MY_SECRET}",
+    ""
+  ].join("\n"));
+  await saveOAuthRecord(oauthHome, "oauthsrv", {
+    accessToken: "old-token",
+    refreshToken: "rt-old",
+    tokenType: "Bearer",
+    tokenEndpoint: "https://auth.example.com/token",
+    clientId: "cid",
+    expiresAt: Date.now() - 1000
+  });
+  await saveOAuthRecord(oauthHome, "credauth", {
+    accessToken: "should-not-overwrite-template",
+    refreshToken: "rt-c",
+    tokenType: "Bearer",
+    tokenEndpoint: "https://auth.example.com/token",
+    clientId: "cid",
+    expiresAt: Date.now() + 3600_000
+  });
+  credGateway.dshHomeOf = () => oauthHome;
+  credGateway.fetchImpl = async () => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ access_token: "fresh-token", refresh_token: "rt-fresh", token_type: "Bearer", expires_in: 3600 })
+  });
+  const refreshOut = await credGateway.oauthRefresh({ serverName: "oauthsrv" });
+  assert.equal(refreshOut.ok, true);
+  const patchAfterRefresh = await readFile(join(dir, "cordis.patch.yml"), "utf8");
+  assert.equal(patchAfterRefresh.includes("Bearer fresh-token"), true, "Authorization header must update after refresh");
+  await credGateway.syncAuthHeaderFromOAuth("credauth", { accessToken: "evil", tokenType: "Bearer" });
+  const patchAfterTemplateGuard = await readFile(join(dir, "cordis.patch.yml"), "utf8");
+  assert.equal(patchAfterTemplateGuard.includes("${credential:MY_SECRET}"), true, "must never overwrite ${credential:...} template header");
+  const listWithOAuth = await credGateway.list();
+  const oCard = listWithOAuth.servers.find((s) => s.serverName === "oauthsrv");
+  assert.equal(oCard?.oauth?.connected, true);
+  assert.equal(oCard?.oauth?.canRefresh, true);
+  pass("gateway oauthRefresh hot-updates Authorization without overwriting templates (#80)");
 
 } finally {
   await rm(dir, { recursive: true, force: true });

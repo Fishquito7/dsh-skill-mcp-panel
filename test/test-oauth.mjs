@@ -4,6 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
+  OAuthRefreshError,
   authorizationHeader,
   buildAuthorizationUrl,
   createPkce,
@@ -15,12 +16,15 @@ import {
   isExpired,
   loadOAuthStore,
   normalizeServerUrl,
+  parseResourceMetadataHeader,
+  redactOAuthText,
   refreshTokens,
   registerClient,
   removeOAuthRecord,
   saveOAuthRecord,
   startLoopbackServer
 } from "../lib/oauth.js";
+import { OAuthRefreshScheduler } from "../lib/oauth-scheduler.js";
 
 let passed = 0;
 let failed = 0;
@@ -599,6 +603,158 @@ await test("resolves a relative issuer from PRM", async () => {
     assert.equal(result.resource, fx.origin + "/sse");
   } finally {
     await fx.close();
+  }
+});
+
+await test("parses WWW-Authenticate resource_metadata and discovers PRM when well-knowns 404 (#80)", async () => {
+  assert.equal(
+    parseResourceMetadataHeader('Bearer realm="mcp", resource_metadata="https://auth.example.com/custom-prm.json"', "https://api.example.com"),
+    "https://auth.example.com/custom-prm.json"
+  );
+  assert.equal(
+    parseResourceMetadataHeader('Bearer resource_metadata=/rel/prm.json', "https://api.example.com/v1"),
+    "https://api.example.com/rel/prm.json"
+  );
+  assert.equal(parseResourceMetadataHeader("Bearer realm=\"only\""), undefined);
+
+  const server = createServer((req, res) => {
+    const url = new URL(req.url ?? "/", "http://127.0.0.1");
+    const origin = "http://" + req.headers.host;
+    if (url.pathname === "/mcp") {
+      res.writeHead(401, {
+        "www-authenticate": `Bearer realm="mcp", resource_metadata="${origin}/custom/prm.json"`
+      });
+      res.end("unauthorized");
+      return;
+    }
+    if (url.pathname === "/custom/prm.json") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ resource: origin + "/mcp", authorization_servers: [origin + "/custom-as"] }));
+      return;
+    }
+    if (url.pathname === "/.well-known/oauth-authorization-server/custom-as") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({
+        issuer: origin + "/custom-as",
+        authorization_endpoint: origin + "/custom-as/auth",
+        token_endpoint: origin + "/custom-as/token"
+      }));
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address();
+  const origin = "http://127.0.0.1:" + port;
+  try {
+    const result = await discoverMetadataDetailed(origin + "/mcp", fetch, { probeChallenge: true });
+    assert.equal(result.metadata?.token_endpoint, origin + "/custom-as/token");
+    assert.equal(result.resource, origin + "/mcp");
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+await test("redactOAuthText strips tokens from error strings (#80)", () => {
+  const sample = 'Bearer secret_abc_123 {"access_token":"tok_1","refresh_token":"ref_2"} refresh_token=ref_3';
+  const redacted = redactOAuthText(sample);
+  assert.equal(redacted.includes("secret_abc_123"), false);
+  assert.equal(redacted.includes("tok_1"), false);
+  assert.equal(redacted.includes("ref_2"), false);
+  assert.equal(redacted.includes("ref_3"), false);
+});
+
+await test("OAuthRefreshScheduler refreshes before expiry, persists rotated refresh_token, avoids sibling double-burn, and stops on invalid_grant (#80)", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "dsh-oauth-sched-"));
+  try {
+    let now = 1_000_000;
+    const postBodies = [];
+    const refreshedHeaders = [];
+    let mode = "rotate";
+    const mockFetch = async (_url, init) => {
+      postBodies.push(String(init?.body ?? ""));
+      if (mode === "rotate") {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ access_token: "acc-2", refresh_token: "ref-2", token_type: "Bearer", expires_in: 3600 })
+        };
+      }
+      if (mode === "transient") {
+        return { ok: false, status: 503, text: async () => "service unavailable Bearer leak_should_hide" };
+      }
+      return {
+        ok: false,
+        status: 400,
+        text: async () => JSON.stringify({ error: "invalid_grant", error_description: "revoked access_token=secret123" })
+      };
+    };
+
+    await saveOAuthRecord(dir, "srv", {
+      accessToken: "acc-1",
+      refreshToken: "ref-1",
+      tokenType: "Bearer",
+      tokenEndpoint: "https://auth.example.com/token",
+      clientId: "cid-1",
+      resource: "https://mcp.example.com/mcp",
+      expiresAt: now + 60_000
+    });
+
+    const scheduler = new OAuthRefreshScheduler({
+      dshHome: dir,
+      fetchImpl: mockFetch,
+      now: () => now,
+      leadMs: 5 * 60 * 1000,
+      retryDelaysMs: [10, 20],
+      onTokenRefreshed: (_serverName, rec) => {
+        refreshedHeaders.push(authorizationHeader(rec));
+      }
+    });
+
+    // 1. Concurrent refreshServer deduplicates HTTP calls (single-flight) + rotates refresh_token
+    const [r1, r2] = await Promise.all([
+      scheduler.refreshServer("srv"),
+      scheduler.refreshServer("srv")
+    ]);
+    assert.equal(r1.ok, true);
+    assert.equal(r2.ok, true);
+    assert.equal(postBodies.length, 1, "concurrent refresh must deduplicate to 1 HTTP call");
+    assert.equal(refreshedHeaders.at(-1), "Bearer acc-2");
+    const afterRotate = (await loadOAuthStore(dir)).srv;
+    assert.equal(afterRotate.refreshToken, "ref-2", "rotated refresh_token must be persisted");
+
+    // 2. Sibling profile already rotated oauth.json (> leadMs remaining) -> skip HTTP POST and adopt disk token
+    const outcomeSibling = await scheduler.refreshServer("srv");
+    assert.equal(outcomeSibling.ok, true);
+    assert.equal(outcomeSibling.syncedFromDisk, true);
+    assert.equal(postBodies.length, 1, "must not re-POST when sibling already refreshed");
+
+    // 3. Transient failure preserves needsReauth=false and redacts any secret text
+    now += 3_600_000;
+    mode = "transient";
+    const transientRes = await scheduler.refreshServer("srv", { force: true });
+    assert.equal(transientRes.ok, false);
+    assert.equal(transientRes.needsReauth, false);
+    assert.equal(transientRes.error?.includes("leak_should_hide"), false);
+
+    // 4. Permanent invalid_grant marks needsReauth=true and stops automatic retries
+    mode = "invalid_grant";
+    const permRes = await scheduler.refreshServer("srv", { force: true });
+    assert.equal(permRes.ok, false);
+    assert.equal(permRes.needsReauth, true);
+    assert.equal(permRes.error?.includes("secret123"), false);
+    const storedPerm = (await loadOAuthStore(dir)).srv;
+    assert.equal(storedPerm.needsReauth, true);
+    const countBeforeBlocked = postBodies.length;
+    const blockedRes = await scheduler.refreshServer("srv");
+    assert.equal(blockedRes.ok, false);
+    assert.equal(blockedRes.needsReauth, true);
+    assert.equal(postBodies.length, countBeforeBlocked, "needsReauth=true must block further auto-refresh loops");
+
+    scheduler.dispose();
+  } finally {
+    await rm(dir, { recursive: true, force: true });
   }
 });
 

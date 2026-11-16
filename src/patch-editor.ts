@@ -10,9 +10,10 @@
  *
  * 写入使用同目录临时文件 + rename，并通过锁文件避免 Web 宿主与 CLI 并发写。
  */
-import { open, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { open, readFile, rm, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { isMap, isPair, isScalar, isSeq, parseDocument, stringify } from "yaml";
+import { writeFileAtomic } from "./fs-utils.js";
 
 export const PANEL_MCP_BLOCK_BEGIN = "# >>> dsh-skill-mcp-panel:mcp:begin";
 export const PANEL_MCP_BLOCK_END = "# <<< dsh-skill-mcp-panel:mcp:end";
@@ -328,22 +329,7 @@ export function replaceManagedBlock(raw: string, rows: PatchRow[], foreign?: Man
   return raw + prefix + block;
 }
 
-/** 同目录临时文件 + rename 原子写；Windows 上 rename 覆盖失败时退化为 rm+rename。 */
-export async function writeFileAtomic(path: string, content: string): Promise<void> {
-  const temp = join(dirname(path), ".dsh-panel-tmp-" + process.pid + "-" + Math.random().toString(36).slice(2, 8));
-  try {
-    await writeFile(temp, content, "utf8");
-    try {
-      await rename(temp, path);
-    } catch (error) {
-      if (error === null || typeof error !== "object" || !["EPERM", "EEXIST", "EACCES"].includes((error as NodeJS.ErrnoException).code ?? "")) throw error;
-      await rm(path, { force: true });
-      await rename(temp, path);
-    }
-  } finally {
-    await rm(temp, { force: true }).catch(() => {});
-  }
-}
+export { writeFileAtomic };
 
 /**
  * 以 `<path>.panel.lock` 为锁执行 fn。锁文件记录 pid + 时间；超过 30 秒视为

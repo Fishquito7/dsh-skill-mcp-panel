@@ -3,12 +3,15 @@
  *
  * 不写 patch、不注册 DSH 工具；Web“测试连接”与 `dsh-panel mcp test` 共用。
  */
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import { scrubbedParentEnv } from "../host-paths.js";
+import { parse as parseYaml } from "yaml";
+import { resolveDshHome, scrubbedParentEnv } from "../host-paths.js";
 import { isJsExprValue } from "../patch-editor.js";
-import { mcpServerInputSchema } from "./model.js";
+import { CREDENTIAL_REF_RE, mcpServerInputSchema } from "./model.js";
 import type { McpServerInput, WireScalar } from "./model.js";
 
 export interface McpProbeTool {
@@ -22,7 +25,16 @@ export interface McpProbeResult {
   error?: string;
 }
 
+export interface McpProbeOptions {
+  timeoutMs?: number;
+  resolveCredential?: (ref: string) => string | undefined | Promise<string | undefined>;
+  dshHome?: string;
+  cwd?: string;
+}
+
 const PROBE_TIMEOUT_MS = 15000;
+const SUSPECT_TEMPLATE_RE = /\$\{[^}]*\}?/g;
+const EXACT_CREDENTIAL_RE = /^\$\{credential:([A-Za-z_][A-Za-z0-9_]*)\}$/;
 
 /**
  * 求值 !!js 表达式：与宿主 cordis 配置层的语义一致（with (ctx) { return eval(expr) }），
@@ -33,58 +45,213 @@ function evaluateJsExpr(expression: string): unknown {
   return new Function("ctx", "expr", "with (ctx) { return eval(expr) }")({}, expression);
 }
 
-/** 把单个配置值解析成真正的字符串：!!js 表达式在这里求值，失败给出可读原因。 */
+/** 把单个配置值解析成字符串：先求值 !!js 表达式，失败给出可读原因。 */
 function resolveScalar(value: WireScalar | null | undefined, label: string): string | undefined {
-	if (isJsExprValue(value)) {
-		let resolved: unknown;
-		try {
-			resolved = evaluateJsExpr(value.__jsExpr);
-		} catch (error) {
-			throw new Error(label + " 的 !!js 表达式求值失败：" + (error instanceof Error ? error.message : String(error)));
-		}
-		if (resolved === undefined || resolved === null) return undefined;
-		return typeof resolved === "string" ? resolved : String(resolved);
-	}
-	return typeof value === "string" ? value : "";
+  if (isJsExprValue(value)) {
+    let resolved: unknown;
+    try {
+      resolved = evaluateJsExpr(value.__jsExpr);
+    } catch (error) {
+      throw new Error(label + " 的 !!js 表达式求值失败：" + (error instanceof Error ? error.message : String(error)));
+    }
+    if (resolved === undefined || resolved === null) return undefined;
+    return typeof resolved === "string" ? resolved : String(resolved);
+  }
+  return typeof value === "string" ? value : "";
 }
 
-/** 必需值：表达式求不出结果就直接报错（命令/参数/目录/地址缺了连不上）。 */
-function resolveRequired(value: WireScalar | null | undefined, label: string): string {
-	const resolved = resolveScalar(value, label);
-	if (resolved === undefined) throw new Error(label + " 的 !!js 表达式没有求值结果：" + (isJsExprValue(value) ? value.__jsExpr : ""));
-	return resolved;
-}
-
-/** 环境变量/请求头：表达式求值为空时省略这个键，而不是把 undefined 发出去。 */
-function stringMap(value: Record<string, WireScalar | null> | undefined, label: string): Record<string, string> {
-	const out: Record<string, string> = {};
-	for (const [key, item] of Object.entries(value ?? {})) {
-		if (item === null || item === undefined) continue;
-		const resolved = resolveScalar(item, label + " " + key);
-		if (resolved === undefined) continue;
-		out[key] = resolved;
-	}
+function parseDotEnv(text: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const rawLine of text.split(/\r?\n/)) {
+    const trimmed = rawLine.trim();
+    if (trimmed === "" || trimmed.startsWith("#")) continue;
+    const line = trimmed.startsWith("export ") ? trimmed.slice(7).trim() : trimmed;
+    const eq = line.indexOf("=");
+    if (eq <= 0) continue;
+    const key = line.slice(0, eq).trim();
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
+    let val = line.slice(eq + 1).trim();
+    if (val.length >= 2 && ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'")))) {
+      val = val.slice(1, -1);
+    } else {
+      const comment = val.indexOf(" #");
+      if (comment >= 0) val = val.slice(0, comment).trim();
+    }
+    if (val !== "") out[key] = val;
+  }
   return out;
 }
 
-function createTransport(input: McpServerInput) {
+async function readCredentialsFileRefs(dshHome: string): Promise<Record<string, string>> {
+  try {
+    const raw = await readFile(join(dshHome, ".credentials.yaml"), "utf8");
+    const parsed: any = parseYaml(raw);
+    if (parsed !== null && typeof parsed === "object" && parsed.refs !== null && typeof parsed.refs === "object") {
+      const out: Record<string, string> = {};
+      for (const [k, v] of Object.entries(parsed.refs as Record<string, unknown>)) {
+        if (typeof v === "string" && v !== "") out[k] = v;
+      }
+      return out;
+    }
+  } catch {
+    // missing or unreadable credentials file falls through to env/.env
+  }
+  return {};
+}
+
+async function readDotEnvCached(filePath: string): Promise<Record<string, string>> {
+  try {
+    return parseDotEnv(await readFile(filePath, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function createCredentialLookup(options: McpProbeOptions, secrets: Set<string>) {
+  const dshHome = resolveDshHome(options.dshHome);
+  const cwd = options.cwd ?? process.cwd();
+  const cache = new Map<string, Promise<string | undefined>>();
+  let diskRefsPromise: Promise<Record<string, string>> | undefined;
+  let cwdEnvPromise: Promise<Record<string, string>> | undefined;
+  let homeEnvPromise: Promise<Record<string, string>> | undefined;
+
+  const lookupUncached = async (ref: string): Promise<string | undefined> => {
+    if (typeof options.resolveCredential === "function") {
+      const fromHost = await options.resolveCredential(ref);
+      if (typeof fromHost === "string" && fromHost !== "") return fromHost;
+    }
+    diskRefsPromise ??= readCredentialsFileRefs(dshHome);
+    const refs = await diskRefsPromise;
+    if (typeof refs[ref] === "string" && refs[ref] !== "") return refs[ref];
+    const fromEnv = process.env[ref];
+    if (typeof fromEnv === "string" && fromEnv !== "") return fromEnv;
+    cwdEnvPromise ??= readDotEnvCached(join(cwd, ".env"));
+    const cwdEnv = await cwdEnvPromise;
+    if (typeof cwdEnv[ref] === "string" && cwdEnv[ref] !== "") return cwdEnv[ref];
+    homeEnvPromise ??= readDotEnvCached(join(dshHome, ".env"));
+    const homeEnv = await homeEnvPromise;
+    if (typeof homeEnv[ref] === "string" && homeEnv[ref] !== "") return homeEnv[ref];
+    return undefined;
+  };
+
+  return (ref: string): Promise<string | undefined> => {
+    let entry = cache.get(ref);
+    if (entry === undefined) {
+      entry = lookupUncached(ref).then((value) => {
+        if (typeof value === "string" && value.length >= 4) {
+          secrets.add(value);
+          secrets.add(encodeURIComponent(value));
+        }
+        return value;
+      });
+      cache.set(ref, entry);
+    }
+    return entry;
+  };
+}
+
+async function expandTemplateText(
+  text: string,
+  label: string,
+  expandTemplates: boolean,
+  getCredential: (ref: string) => Promise<string | undefined>
+): Promise<string> {
+  if (!expandTemplates) {
+    const token = new RegExp(CREDENTIAL_REF_RE.source).exec(text);
+    if (token !== null) {
+      throw new Error(
+        '检测到凭据模板 "' + token[0] + '"（' + label + "），但未启用 expandTemplates（请在高级设置中开启「展开凭据模板」或在 YAML 中添加 expandTemplates: true）"
+      );
+    }
+    return text;
+  }
+  for (const hit of text.matchAll(SUSPECT_TEMPLATE_RE)) {
+    if (!EXACT_CREDENTIAL_RE.test(hit[0])) {
+      throw new Error('模板语法无效（' + label + '）："' + hit[0] + '"，请使用 ${credential:REF}');
+    }
+  }
+  let out = "";
+  let cursor = 0;
+  for (const token of text.matchAll(new RegExp(CREDENTIAL_REF_RE.source, "g"))) {
+    const ref = token[1];
+    const value = await getCredential(ref);
+    if (value === undefined || value === "") {
+      throw new Error(
+        '凭据引用 "${credential:' + ref + '}"（' + label + "）未配置或值为空（请在凭据管理、.env 或环境变量 " + ref + " 中设置）"
+      );
+    }
+    const idx = token.index ?? 0;
+    out += text.slice(cursor, idx) + value;
+    cursor = idx + token[0].length;
+  }
+  return out + text.slice(cursor);
+}
+
+function redactText(text: string, secrets: Set<string>): string {
+  if (secrets.size === 0) return text;
+  let clean = text;
+  const sorted = [...secrets].sort((a, b) => b.length - a.length);
+  for (const secret of sorted) {
+    if (secret !== "") clean = clean.split(secret).join("[REDACTED]");
+  }
+  return clean;
+}
+
+/** 必需值：先求值 !!js，再按 expandTemplates 解析 ${credential:REF}。 */
+async function resolveRequired(
+  value: WireScalar | null | undefined,
+  label: string,
+  expandTemplates: boolean,
+  getCredential: (ref: string) => Promise<string | undefined>
+): Promise<string> {
+  const resolved = resolveScalar(value, label);
+  if (resolved === undefined) throw new Error(label + " 的 !!js 表达式没有求值结果：" + (isJsExprValue(value) ? value.__jsExpr : ""));
+  return expandTemplateText(resolved, label, expandTemplates, getCredential);
+}
+
+/** 环境变量/请求头：表达式求值为空时省略这个键，同时解析 ${credential:REF}。 */
+async function stringMap(
+  value: Record<string, WireScalar | null> | undefined,
+  label: string,
+  expandTemplates: boolean,
+  getCredential: (ref: string) => Promise<string | undefined>
+): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (const [key, item] of Object.entries(value ?? {})) {
+    if (item === null || item === undefined) continue;
+    const resolved = resolveScalar(item, label + " " + key);
+    if (resolved === undefined) continue;
+    out[key] = await expandTemplateText(resolved, label + " " + key, expandTemplates, getCredential);
+  }
+  return out;
+}
+
+async function createTransport(
+  input: McpServerInput,
+  getCredential: (ref: string) => Promise<string | undefined>
+) {
+  const expandTemplates = input.expandTemplates === true;
   if (input.transport === "stdio") {
+    const args: string[] = [];
+    for (const item of input.args) args.push(await resolveRequired(item, "参数", expandTemplates, getCredential));
     return new StdioClientTransport({
-      command: resolveRequired(input.command, "命令"),
-      args: input.args.map((item) => resolveRequired(item, "参数")),
+      command: await resolveRequired(input.command, "命令", expandTemplates, getCredential),
+      args,
       env: {
         ...scrubbedParentEnv(),
-        ...stringMap(input.env, "环境变量")
+        ...(await stringMap(input.env, "环境变量", expandTemplates, getCredential))
       },
-      cwd: input.cwd === "" || input.cwd === undefined ? undefined : resolveRequired(input.cwd, "工作目录")
+      cwd: input.cwd === "" || input.cwd === undefined ? undefined : await resolveRequired(input.cwd, "工作目录", expandTemplates, getCredential)
     });
   }
-  return new StreamableHTTPClientTransport(new URL(resolveRequired(input.url, "服务器地址")), {
-    requestInit: { headers: stringMap(input.headers, "请求头") }
+  return new StreamableHTTPClientTransport(new URL(await resolveRequired(input.url, "服务器地址", expandTemplates, getCredential)), {
+    requestInit: { headers: await stringMap(input.headers, "请求头", expandTemplates, getCredential) }
   });
 }
 
-export async function probeMcpServer(raw: unknown, timeoutMs = PROBE_TIMEOUT_MS): Promise<McpProbeResult> {
+export async function probeMcpServer(raw: unknown, timeoutOrOptions: number | McpProbeOptions = PROBE_TIMEOUT_MS): Promise<McpProbeResult> {
+  const options: McpProbeOptions = typeof timeoutOrOptions === "number" ? { timeoutMs: timeoutOrOptions } : (timeoutOrOptions ?? {});
+  const timeoutMs = options.timeoutMs ?? PROBE_TIMEOUT_MS;
   let input: McpServerInput;
   try {
     input = mcpServerInputSchema.parse(raw);
@@ -92,12 +259,14 @@ export async function probeMcpServer(raw: unknown, timeoutMs = PROBE_TIMEOUT_MS)
     return { ok: false, tools: [], error: "配置无效：" + (error instanceof Error ? error.message : String(error)) };
   }
 
+  const secrets = new Set<string>();
+  const getCredential = createCredentialLookup(options, secrets);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const client = new Client({ name: "dsh-skill-mcp-panel", version: "2.0.0" });
   let transport: StdioClientTransport | StreamableHTTPClientTransport | undefined;
   try {
-    transport = createTransport(input);
+    transport = await createTransport(input, getCredential);
     await raceWithAbort(client.connect(transport), controller.signal);
     const tools: McpProbeTool[] = [];
     let cursor: string | undefined;
@@ -113,8 +282,8 @@ export async function probeMcpServer(raw: unknown, timeoutMs = PROBE_TIMEOUT_MS)
     } while (cursor !== undefined && cursor !== "");
     return { ok: true, tools };
   } catch (error) {
-    const reason = controller.signal.aborted ? "连接测试超时（" + timeoutMs + "ms）" : error instanceof Error ? error.message : String(error);
-    return { ok: false, tools: [], error: reason };
+    const rawReason = controller.signal.aborted ? "连接测试超时（" + timeoutMs + "ms）" : error instanceof Error ? error.message : String(error);
+    return { ok: false, tools: [], error: redactText(rawReason, secrets) };
   } finally {
     clearTimeout(timer);
     await Promise.allSettled([client.close().catch(() => {}), transport?.close().catch(() => {})]);
