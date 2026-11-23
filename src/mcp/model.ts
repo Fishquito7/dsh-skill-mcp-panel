@@ -285,7 +285,11 @@ export function configFromPatchRow(row: PatchRow | undefined): Record<string, un
   return row.config as Record<string, unknown>;
 }
 
+/** 服务器写在哪：`client` = 一条 dsh-mcp-client 行；`manager` = dsh-mcp-manager 的 config.servers 条目。 */
+export type McpServerSource = "client" | "manager";
+
 export interface McpServerView {
+  source?: McpServerSource;
   serverName: string;
   transport: McpTransport | "unknown";
   enabled: boolean;

@@ -73,6 +73,8 @@ import {
 } from "./wire.js";
 import { fiberPhaseOf, getLoaderEntry, mcpToolCount, waitForLoaderState } from "./status.js";
 import { probeMcpServer } from "./probe.js";
+import { MANAGER_SOURCE } from "./manager-model.js";
+import { ManagerServers } from "./manager-source.js";
 
 
 function stripUndefined(value: any): any {
@@ -121,10 +123,13 @@ export class McpManagerGateway extends TypertRemoteService {
   toolFilter: any;
   oauthScheduler: OAuthRefreshScheduler | undefined;
   fetchImpl: any = fetch;
+  /** DSH 官方 dsh-mcp-manager 的 config.servers 条目（payload 带 source: "manager" 的走这里）。 */
+  manager: ManagerServers;
 
   constructor(ctx: any, toolFilter?: any) {
     super(ctx, "skillMcpPanel");
     this.toolFilter = toolFilter;
+    this.manager = new ManagerServers(ctx);
   }
 
   setOAuthScheduler(scheduler: OAuthRefreshScheduler | undefined) {
@@ -239,6 +244,7 @@ export class McpManagerGateway extends TypertRemoteService {
         const view = this.decorate(row, true, entry, rowEnabled(row), oauthStore);
         if (view !== undefined) servers.push(view);
       }
+      servers.push(...this.manager.list());
       return { servers, externalServers: [], patch };
     } catch (error) {
       return { servers: [], externalServers: [], patch: { ...patch, error: error instanceof Error ? error.message : String(error) } };
@@ -253,8 +259,21 @@ export class McpManagerGateway extends TypertRemoteService {
     return inputFromPatchRow(row);
   }
 
+  /** 全部 mcp-client 行的 serverName：manager 条目改名时用来查重。 */
+  async clientServerNames(): Promise<string[]> {
+    const { all } = await this.readRows();
+    return all.map((row) => this.serverNameOf(row)).filter((name): name is string => name !== undefined);
+  }
+
+  async saveManagerServer(payload: any) {
+    if (payload.previousServerName === undefined) throw new Error("编辑 dsh-mcp-manager 的服务器需要 previousServerName");
+    const server = await this.manager.save(payload.input, payload.previousServerName, await this.clientServerNames());
+    return { server, reconciled: true };
+  }
+
   async save(rawPayload: unknown) {
     const payload = parseWirePayload(mcpSavePayloadSchema, rawPayload, "MCP 配置无效");
+    if (payload.previousSource === MANAGER_SOURCE) return this.saveManagerServer(payload);
     const input = payload.input;
     const { managed, all } = await this.readRows();
     let previous: PatchRow | undefined;
@@ -274,6 +293,9 @@ export class McpManagerGateway extends TypertRemoteService {
       // 编辑且没改名：文件里可能本来就有重名，允许保存（用 entryId 精确定位那一条）。
       if (previous !== undefined && previousName === input.serverName) continue;
       throw new Error('serverName "' + input.serverName + '" 已存在（' + String(row.id ?? "未命名行") + "）");
+    }
+    if (previousName !== input.serverName && this.manager.names().includes(input.serverName)) {
+      throw new Error('serverName "' + input.serverName + '" 已被 dsh-mcp-manager 的服务器使用');
     }
     // !!js disabled 不是「未禁用」。卡片按停用展示，也不要等 loader 给出某个布尔值。
     const enabled = previous !== undefined ? rowEnabled(previous) : payload.enabled;
@@ -298,6 +320,10 @@ export class McpManagerGateway extends TypertRemoteService {
 
   async removeServer(rawPayload: unknown) {
     const payload = parseWirePayload(mcpRemovePayloadSchema, rawPayload, "删除参数无效");
+    if (payload.source === MANAGER_SOURCE) {
+      await this.manager.remove(payload.serverName);
+      return { ok: true, reconciled: true };
+    }
     const { all } = await this.readRows();
     const row = this.resolveRow(all, { serverName: payload.serverName, entryId: payload.entryId });
     await removeMcpEntry(this.patchPath(), this.locatorOf(row));
@@ -309,6 +335,9 @@ export class McpManagerGateway extends TypertRemoteService {
 
   async setEnabled(rawPayload: unknown) {
     const payload = parseWirePayload(mcpSetEnabledPayloadSchema, rawPayload, "启用参数无效");
+    if (payload.source === MANAGER_SOURCE) {
+      return { server: await this.manager.setEnabled(payload.serverName, payload.enabled), reconciled: true };
+    }
     const { all } = await this.readRows();
     const row = this.resolveRow(all, { serverName: payload.serverName, entryId: payload.entryId });
     // 没有 id 的手写行也能开关：disabled 键按这一条自己的缩进插入/删除。
@@ -326,6 +355,7 @@ export class McpManagerGateway extends TypertRemoteService {
   /** 读出一条 MCP 行的原文，供面板的原文编辑框回填。 */
   async readRaw(rawPayload: unknown) {
     const payload = parseWirePayload(mcpRawReadPayloadSchema, rawPayload, "原文参数无效");
+    if (payload.source === MANAGER_SOURCE) return { serverName: payload.serverName, text: this.manager.readRaw(payload.serverName) };
     const { raw, all } = await this.readRows();
     const row = this.resolveRow(all, { serverName: payload.serverName, entryId: payload.entryId });
     return {
@@ -338,6 +368,10 @@ export class McpManagerGateway extends TypertRemoteService {
   /** 用原文替换一条 MCP 行。表单未建模的字段就走这里。 */
   async writeRaw(rawPayload: unknown) {
     const payload = parseWirePayload(mcpRawWritePayloadSchema, rawPayload, "原文参数无效");
+    if (payload.source === MANAGER_SOURCE) {
+      const server = await this.manager.writeRaw(payload.serverName, payload.text, await this.clientServerNames());
+      return { server, reconciled: true };
+    }
     const { all } = await this.readRows();
     const previous = this.resolveRow(all, { serverName: payload.serverName, entryId: payload.entryId });
     const written = await replaceMcpEntryText(this.patchPath(), this.locatorOf(previous), payload.text);
@@ -371,6 +405,7 @@ export class McpManagerGateway extends TypertRemoteService {
     const payload = parseWirePayload(mcpTestPayloadSchema, rawPayload, "测试参数无效");
     const opts = this.probeOptions();
     if (payload !== null && typeof payload === "object" && !("transport" in payload) && "serverName" in payload) {
+      if ((payload as any).source === MANAGER_SOURCE) return this.manager.probe(String(payload.serverName));
       const { all } = await this.readRows();
       const entryId = typeof (payload as any).entryId === "string" ? String((payload as any).entryId) : undefined;
       const row = this.resolveRow(all, { serverName: String(payload.serverName), entryId });

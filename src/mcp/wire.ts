@@ -18,6 +18,9 @@ const boundaryPayloadSchema = z.unknown();
 
 const fiberPhaseSchema = z.enum(["pending", "loading", "active", "failed", "unloading"]).nullable();
 
+/** 服务器写在哪：一条 dsh-mcp-client 行，还是 dsh-mcp-manager 的 config.servers 条目。 */
+const sourceSchema = z.enum(["client", "manager"]);
+
 const reconnectViewSchema = z.object({
   enabled: z.boolean(),
   initialDelayMs: z.number(),
@@ -36,6 +39,7 @@ export const mcpServerOAuthSummarySchema = z.object({
 });
 
 export const mcpServerViewSchema = z.object({
+  source: sourceSchema.default("client"),
   serverName: z.string(),
   transport: z.enum(["stdio", "streamable-http", "unknown"]),
   enabled: z.boolean(),
@@ -95,6 +99,8 @@ export const mcpSavePayloadSchema = z.object({
   previousServerName: z.string().optional(),
   /** 被编辑行的 entryId：serverName 重复时用它唯一定位（手写行可能没有 id）。 */
   previousEntryId: z.string().optional(),
+  /** 被编辑那张卡片的来源；manager 条目只能编辑，新增服务器仍写成 mcp-client 行。 */
+  previousSource: sourceSchema.optional(),
   enabled: z.boolean().default(true)
 });
 
@@ -107,7 +113,8 @@ export const mcpSaveResultSchema = z.object({
 export const mcpRawReadPayloadSchema = z.object({
   serverName: z.string(),
   /** 精确指定某一行（serverName 重复或手写行没有 id 时用）。 */
-  entryId: z.string().optional()
+  entryId: z.string().optional(),
+  source: sourceSchema.optional()
 });
 
 export const mcpRawReadResultSchema = z.object({
@@ -120,12 +127,14 @@ export const mcpRawReadResultSchema = z.object({
 export const mcpRawWritePayloadSchema = z.object({
   serverName: z.string(),
   entryId: z.string().optional(),
+  source: sourceSchema.optional(),
   text: z.string()
 });
 
 export const mcpRemovePayloadSchema = z.object({
   serverName: z.string(),
-  entryId: z.string().optional()
+  entryId: z.string().optional(),
+  source: sourceSchema.optional()
 });
 
 export const mcpRemoveResultSchema = z.object({
@@ -135,12 +144,13 @@ export const mcpRemoveResultSchema = z.object({
 export const mcpSetEnabledPayloadSchema = z.object({
   serverName: z.string(),
   entryId: z.string().optional(),
+  source: sourceSchema.optional(),
   enabled: z.boolean()
 });
 
 export const mcpTestPayloadSchema = z.union([
   mcpServerInputSchema,
-  z.object({ serverName: z.string(), entryId: z.string().optional() })
+  z.object({ serverName: z.string(), entryId: z.string().optional(), source: sourceSchema.optional() })
 ]);
 
 const mcpToolSchema = z.object({
