@@ -1876,5 +1876,70 @@ const renderChild = (element) => {
   store.delete("dsh-skill-mcp-panel:last-tab");
 }
 
+// ── 21. dsh-mcp-manager 的服务器：来源标记、动作透传 source、表单不给 OAuth / 无效字段 ──
+{
+  const toggleCalls = [];
+  const saveCalls = [];
+  const managerServer = { source: "manager", serverName: "ios", transport: "streamable-http", enabled: true, fiberPhase: "active", toolCount: 4, envKeys: [], url: "http://10.0.0.2:8090/mcp", headerKeys: [] };
+  const managerFace = {
+    ...mcpFace,
+    listMcp: async () => ({
+      servers: [
+        { source: "client", serverName: "ios", transport: "stdio", enabled: true, fiberPhase: "active", toolCount: 1, envKeys: [], entryId: "panel-mcp-ios" },
+        managerServer
+      ],
+      externalServers: [],
+      patch: { path: "C:/p/cordis.patch.yml", ok: true, error: null, foreign: [] }
+    }),
+    setEnabledMcp: async (serverName, enabled, entryId, source) => {
+      toggleCalls.push({ serverName, enabled, entryId, source });
+      return { server: { ...managerServer, enabled }, reconciled: true };
+    },
+    saveMcp: async (input, previousServerName, previousEntryId, previousSource) => {
+      saveCalls.push({ input, previousServerName, previousEntryId, previousSource });
+      return { server: managerServer, reconciled: true };
+    }
+  };
+  const cardsOf = () => findAll(view.section, (n) => n.props.className === "MCP_card");
+  const textOf = (node) => JSON.stringify(node, (key, value) => (key === "_owner" || typeof value === "function" ? undefined : value));
+
+  reset(skills, "mcp");
+  var view = await mount(managerFace);
+  check("manager 与同名 mcp-client 行各占一张卡片，manager 卡片有来源标记", () => {
+    const cards = cardsOf();
+    assert(cards.length === 2, "expected 2 cards, got " + cards.length);
+    assert(textOf(cards[1]).includes("\"manager\""), "manager badge missing");
+    assert(!textOf(cards[0]).includes("\"manager\""), "client card must not carry the manager badge");
+  });
+  findAll(cardsOf()[1], (n) => n.type === "button" && n.props.role === "switch")[0].props.onClick();
+  await flush();
+  view = paint(managerFace);
+  check("manager 卡片启停把 source 发给宿主，只影响这一张卡", () => {
+    assert(toggleCalls.length === 1 && toggleCalls[0].source === "manager" && toggleCalls[0].serverName === "ios", "payload wrong: " + JSON.stringify(toggleCalls));
+    const switches = findAll(view.section, (n) => n.type === "button" && n.props.role === "switch");
+    assert(switches[0].props["aria-checked"] === true, "client card must stay enabled");
+    assert(switches[1].props["aria-checked"] === false, "manager card should read disabled");
+  });
+
+  findAll(cardsOf()[1], (n) => n.type === "button" && n.props.className === "MCP_iconBtn")[0].props.onClick();
+  view = await mount(managerFace);
+  const dialogOf = () => renderChild(findAll(view.section, (n) => typeof n.type === "function" && n.type.name === "McpFormDialog")[0]).tree;
+  findAll(dialogOf(), (n) => n.type === "button" && n.props.children === "▸ 高级设置")[0].props.onClick();
+  view = await mount(managerFace);
+  check("编辑 manager 服务器：不提供 OAuth 登录、启动失败报错、展开凭据模板", () => {
+    const text = textOf(dialogOf());
+    assert(!text.includes("OAuth 登录"), "manager form must not offer OAuth");
+    assert(!text.includes("启动失败时报错"), "manager form must not offer failOnStartupError");
+    assert(!text.includes("展开凭据模板"), "manager form must not offer expandTemplates");
+  });
+  findAll(dialogOf(), (n) => n.type === "button" && n.props.children === "保存")[0].props.onClick();
+  await flush();
+  check("保存 manager 服务器带上 previousSource", () => {
+    assert(saveCalls.length === 1, "expected 1 save call, got " + saveCalls.length);
+    assert(saveCalls[0].previousSource === "manager" && saveCalls[0].previousServerName === "ios", "save payload wrong: " + JSON.stringify(saveCalls[0]));
+  });
+  store.delete("dsh-skill-mcp-panel:last-tab");
+}
+
 console.log("\n" + (failures === 0 ? "ALL HARNESS CHECKS PASSED" : failures + " harness check(s) FAILED"));
 process.exit(failures === 0 ? 0 : 1);

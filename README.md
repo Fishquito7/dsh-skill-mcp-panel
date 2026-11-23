@@ -114,6 +114,7 @@ DSH 插件：把**技能**与 **MCP 服务器**的管理搬进 DSH Web 的主页
 ### MCP 面板
 
 - **服务器管理** —— 支持 **Stdio** 与 **HTTP** 两种方式：新增、编辑、启停、删除、测试连接；保存后由 DSH HMR 热加载，不用重启网关。文件里每一条 `@deepseek-ai/dsh-mcp-client` 都能操作（不区分受管块内外，也不看 id 前缀）。表单改常规项并保留还没做成表单的字段；**原文**按字节改这一条。非 MCP 的行（含块内别人的条目）仍然逐字节保留
+- **dsh-mcp-manager 的服务器** —— DSH 0.2.2 起桌面版 / Web 版默认把 MCP 写在官方 `@deepseek-ai/dsh-mcp-manager` 行的 `config.servers` 里；这些服务器带 `manager` 标记，同样能启停、编辑、改原文、删除、测试连接。读写走 DSH 的 `settings` 服务（带校验、revision 冲突检测与热加载），测试连接用 `mcpManager.probe()`；新添加的服务器仍写成 `dsh-mcp-client` 行。值只能是普通字符串，密钥写成 `${credential:名称}`
 - **密钥** —— `env` / `headers` 在页面与 RPC 里脱敏，编辑时留空即保留旧值；值里写 `${NAME}` 就是读该环境变量
 - **单工具禁用** —— 按工具名关掉其中一部分，被禁的工具会从模型看到的工具表里**消失**（不是调用时才拒绝），上下文立刻省下来
 - **OAuth 登录** —— 远程 `streamable-http` 服务器支持时一键登录（按 RFC 8414 / OIDC / RFC 9728 逐级发现授权服务器，兼容带路径端点；动态注册客户端、授权码 + PKCE + RFC 8707 resource），令牌写回该行配置并热加载；可随时断开
