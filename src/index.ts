@@ -401,8 +401,16 @@ const MAX_ADD_TOTAL_BYTES = 8 * 1024 * 1024;
  * 让 API 网关可以分发端点。
  */
 export class SkillsViewerGateway extends TypertRemoteService {
-  constructor(ctx) {
+  /**
+   * 让技能注册表的目录缓存失效。面板自己改完磁盘必须立刻调用：注册表按 revision 缓存
+   * 目录，桌面版宿主级 skill-filesystem 行被禁用，preset 层的监听器只看根目录下一层，
+   * 嵌套技能和没有在线会话时的改动都不会被看见。
+   */
+  private readonly invalidateCatalog: () => void;
+
+  constructor(ctx, invalidateCatalog: () => void = () => {}) {
     super(ctx, "skillsViewer");
+    this.invalidateCatalog = invalidateCatalog;
   }
 
   /** 对动态 harness 上下文（sessions/agents/typert）的无类型访问桥。 */
@@ -595,7 +603,8 @@ export class SkillsViewerGateway extends TypertRemoteService {
         ...(skill.whenToUse === undefined ? {} : { whenToUse: skill.whenToUse }),
         provider: skill.provider,
         source,
-        enabled: true,
+        // 提供方把模型与用户调用都关掉（如技能管理器的策略停用）就是停用，不能一律显示启用。
+        enabled: skill.invocation.modelInvocable || skill.invocation.userInvocable,
         modelInvocable: skill.invocation.modelInvocable,
         userInvocable: skill.invocation.userInvocable,
         scope: { kind: "global" },
@@ -896,12 +905,40 @@ export class SkillsViewerGateway extends TypertRemoteService {
     }
   }
 
+  /**
+   * 文件已是启用状态，注册表里这同一个文件却不可调用：被其他提供方的策略停用
+   * （例如技能管理器只改自己的状态、源文件不变），改名救不回来，明确报错而不是假装成功。
+   */
+  async assertNotPolicyDisabled(entry, sessionId) {
+    const { registry, cwd, scope } = this.viewFor(sessionId);
+    const live = await registry.get(entry.name, { cwd, scope });
+    if (live === undefined || typeof live.path !== "string" || resolvePath(live.path) !== resolvePath(entry.file)) return;
+    if (live.invocation.modelInvocable || live.invocation.userInvocable) return;
+    throw new Error('技能 "' + entry.name + '" 的文件已是启用状态，但 ' + live.provider + " 仍把它标为不可调用（插件策略停用，或 frontmatter 同时关闭了模型与用户调用）；请到对应插件或技能文件里调整");
+  }
+
+  /**
+   * 启停改名。目标已存在且内容相同是陈旧副本（例如插件启动时又补回了 SKILL.md），
+   * 删掉再改名；内容不同则拒绝，绝不覆盖用户内容。改完立刻让注册表失效。
+   */
+  async renameSkillFile(source, target) {
+    if (await pathExists(target)) {
+      const [current, twin] = await Promise.all([readFile(source), readFile(target)]);
+      if (!current.equals(twin)) throw new Error("目标文件已存在且内容不同：" + target + "（请先手动合并或删除其中一份）");
+      await rm(target, { force: true });
+    }
+    await rename(source, target);
+    this.invalidateCatalog();
+  }
+
   /** 文件条目的原地启停改名。 */
-  async setEntryEnabled(name, entry, enabled) {
-    if (enabled === entry.enabled) return { name, enabled };
+  async setEntryEnabled(name, entry, enabled, sessionId) {
+    if (enabled === entry.enabled) {
+      if (enabled) await this.assertNotPolicyDisabled(entry, sessionId);
+      return { name, enabled };
+    }
     const target = enabled ? entry.file.slice(0, -DISABLED_SUFFIX.length) : entry.file + DISABLED_SUFFIX;
-    if (await pathExists(target)) throw new Error("目标文件已存在：" + target);
-    await rename(entry.file, target);
+    await this.renameSkillFile(entry.file, target);
     return { name, enabled };
   }
 
@@ -914,7 +951,7 @@ export class SkillsViewerGateway extends TypertRemoteService {
     const scoped = typeof scope === "string" && scope !== "";
     if (scoped) {
       const entry = await this.entryInScope(name, scope);
-      if (entry !== undefined) return this.setEntryEnabled(name, entry, enabled);
+      if (entry !== undefined) return this.setEntryEnabled(name, entry, enabled, sessionId);
       // 工作区作用域下只有文件条目，找不到就是不存在；global 允许落到下面的
       // 在线技能分支（插件贡献等非文件技能仍以注册表路径为准）。
       if (scope !== "global") throw new Error('技能 "' + name + '" 在指定作用域中不存在');
@@ -925,19 +962,18 @@ export class SkillsViewerGateway extends TypertRemoteService {
       const skill = located.skill;
       this.assertEditable(skill, await this.allRoots());
       if (enabled) return { name, enabled: true };
-      const target = skill.path + DISABLED_SUFFIX;
-      if (await pathExists(target)) throw new Error("目标文件已存在：" + target);
-      await rename(skill.path, target);
+      await this.renameSkillFile(skill.path, skill.path + DISABLED_SUFFIX);
       return { name, enabled: false };
     }
     if (scoped) throw new Error('技能 "' + name + '" 在指定作用域中不存在');
-    return this.setEntryEnabled(name, located.entry, enabled);
+    return this.setEntryEnabled(name, located.entry, enabled, sessionId);
   }
 
   /** 删除一个文件条目（目录束连目录一起删）。 */
   async removeEntry(entry) {
     if (entry.dirBundle) await rm(dirname(entry.file), { recursive: true, force: true });
     else await rm(entry.file, { force: true });
+    this.invalidateCatalog();
   }
 
   /**
@@ -961,6 +997,7 @@ export class SkillsViewerGateway extends TypertRemoteService {
       this.assertEditable(skill, await this.allRoots());
       if (basename(skill.path) === "SKILL.md") await rm(dirname(skill.path), { recursive: true, force: true });
       else await rm(skill.path, { force: true });
+      this.invalidateCatalog();
       return { name };
     }
     if (scoped) throw new Error('技能 "' + name + '" 在指定作用域中不存在');
@@ -996,6 +1033,7 @@ export class SkillsViewerGateway extends TypertRemoteService {
       : await this.migratableEntry(name, sessionId);
     if (entry === undefined || entry === null) throw new Error('技能 "' + name + '" 没有可迁移的文件（随部署附带、运行时内置或不在指定源作用域的技能不可迁移）');
     await migrateEntry(entry, targetRoot, mode);
+    this.invalidateCatalog();
     return { name, scope: await this.scopeForTarget(targetRoot, targetProject) };
   }
 
@@ -1030,6 +1068,7 @@ export class SkillsViewerGateway extends TypertRemoteService {
         results.push({ name: item.name, target: rawTarget ?? null, ok: item.ok, ...(item.error === undefined ? {} : { error: item.error }) });
       }
     }
+    this.invalidateCatalog();
     return { results };
   }
 
@@ -1206,6 +1245,9 @@ export class SkillsViewerGateway extends TypertRemoteService {
    * 注册表不可用时不阻塞：返回空集合（视为已接收）。
    */
   async waitForDiscovery(names, sessionId, probeCwd) {
+    // 刚写完盘：先让注册表失效，否则缓存里的旧目录看不到新技能，误判「DSH 未接受」并回滚
+    //（删除后的「撤销」走的就是 addSkill）。
+    this.invalidateCatalog();
     const { registry, scope } = this.viewFor(sessionId);
     const pending = new Set(names);
     for (let attempt = 0; attempt < 12; attempt++) {
@@ -1224,9 +1266,21 @@ export class SkillsViewerGateway extends TypertRemoteService {
   }
 }
 
+/**
+ * 登记嵌套提供方，并把这次登记拿到的 invalidate 交给网关：它失效的是整个技能注册表的
+ * 目录缓存（不只本提供方），面板写盘后靠它刷新。登记前或登记撤销后调用都是空操作。
+ */
+function registerNestedProvider(ctx: any, catalog: { invalidate: () => void }) {
+  ctx.skills.registerProvider((control) => {
+    catalog.invalidate = control.invalidate;
+    return new NestedSkillProvider(NESTED_SKILL_RANK, control.signal, control.invalidate);
+  });
+}
+
 export function apply(ctx: any) {
   ensureGlobalShim(ctx.logger);
-  new SkillsViewerGateway(ctx);
+  const catalog = { invalidate: () => {} };
+  new SkillsViewerGateway(ctx, () => catalog.invalidate());
   // 单工具禁用与作用域分层（Issue #44 / #55）：控制器按 agent 作用域施加限制，网关负责读写配置。
   const filterRef: { current: ToolFilterController | undefined } = { current: undefined };
   const toolFilterAdapter = {
@@ -1272,5 +1326,5 @@ export function apply(ctx: any) {
     };
   }, "dsh-skill-mcp-panel: OAuth 自动续期");
   ctx.effect(() => ctx.typert.register(PANEL_MANIFEST), "dsh-skill-mcp-panel: typert manifest");
-  ctx.skills.registerProvider((control) => new NestedSkillProvider(NESTED_SKILL_RANK, control.signal, control.invalidate));
+  registerNestedProvider(ctx, catalog);
 }

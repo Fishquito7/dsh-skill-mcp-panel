@@ -11,17 +11,27 @@
  */
 
 import { readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { homedir } from "node:os";
 import { resolveDshHome } from "./host-paths.js";
 import chokidar from "chokidar";
-import { buildRoots, collectSkillEntries, parseFrontmatter } from "./skill-files.js";
+import { buildRoots, collectSkillEntries, parseFrontmatter, SKIP_DIR_NAMES } from "./skill-files.js";
 
 /** 嵌套技能的 rank（custom 带；低于用户根 400/500，高于项目根 100/200）。 */
 export const NESTED_SKILL_RANK = 300;
 
 /** 注册表里的提供方名字；面板据此区分「文件技能」与「插件自带技能」。 */
 export const NESTED_PROVIDER_NAME = "nested";
+
+/**
+ * 监听时要跳过的路径：只看**根目录以下**的段（隐藏目录、依赖目录）。根本身就在
+ * ~/.agents、~/.dsh 这类点目录里，按绝对路径逐段判断会把整棵树都忽略掉。
+ */
+function isIgnoredWatchPath(roots: readonly string[], candidate: string): boolean {
+  const root = roots.find((path) => candidate === path || candidate.startsWith(path + sep));
+  const inside = root === undefined ? candidate : relative(root, candidate);
+  return inside.split(/[/\\]/).some((part) => SKIP_DIR_NAMES.has(part) || part.startsWith("."));
+}
 
 export class NestedSkillProvider {
   readonly name = NESTED_PROVIDER_NAME;
@@ -31,12 +41,10 @@ export class NestedSkillProvider {
     signal: AbortSignal,
     invalidate: () => void,
   ) {
-    const watcher = chokidar.watch(this.roots(), {
+    const roots = this.roots();
+    const watcher = chokidar.watch(roots, {
       ignoreInitial: true,
-      ignored: (candidate: string) => {
-        const parts = candidate.split(/[/\\]/);
-        return parts.some((part) => part === "node_modules" || part.startsWith("."));
-      },
+      ignored: (candidate: string) => isIgnoredWatchPath(roots, candidate),
     });
     let timer: ReturnType<typeof setTimeout> | undefined;
     const kick = (): void => {

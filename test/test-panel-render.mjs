@@ -1876,5 +1876,34 @@ const renderChild = (element) => {
   store.delete("dsh-skill-mcp-panel:last-tab");
 }
 
+// ── 21. 技能开关 / 删除失败：Toast 给出宿主原因，不再只剩「操作失败」────────────
+{
+  const reason = "目标文件已存在且内容不同：/x/SKILL.md.disabled";
+  const envelope = (method) => new Error("skillsViewer." + method + " failed: gateway/internal: " + reason);
+  const failingFace = {
+    ...rpc,
+    setSkillEnabled: async () => { throw envelope("setEnabled"); },
+    removeSkill: async () => { throw envelope("deleteSkill"); }
+  };
+  const cardOf = (view, name) => byClass(view.section, "SKV_card").find((card) => card.props["data-skill-name"] === name);
+  const toastText = (view) => String(byClass(view.section, "SKV_toast")[0].props.children[0]?.props.children);
+  reset();
+  let view = await mount(failingFace);
+  byClass(cardOf(view, "alpha"), "SKV_traffic")[0].props.onClick();
+  await flush();
+  view = paint(failingFace);
+  check("开关失败：Toast 显示宿主原因，gateway/internal 信封前缀被剥掉", () => {
+    assert(toastText(view) === "操作失败：" + reason, "toast text wrong: " + toastText(view));
+    assert(byClass(cardOf(view, "alpha"), "SKV_opError").length === 1, "the inline failure badge must stay");
+  });
+  byClass(cardOf(view, "omega"), "SKV_rowDelete")[0].props.onClick();
+  await flush();
+  view = paint(failingFace);
+  check("删除失败：行回到原位，Toast 显示宿主原因", () => {
+    assert(cardOf(view, "omega").props["data-removing"] === undefined, "the row must stop fading out");
+    assert(toastText(view) === "操作失败：" + reason, "toast text wrong: " + toastText(view));
+  });
+}
+
 console.log("\n" + (failures === 0 ? "ALL HARNESS CHECKS PASSED" : failures + " harness check(s) FAILED"));
 process.exit(failures === 0 ? 0 : 1);
