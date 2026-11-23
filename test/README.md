@@ -13,7 +13,7 @@ for f in test/test-*.mjs; do node "$f" || exit 1; done
 node test/test-patch-editor.mjs
 ```
 
-- `test-*.mjs` —— 回归测试，共 24 个；每个文件对应一次真实故障或一个功能面（文件头注释里写了背景）。
+- `test-*.mjs` —— 回归测试，共 25 个；每个文件对应一次真实故障或一个功能面（文件头注释里写了背景）。
 - `mcp-server-fixture.mjs` —— 最小 stdio MCP 服务器，`test-mcp-probe.mjs` 用它测「测试连接」。
 - `mcp-preview-server.mjs` —— 10 个工具的本机预览服务器，手动在面板里注册时用；也给「单工具禁用」提供真实对象。
 

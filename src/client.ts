@@ -530,6 +530,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			deleteLabel: "删除",
 			confirmDelete: "确认删除？",
 			opFailed: "操作失败",
+			opFailedReason: "操作失败：{reason}",
 			addButton: "添加技能",
 			addTarget: "添加到：",
 			addSingle: "添加单文件",
@@ -669,6 +670,7 @@ const cssGroups = ".SKV_groupItemWrap{position:relative;display:inline-flex;alig
 			deleteLabel: "Delete",
 			confirmDelete: "Confirm delete?",
 			opFailed: "Operation failed",
+			opFailedReason: "Operation failed: {reason}",
 			addButton: "Add skill",
 			addTarget: "Add to: ",
 			addSingle: "Add files",
@@ -1925,8 +1927,9 @@ function SkillsSection(props) {
 					setListState((prev) => (prev.status === "ready" ? { status: "ready", skills: prev.skills.map((s) => (s.name === skill.name && scopeOf(s) === scopeOf(skill) ? { ...s, enabled: target } : s)) } : prev));
 					setOps((prev) => ({ ...prev, [opKeyOf(skill)]: { status: "ok" } }));
 					return true;
-				}, () => {
+				}, (error) => {
 					setOps((prev) => ({ ...prev, [opKeyOf(skill)]: { status: "error" } }));
+					showToast(t("opFailedReason").replace("{reason}", cleanHostError(error)));
 					return false;
 				});
 			};
@@ -2022,13 +2025,14 @@ function SkillsSection(props) {
 						setExpanded((current) => (current === key ? null : current));
 						showToast(t("toastDeleted").replace("{name}", snapshot.name), { label: t("toastUndo"), run: () => { undoDelete(snapshot); } });
 						reloadAfterHot();
-					}, () => {
+					}, (error) => {
 						setRemoving((prev) => {
 							const next = new Set(prev);
 							next.delete(key);
 							return next;
 						});
 						setOps((prev) => ({ ...prev, [key]: { status: "error" } }));
+						showToast(t("opFailedReason").replace("{reason}", cleanHostError(error)));
 					});
 				});
 			};
@@ -2048,7 +2052,8 @@ function SkillsSection(props) {
 			});
 
 			// 把宿主的业务报错从 RPC 信封前缀里剥出来（提示语已经是面向用户的中文）。
-			const cleanHostError = (error) => String(error?.message ?? error).replace(/^skillsViewer\.[a-zA-Z]+ failed: [a-zA-Z0-9_-]+: /, "");
+			// 网关错误码带斜杠（如 gateway/internal），字符类必须含 "/"，否则前缀剥不掉。
+			const cleanHostError = (error) => String(error?.message ?? error).replace(/^skillsViewer\.[a-zA-Z]+ failed: [a-zA-Z0-9_/-]+: /, "");
 
 			// 同名技能可能存在于多个作用域：操作状态与目标都按（名称, 作用域）区分。
 			const opKeyOf = (skill) => skill.name + "\u0000" + (skill.scope !== undefined && skill.scope !== null && skill.scope.kind === "workspace" ? skill.scope.path : "global");

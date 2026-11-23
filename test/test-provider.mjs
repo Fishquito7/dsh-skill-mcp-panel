@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, rename, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { NestedSkillProvider } from "../lib/provider.js";
@@ -16,6 +16,9 @@ process.env.DSH_HOME = join(base, ".dsh");
 process.env.DSH_AGENTS_HOME = join(base, ".agents");
 const agentsSkills = join(process.env.DSH_AGENTS_HOME, "skills");
 const dshSkills = join(process.env.DSH_HOME, "skills");
+// 提供方会真的挂上监听器：无论断言成败都要 abort，否则进程不退出。
+const listing = new AbortController();
+const watching = new AbortController();
 
 try {
   const md = (name, description = name, extra = "") =>
@@ -36,7 +39,7 @@ try {
   await writeFile(join(agentsSkills, "lark-cli", "disabled-skill", "SKILL.md.disabled"), md("disabled-skill"));
   await writeFile(join(agentsSkills, "flat-note.md"), md("flat-note"));
 
-  const provider = new NestedSkillProvider(300, new AbortController().signal, () => {});
+  const provider = new NestedSkillProvider(300, listing.signal, () => {});
   const candidates = await provider.list({});
 
   const names = candidates.map((c) => c.name).sort();
@@ -61,7 +64,24 @@ try {
   assert.equal(skill.path, approval.locator.path);
   pass("get(): 返回完整定义（content/body）");
 
+  // 监听回归：根本身就在点目录里（与真实 ~/.agents、~/.dsh 同形）。旧的 ignored 判据按绝对路径
+  // 逐段判断，".agents" 一段就让整棵树被忽略，嵌套技能停用/删除后注册表永远不失效。
+  const WATCH_READY_MS = 800;
+  const WATCH_TIMEOUT_MS = 4000;
+  const WATCH_POLL_MS = 100;
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  let invalidations = 0;
+  new NestedSkillProvider(300, watching.signal, () => { invalidations += 1; });
+  await sleep(WATCH_READY_MS);
+  const watchedFile = join(agentsSkills, "mattpocock", "grilling", "SKILL.md");
+  await rename(watchedFile, watchedFile + ".disabled");
+  for (let waited = 0; invalidations === 0 && waited < WATCH_TIMEOUT_MS; waited += WATCH_POLL_MS) await sleep(WATCH_POLL_MS);
+  assert.ok(invalidations > 0, "点目录根下的 SKILL.md 改名没有触发 invalidate");
+  pass("watcher: ~/.agents 这类点目录根下的改动也会让注册表失效");
+
   console.log(`\nprovider tests: ${passed} passed`);
 } finally {
+  listing.abort();
+  watching.abort();
   await rm(base, { recursive: true, force: true });
 }
